@@ -44,19 +44,6 @@ interface InformationStepProps {
 }
 
 export const InformationStep = ({ formData, onFormDataChange }: InformationStepProps) => {
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
-    formData.subjects ? formData.subjects.split(',').map(s => s.trim()) : []
-  );
-
-  const handleSubjectChange = (subject: string) => {
-    const newSelection = selectedSubjects.includes(subject)
-      ? selectedSubjects.filter(s => s !== subject)
-      : [...selectedSubjects, subject];
-    
-    setSelectedSubjects(newSelection);
-    onFormDataChange('subjects', newSelection.join(', '));
-  };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
     onFormDataChange('profilePhoto', file);
@@ -77,12 +64,11 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
       </div>
 
       <div className="space-y-8 max-w-4xl mx-auto">
-        {/* Card container pour un style plus épuré */}
-        <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
+        {/* Container sans bordures */}
+        <div className="bg-card rounded-2xl p-8 shadow-sm">
           
           {/* Localisation */}
           <div className="space-y-6 mb-8">
-            <h3 className="text-lg font-medium text-foreground">Localisation</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-3">
                 <Label htmlFor="country" className="text-sm font-medium text-foreground">Pays *</Label>
@@ -125,7 +111,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Informations académiques */}
           <div className="space-y-6 mb-8">
-            <h3 className="text-lg font-medium text-foreground">Informations académiques</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Niveau d'enseignement</Label>
@@ -160,49 +145,21 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Matières */}
           <div className="space-y-6 mb-8">
-            <h3 className="text-lg font-medium text-foreground">Matière(s) *</h3>
-            <div className="bg-muted/30 rounded-xl p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Label className="text-sm font-medium text-foreground">Matière(s) *</Label>
+            <Select value={formData.subjects} onValueChange={(value) => onFormDataChange('subjects', value)}>
+              <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                <SelectValue placeholder="Sélectionnez une ou plusieurs matières" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border border-border shadow-lg rounded-xl max-h-60">
                 {subjects.map((subject) => (
-                  <label 
-                    key={subject}
-                    className={`cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-                      selectedSubjects.includes(subject) 
-                        ? 'bg-primary/10 border-primary text-primary' 
-                        : 'bg-background border-border hover:border-primary/50 hover:bg-primary/5'
-                    } border rounded-lg p-4 flex items-center space-x-3 group`}
-                  >
-                    <div className={`w-5 h-5 rounded-full border-2 transition-all duration-200 flex items-center justify-center ${
-                      selectedSubjects.includes(subject)
-                        ? 'bg-primary border-primary'
-                        : 'border-border group-hover:border-primary/50'
-                    }`}>
-                      {selectedSubjects.includes(subject) && (
-                        <div className="w-2 h-2 rounded-full bg-white"></div>
-                      )}
-                    </div>
-                    <span className={`text-sm transition-colors duration-200 ${
-                      selectedSubjects.includes(subject) 
-                        ? 'text-primary font-medium' 
-                        : 'text-foreground group-hover:text-primary'
-                    }`}>
-                      {subject}
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={selectedSubjects.includes(subject)}
-                      onChange={() => handleSubjectChange(subject)}
-                      className="hidden"
-                    />
-                  </label>
+                  <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                 ))}
-              </div>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Section de liaison */}
           <div className="space-y-6 mb-8">
-            <h3 className="text-lg font-medium text-foreground">Liaison</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <Label htmlFor="linkCode" className="text-sm font-medium text-foreground">Code de liaison</Label>
@@ -234,7 +191,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Section ENT et IA */}
           <div className="space-y-6 mb-8">
-            <h3 className="text-lg font-medium text-foreground">Outils numériques</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">ENT / Pronote</Label>
@@ -271,7 +227,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Photo de profil */}
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-foreground">Photo de profil</h3>
+            <Label className="text-sm font-medium text-foreground">Photo de profil</Label>
             <div className="flex items-center justify-center">
               {formData.profilePhoto ? (
                 <div className="relative group">
