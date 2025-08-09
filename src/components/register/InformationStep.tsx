@@ -77,8 +77,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
         </p>
       </div>
 
-      <div className="space-y-8 max-w-4xl mx-auto">
-        {/* Container sans bordures */}
+      {/* Container spécifique à l'étape 3 - 80% de largeur, sans bordures */}
+      <div className="w-4/5 mx-auto">
         <div className="bg-card rounded-2xl p-8 shadow-sm">
           
           {/* Localisation */}

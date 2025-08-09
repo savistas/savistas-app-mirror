@@ -125,56 +125,54 @@ const Register = () => {
     <TooltipProvider>
       <div className="min-h-screen bg-background py-8 px-6">
         <div className="max-w-4xl mx-auto animate-fade-in">
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="text-3xl font-semibold text-center mb-8">
-                Créer un compte
-              </CardTitle>
-              <StepIndicator 
-                currentStep={currentStep}
-                totalSteps={4}
-                stepTitles={stepTitles}
-              />
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-8">
-                {renderStep()}
-                
-                <div className="flex justify-between pt-6">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handlePrev}
-                    disabled={currentStep === 1}
-                    className="flex items-center space-x-2"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    <span>Précédent</span>
-                  </Button>
-                  
-                  {currentStep < 4 ? (
-                    <Button
-                      type="button"
-                      onClick={handleNext}
-                      disabled={!canProceed()}
-                      className="flex items-center space-x-2"
-                    >
-                      <span>Suivant</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  ) : (
-                    <Button 
-                      type="submit"
-                      disabled={!canProceed()}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                    >
-                      Créer un compte
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-semibold text-foreground mb-8">
+              Créer un compte
+            </h1>
+            <StepIndicator 
+              currentStep={currentStep}
+              totalSteps={4}
+              stepTitles={stepTitles}
+            />
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {renderStep()}
+            
+            <div className="flex justify-between pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrev}
+                disabled={currentStep === 1}
+                className="flex items-center space-x-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Précédent</span>
+              </Button>
+              
+              {currentStep < 4 ? (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={!canProceed()}
+                  className="flex items-center space-x-2"
+                >
+                  <span>Suivant</span>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button 
+                  type="submit"
+                  disabled={!canProceed()}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                >
+                  Créer un compte
+                </Button>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     </TooltipProvider>
