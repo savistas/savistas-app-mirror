@@ -68,10 +68,10 @@ export const SubscriptionStep = ({ selectedSubscription, onSubscriptionSelect }:
           <Card 
             key={subscription.id}
             className={cn(
-              "cursor-pointer transition-all duration-200 hover:shadow-lg border-2 relative",
+              "cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] border-2 relative",
               selectedSubscription === subscription.id 
                 ? 'border-primary bg-primary/5 shadow-lg' 
-                : 'border-border hover:border-primary/50',
+                : 'border-border hover:border-primary/50 hover:bg-primary/5',
               subscription.popular && "ring-2 ring-primary ring-opacity-20"
             )}
             onClick={() => onSubscriptionSelect(subscription.id)}

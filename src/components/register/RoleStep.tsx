@@ -58,10 +58,10 @@ export const RoleStep = ({ selectedRole, onRoleSelect }: RoleStepProps) => {
           return (
             <Card 
               key={role.id}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 border-2 ${
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-2 ${
                 selectedRole === role.id 
-                  ? 'border-primary bg-primary/5' 
-                  : 'border-border hover:border-primary/50'
+                  ? 'border-primary bg-primary/5 shadow-md' 
+                  : 'border-border hover:border-primary/50 hover:bg-primary/5'
               }`}
               onClick={() => onRoleSelect(role.id)}
             >

@@ -24,9 +24,11 @@ const Register = () => {
     // Step 3: Information
     country: "",
     city: "",
+    postalCode: "",
     educationLevel: "",
     classes: "",
     subjects: "",
+    profilePhoto: null as File | null,
     // Step 4: Personal Info
     fullName: "",
     email: "",
@@ -36,7 +38,7 @@ const Register = () => {
 
   const stepTitles = ["Rôle", "Abonnement", "Informations", "Compte"];
 
-  const handleFormDataChange = (field: string, value: string) => {
+  const handleFormDataChange = (field: string, value: string | File | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
