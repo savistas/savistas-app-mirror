@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import BottomNav from "@/components/BottomNav";
 import { 
   User, 
   Power, 
@@ -38,7 +39,7 @@ const Result = () => {
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 animate-fade-in">
+      <main className="p-6 space-y-6 animate-fade-in pb-24">
         <div className="max-w-lg mx-auto space-y-6">
           {/* Result Header */}
           <div className="text-center space-y-2">
@@ -125,6 +126,9 @@ const Result = () => {
           </Button>
         </div>
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 };

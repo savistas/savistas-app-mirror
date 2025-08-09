@@ -1,16 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import BottomNav from "@/components/BottomNav";
 import { 
   User, 
   Power, 
   Menu,
   Send,
   Bot,
-  Zap,
-  Home,
-  Calendar,
-  MessageCircle
+  Zap
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -149,7 +147,7 @@ const Messaging = () => {
       )}
 
       {/* Message Input */}
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border pb-24">
         <div className="flex space-x-2">
           <Input
             value={message}
@@ -169,22 +167,7 @@ const Messaging = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <nav className="border-t border-border bg-background md:hidden">
-        <div className="flex items-center justify-around py-3">
-          <Link to="/dashboard" className="flex flex-col items-center space-y-1">
-            <Home className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-xs text-muted-foreground">Accueil</span>
-          </Link>
-          <Link to="/calendar" className="flex flex-col items-center space-y-1">
-            <Calendar className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="text-xs text-muted-foreground">Agenda</span>
-          </Link>
-          <Link to="/messaging" className="flex flex-col items-center space-y-1">
-            <MessageCircle className="w-5 h-5 text-primary" strokeWidth={1.5} />
-            <span className="text-xs text-primary font-medium">Messages</span>
-          </Link>
-        </div>
-      </nav>
+      <BottomNav />
     </div>
   );
 };

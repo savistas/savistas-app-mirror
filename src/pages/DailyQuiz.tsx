@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import BottomNav from "@/components/BottomNav";
 import { Progress } from "@/components/ui/progress";
 import { 
   User, 
@@ -69,7 +70,7 @@ const DailyQuiz = () => {
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 animate-fade-in">
+      <main className="p-6 space-y-6 animate-fade-in pb-24">
         {/* Question Header */}
         <div className="text-center space-y-2">
           <h1 className="text-xl font-semibold text-primary">
@@ -120,22 +121,10 @@ const DailyQuiz = () => {
           </Button>
         </div>
 
-        {/* AI Assistant FAB */}
-        <div className="fixed bottom-8 right-6">
-          <Button 
-            asChild
-            size="lg" 
-            className="w-14 h-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg"
-          >
-            <Link to="/messaging">
-              <div className="relative">
-                <Bot className="w-6 h-6" strokeWidth={1.5} />
-                <Zap className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400" strokeWidth={2} />
-              </div>
-            </Link>
-          </Button>
-        </div>
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 };

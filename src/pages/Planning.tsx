@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import BottomNav from "@/components/BottomNav";
 import { 
   User, 
   Power, 
@@ -94,7 +95,7 @@ const Planning = () => {
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 animate-fade-in">
+      <main className="p-6 space-y-6 animate-fade-in pb-24">
         {/* Title and Month */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-foreground">Planning</h1>
@@ -183,22 +184,10 @@ const Planning = () => {
           </Button>
         </div>
 
-        {/* AI Assistant FAB */}
-        <div className="fixed bottom-20 right-6 md:bottom-8">
-          <Button 
-            asChild
-            size="lg" 
-            className="w-14 h-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg"
-          >
-            <Link to="/messaging">
-              <div className="relative">
-                <Bot className="w-6 h-6" strokeWidth={1.5} />
-                <Zap className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400" strokeWidth={2} />
-              </div>
-            </Link>
-          </Button>
-        </div>
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 };
