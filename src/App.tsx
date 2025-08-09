@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Welcome from "./pages/Welcome";
-import RoleSelection from "./pages/RoleSelection";
+
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import UploadCourse from "./pages/UploadCourse";
@@ -26,7 +26,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/welcome" element={<Welcome />} />
-          <Route path="/role-selection" element={<RoleSelection />} />
+          
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/upload-course" element={<UploadCourse />} />

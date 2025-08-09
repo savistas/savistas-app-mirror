@@ -1,193 +1,177 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { StepIndicator } from "@/components/register/StepIndicator";
+import { RoleStep } from "@/components/register/RoleStep";
+import { SubscriptionStep } from "@/components/register/SubscriptionStep";
+import { InformationStep } from "@/components/register/InformationStep";
+import { PersonalInfoStep } from "@/components/register/PersonalInfoStep";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const Register = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const selectedRole = location.state?.role || "";
+  const [currentStep, setCurrentStep] = useState(1);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   
   const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
+    // Step 1: Role
+    role: "",
+    // Step 2: Subscription
+    subscription: "",
+    // Step 3: Information
     country: "",
     city: "",
-    password: "",
-    role: selectedRole,
     educationLevel: "",
     classes: "",
     subjects: "",
-    profilePhoto: null as File | null,
-    linkCode: "",
-    linkRelation: "",
-    ent: "",
-    aiLevel: ""
+    // Step 4: Personal Info
+    fullName: "",
+    email: "",
+    phone: "",
+    password: ""
   });
+
+  const stepTitles = ["Rôle", "Abonnement", "Informations", "Compte"];
+
+  const handleFormDataChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleNext = () => {
+    if (currentStep < 4) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would normally handle the registration
-    navigate("/dashboard");
+    if (currentStep === 4 && termsAccepted && privacyAccepted) {
+      // Here you would normally handle the registration
+      console.log("Registration data:", formData);
+      navigate("/dashboard");
+    }
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.role !== "";
+      case 2:
+        return formData.subscription !== "";
+      case 3:
+        return true; // Information step is optional
+      case 4:
+        return formData.fullName && formData.email && formData.password && termsAccepted && privacyAccepted;
+      default:
+        return false;
+    }
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <RoleStep 
+            selectedRole={formData.role}
+            onRoleSelect={(role) => handleFormDataChange('role', role)}
+          />
+        );
+      case 2:
+        return (
+          <SubscriptionStep 
+            selectedSubscription={formData.subscription}
+            onSubscriptionSelect={(subscription) => handleFormDataChange('subscription', subscription)}
+          />
+        );
+      case 3:
+        return (
+          <InformationStep 
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+          />
+        );
+      case 4:
+        return (
+          <PersonalInfoStep 
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+            termsAccepted={termsAccepted}
+            privacyAccepted={privacyAccepted}
+            onTermsChange={setTermsAccepted}
+            onPrivacyChange={setPrivacyAccepted}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background py-8 px-6">
-      <div className="max-w-2xl mx-auto animate-fade-in">
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-2xl font-semibold text-center">
-              Créer un compte
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nom complet</Label>
-                  <Input
-                    id="fullName"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Adresse e-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="country">Pays</Label>
-                  <Select value={formData.country} onValueChange={(value) => setFormData({...formData, country: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un pays" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="france">France</SelectItem>
-                      <SelectItem value="belgium">Belgique</SelectItem>
-                      <SelectItem value="switzerland">Suisse</SelectItem>
-                      <SelectItem value="canada">Canada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="city">Ville/Code postal</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({...formData, city: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Rôle</Label>
-                  <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un rôle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="student">Élève</SelectItem>
-                      <SelectItem value="teacher">Enseignant</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="school">Établissement scolaire</SelectItem>
-                      <SelectItem value="company">Entreprise</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Niveau d'enseignement</Label>
-                  <Select value={formData.educationLevel} onValueChange={(value) => setFormData({...formData, educationLevel: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un niveau" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="primaire">Primaire</SelectItem>
-                      <SelectItem value="college">Collège</SelectItem>
-                      <SelectItem value="lycee">Lycée</SelectItem>
-                      <SelectItem value="superieur">Supérieur</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="classes">Classe(s)</Label>
-                  <Input
-                    id="classes"
-                    placeholder="Ex: Première S"
-                    value={formData.classes}
-                    onChange={(e) => setFormData({...formData, classes: e.target.value})}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="subjects">Matière(s)</Label>
-                  <Input
-                    id="subjects"
-                    placeholder="Ex: Mathématiques, Physique"
-                    value={formData.subjects}
-                    onChange={(e) => setFormData({...formData, subjects: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="terms" />
-                  <Label htmlFor="terms" className="text-sm">
-                    J'accepte les conditions d'utilisation
-                  </Label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="privacy" />
-                  <Label htmlFor="privacy" className="text-sm">
-                    J'accepte la politique de confidentialité
-                  </Label>
-                </div>
-              </div>
-
-              <Button 
-                type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
-              >
+    <TooltipProvider>
+      <div className="min-h-screen bg-background py-8 px-6">
+        <div className="max-w-4xl mx-auto animate-fade-in">
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="text-3xl font-semibold text-center mb-8">
                 Créer un compte
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              </CardTitle>
+              <StepIndicator 
+                currentStep={currentStep}
+                totalSteps={4}
+                stepTitles={stepTitles}
+              />
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-8">
+                {renderStep()}
+                
+                <div className="flex justify-between pt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePrev}
+                    disabled={currentStep === 1}
+                    className="flex items-center space-x-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Précédent</span>
+                  </Button>
+                  
+                  {currentStep < 4 ? (
+                    <Button
+                      type="button"
+                      onClick={handleNext}
+                      disabled={!canProceed()}
+                      className="flex items-center space-x-2"
+                    >
+                      <span>Suivant</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="submit"
+                      disabled={!canProceed()}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                    >
+                      Créer un compte
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
