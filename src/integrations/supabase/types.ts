@@ -20,10 +20,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      process_course_completion: {
-        Args: { p_course_id: string; p_exercises: Json; p_analysis: Json }
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
