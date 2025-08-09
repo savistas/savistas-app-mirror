@@ -44,6 +44,19 @@ interface InformationStepProps {
 }
 
 export const InformationStep = ({ formData, onFormDataChange }: InformationStepProps) => {
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(s => s.length > 0) : []
+  );
+
+  const handleSubjectChange = (subject: string) => {
+    const newSelection = selectedSubjects.includes(subject)
+      ? selectedSubjects.filter(s => s !== subject)
+      : [...selectedSubjects, subject];
+    
+    setSelectedSubjects(newSelection);
+    onFormDataChange('subjects', newSelection.join(', '));
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
     onFormDataChange('profilePhoto', file);
@@ -146,16 +159,45 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
           {/* Matières */}
           <div className="space-y-6 mb-8">
             <Label className="text-sm font-medium text-foreground">Matière(s) *</Label>
-            <Select value={formData.subjects} onValueChange={(value) => onFormDataChange('subjects', value)}>
-              <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                <SelectValue placeholder="Sélectionnez une ou plusieurs matières" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border border-border shadow-lg rounded-xl max-h-60">
-                {subjects.map((subject) => (
-                  <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+            
+            {/* Affichage des matières sélectionnées */}
+            {selectedSubjects.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {selectedSubjects.map((subject) => (
+                  <span
+                    key={subject}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
+                  >
+                    {subject}
+                    <button
+                      type="button"
+                      onClick={() => handleSubjectChange(subject)}
+                      className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors duration-200"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            )}
+
+            {/* Sélecteur de matières */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {subjects.map((subject) => (
+                <button
+                  key={subject}
+                  type="button"
+                  onClick={() => handleSubjectChange(subject)}
+                  className={`p-3 text-sm rounded-xl transition-all duration-200 border ${
+                    selectedSubjects.includes(subject)
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted/50 hover:bg-primary/10 hover:border-primary border-transparent'
+                  }`}
+                >
+                  {subject}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Section de liaison */}
