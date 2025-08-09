@@ -3,7 +3,16 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import Welcome from "./pages/Welcome";
+import RoleSelection from "./pages/RoleSelection";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import UploadCourse from "./pages/UploadCourse";
+import Calendar from "./pages/Calendar";
+import Planning from "./pages/Planning";
+import DailyQuiz from "./pages/DailyQuiz";
+import Result from "./pages/Result";
+import Messaging from "./pages/Messaging";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,7 +24,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Welcome />} />
+          <Route path="/welcome" element={<Welcome />} />
+          <Route path="/role-selection" element={<RoleSelection />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/upload-course" element={<UploadCourse />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/planning" element={<Planning />} />
+          <Route path="/daily-quiz" element={<DailyQuiz />} />
+          <Route path="/result" element={<Result />} />
+          <Route path="/messaging" element={<Messaging />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
