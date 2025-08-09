@@ -77,8 +77,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
         </p>
       </div>
 
-      {/* Container spécifique à l'étape 3 - 80% de largeur, sans bordures */}
-      <div className="w-4/5 mx-auto">
+      {/* Container spécifique à l'étape 3 - 90% mobile, 80% desktop, sans bordures */}
+      <div className="w-[90%] md:w-4/5 mx-auto">
         <div className="bg-card rounded-2xl p-8 shadow-sm">
           
           {/* Localisation */}
@@ -87,8 +87,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
               <div className="space-y-3">
                 <Label htmlFor="country" className="text-sm font-medium text-foreground">Pays *</Label>
                 <Select value={formData.country} onValueChange={(value) => onFormDataChange('country', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-foreground focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionner un pays" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionner un pays" className="text-xs" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     <SelectItem value="france">France</SelectItem>
@@ -106,7 +106,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.city}
                   onChange={(e) => onFormDataChange('city', e.target.value)}
                   placeholder="Ville"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
+                  className="h-12 border-0 bg-muted/50 rounded-xl text-sm placeholder:text-xs focus:bg-background transition-all duration-200"
                 />
               </div>
 
@@ -117,7 +117,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.postalCode}
                   onChange={(e) => onFormDataChange('postalCode', e.target.value)}
                   placeholder="Code post"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
+                  className="h-12 border-0 bg-muted/50 rounded-xl text-sm placeholder:text-xs focus:bg-background transition-all duration-200"
                 />
               </div>
             </div>
@@ -129,8 +129,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Niveau d'enseignement</Label>
                 <Select value={formData.educationLevel} onValueChange={(value) => onFormDataChange('educationLevel', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez le niveau" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez le niveau" className="text-xs" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     <SelectItem value="primaire">Primaire</SelectItem>
@@ -144,8 +144,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Classe(s)</Label>
                 <Select value={formData.classes} onValueChange={(value) => onFormDataChange('classes', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez la/les classe(s)" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez la/les classe(s)" className="text-xs" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl max-h-60">
                     {classes.map((classe) => (
@@ -165,9 +165,9 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full h-12 justify-between border-0 bg-muted/50 rounded-xl hover:bg-background transition-all duration-200"
+                  className="w-full h-12 justify-between border-0 bg-muted/50 rounded-xl text-sm hover:bg-background transition-all duration-200"
                 >
-                  <span className="text-left">
+                  <span className="text-left text-xs">
                     {selectedSubjects.length === 0 
                       ? "Sélectionnez une ou plusieurs matières"
                       : selectedSubjects.length === 1
@@ -233,15 +233,15 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.linkCode}
                   onChange={(e) => onFormDataChange('linkCode', e.target.value)}
                   placeholder="Code de liaison"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
+                  className="h-12 border-0 bg-muted/50 rounded-xl text-sm placeholder:text-xs focus:bg-background transition-all duration-200"
                 />
               </div>
               
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Relation liaison</Label>
                 <Select value={formData.linkRelation} onValueChange={(value) => onFormDataChange('linkRelation', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Type de relation" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Type de relation" className="text-xs" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     <SelectItem value="parent">Parent</SelectItem>
@@ -260,8 +260,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">ENT / Pronote</Label>
                 <Select value={formData.ent} onValueChange={(value) => onFormDataChange('ent', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez votre ENT" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez votre ENT" className="text-xs" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     <SelectItem value="pronote">Pronote</SelectItem>
@@ -276,8 +276,8 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Niveau de l'IA</Label>
                 <Select value={formData.aiLevel} onValueChange={(value) => onFormDataChange('aiLevel', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Niveau souhaité" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Niveau souhaité" className="text-xs" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     <SelectItem value="debutant">Débutant</SelectItem>
