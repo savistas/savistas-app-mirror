@@ -10,14 +10,14 @@ interface StepIndicatorProps {
 export const StepIndicator = ({ currentStep, totalSteps, stepTitles }: StepIndicatorProps) => {
   return (
     <div className="w-full mb-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center">
         {Array.from({ length: totalSteps }, (_, i) => {
           const stepNumber = i + 1;
           const isCompleted = stepNumber < currentStep;
           const isCurrent = stepNumber === currentStep;
           
           return (
-            <div key={stepNumber} className="flex items-center flex-1">
+            <div key={stepNumber} className="flex items-center">
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
@@ -33,8 +33,9 @@ export const StepIndicator = ({ currentStep, totalSteps, stepTitles }: StepIndic
                     <span className="text-sm font-medium">{stepNumber}</span>
                   )}
                 </div>
+                {/* Texte visible seulement sur desktop */}
                 <span className={cn(
-                  "text-xs mt-2 text-center max-w-20",
+                  "text-xs mt-2 text-center max-w-20 hidden md:block",
                   isCurrent && "text-foreground font-medium",
                   !isCurrent && "text-muted-foreground"
                 )}>
@@ -44,7 +45,9 @@ export const StepIndicator = ({ currentStep, totalSteps, stepTitles }: StepIndic
               {stepNumber < totalSteps && (
                 <div
                   className={cn(
-                    "flex-1 h-0.5 mx-4 transition-all duration-200",
+                    "h-0.5 transition-all duration-200",
+                    // Mobile: trait plus court
+                    "w-8 mx-2 md:w-16 md:mx-4",
                     isCompleted && "bg-success",
                     !isCompleted && "bg-border"
                   )}
