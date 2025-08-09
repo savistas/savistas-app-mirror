@@ -9,12 +9,18 @@ import { InformationStep } from "@/components/register/InformationStep";
 import { PersonalInfoStep } from "@/components/register/PersonalInfoStep";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     // Step 1: Role
@@ -58,12 +64,90 @@ const Register = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep === 4 && termsAccepted && privacyAccepted) {
-      // Here you would normally handle the registration
-      console.log("Registration data:", formData);
-      navigate("/dashboard");
+      setLoading(true);
+      
+      try {
+        // Upload photo de profil si elle existe
+        let profilePhotoUrl = null;
+        if (formData.profilePhoto) {
+          const fileExt = formData.profilePhoto.name.split('.').pop();
+          const fileName = `${Date.now()}.${fileExt}`;
+          const filePath = `${formData.fullName || 'user'}/${fileName}`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('profile-photos')
+            .upload(filePath, formData.profilePhoto);
+
+          if (uploadError) {
+            toast({
+              title: "Erreur d'upload",
+              description: "Impossible d'uploader la photo de profil",
+              variant: "destructive",
+            });
+          } else {
+            const { data: urlData } = supabase.storage
+              .from('profile-photos')
+              .getPublicUrl(uploadData.path);
+            profilePhotoUrl = urlData.publicUrl;
+          }
+        }
+
+        // Créer le compte avec toutes les données du formulaire
+        const userData = {
+          full_name: formData.fullName,
+          role: formData.role,
+          subscription: formData.subscription,
+          country: formData.country,
+          city: formData.city,
+          postal_code: formData.postalCode,
+          education_level: formData.educationLevel,
+          classes: formData.classes,
+          subjects: formData.subjects,
+          phone: formData.phone,
+          link_code: formData.linkCode,
+          link_relation: formData.linkRelation,
+          ent: formData.ent,
+          ai_level: formData.aiLevel,
+          profile_photo_url: profilePhotoUrl
+        };
+
+        const { error } = await signUp(formData.email, formData.password, userData);
+        
+        if (error) {
+          toast({
+            title: "Erreur d'inscription",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          // Mettre à jour le profil avec toutes les données
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update(userData)
+            .eq('email', formData.email);
+
+          if (profileError) {
+            console.error('Erreur mise à jour profil:', profileError);
+          }
+
+          toast({
+            title: "Compte créé avec succès!",
+            description: "Vous pouvez maintenant accéder à votre dashboard",
+          });
+          navigate("/dashboard");
+        }
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors de la création du compte",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -162,14 +246,14 @@ const Register = () => {
                   <span>Suivant</span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
-              ) : (
-                <Button 
-                  type="submit"
-                  disabled={!canProceed()}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                >
-                  Créer un compte
-                </Button>
+                  ) : (
+                    <Button 
+                      type="submit"
+                      disabled={!canProceed() || loading}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                    >
+                      {loading ? "Création..." : "Créer un compte"}
+                    </Button>
               )}
             </div>
           </form>

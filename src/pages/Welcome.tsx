@@ -21,25 +21,26 @@ const Welcome = () => {
           </p>
 
           <div className="space-y-4">
-            <Link 
-              to="/beta-code" 
-              className="text-primary hover:underline font-medium"
-            >
-              Saisir le code bêta
+            <Link to="/register">
+              <Button 
+                size="lg" 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg font-medium rounded-xl"
+              >
+                Commencer maintenant
+              </Button>
             </Link>
-
-            <div className="flex items-center space-x-4">
-              <div className="flex-1 border-t border-border"></div>
-              <span className="text-muted-foreground text-sm">OU</span>
-              <div className="flex-1 border-t border-border"></div>
+            
+            <div className="pt-4">
+              <Link to="/auth">
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  className="px-8 py-6 text-lg font-medium rounded-xl border-2"
+                >
+                  Se connecter
+                </Button>
+              </Link>
             </div>
-
-            <Button 
-              asChild 
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
-            >
-              <Link to="/role-selection">Créer un compte</Link>
-            </Button>
           </div>
 
           <p className="text-sm text-muted-foreground mt-6">
