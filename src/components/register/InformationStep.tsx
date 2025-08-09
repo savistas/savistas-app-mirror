@@ -35,6 +35,10 @@ interface InformationStepProps {
     classes: string;
     subjects: string;
     profilePhoto: File | null;
+    linkCode: string;
+    linkRelation: string;
+    ent: string;
+    aiLevel: string;
   };
   onFormDataChange: (field: string, value: string | File | null) => void;
 }
@@ -73,158 +77,238 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
       </div>
 
       <div className="space-y-8 max-w-4xl mx-auto">
-        {/* Localisation */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-foreground">Localisation</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="country">Pays *</Label>
-              <Select value={formData.country} onValueChange={(value) => onFormDataChange('country', value)}>
-                <SelectTrigger className="transition-all duration-200 hover:border-primary/50 focus:border-primary">
-                  <SelectValue placeholder="Sélectionner un pays" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border shadow-lg">
-                  <SelectItem value="france">France</SelectItem>
-                  <SelectItem value="belgium">Belgique</SelectItem>
-                  <SelectItem value="switzerland">Suisse</SelectItem>
-                  <SelectItem value="canada">Canada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="city">Ville *</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => onFormDataChange('city', e.target.value)}
-                placeholder="Paris"
-                className="transition-all duration-200 hover:border-primary/50 focus:border-primary"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postalCode">Code postal *</Label>
-              <Input
-                id="postalCode"
-                value={formData.postalCode}
-                onChange={(e) => onFormDataChange('postalCode', e.target.value)}
-                placeholder="75001"
-                className="transition-all duration-200 hover:border-primary/50 focus:border-primary"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Informations académiques */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-foreground">Informations académiques</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Niveau d'enseignement</Label>
-              <Select value={formData.educationLevel} onValueChange={(value) => onFormDataChange('educationLevel', value)}>
-                <SelectTrigger className="transition-all duration-200 hover:border-primary/50 focus:border-primary">
-                  <SelectValue placeholder="Sélectionnez le niveau" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border shadow-lg">
-                  <SelectItem value="primaire">Primaire</SelectItem>
-                  <SelectItem value="college">Collège</SelectItem>
-                  <SelectItem value="lycee">Lycée</SelectItem>
-                  <SelectItem value="superieur">Supérieur</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Classe(s)</Label>
-              <Select value={formData.classes} onValueChange={(value) => onFormDataChange('classes', value)}>
-                <SelectTrigger className="transition-all duration-200 hover:border-primary/50 focus:border-primary">
-                  <SelectValue placeholder="Sélectionnez la/les classe(s)" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border shadow-lg max-h-60">
-                  {classes.map((classe) => (
-                    <SelectItem key={classe} value={classe}>{classe}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Matières */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-foreground">Matière(s) *</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {subjects.map((subject) => (
-              <div 
-                key={subject}
-                className={`group cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-                  selectedSubjects.includes(subject) 
-                    ? 'bg-primary/10 border-primary' 
-                    : 'bg-background border-border hover:border-primary/50'
-                } border rounded-lg p-3 flex items-center space-x-3`}
-                onClick={() => handleSubjectChange(subject)}
-              >
-                <div className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-                  selectedSubjects.includes(subject)
-                    ? 'bg-primary border-primary'
-                    : 'border-border group-hover:border-primary/50'
-                }`}>
-                  {selectedSubjects.includes(subject) && (
-                    <div className="w-full h-full rounded-full bg-primary scale-75"></div>
-                  )}
-                </div>
-                <span className={`text-sm transition-colors duration-200 ${
-                  selectedSubjects.includes(subject) 
-                    ? 'text-primary font-medium' 
-                    : 'text-foreground group-hover:text-primary'
-                }`}>
-                  {subject}
-                </span>
+        {/* Card container pour un style plus épuré */}
+        <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
+          
+          {/* Localisation */}
+          <div className="space-y-6 mb-8">
+            <h3 className="text-lg font-medium text-foreground">Localisation</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="country" className="text-sm font-medium text-foreground">Pays *</Label>
+                <Select value={formData.country} onValueChange={(value) => onFormDataChange('country', value)}>
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-foreground focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionner un pays" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
+                    <SelectItem value="france">France</SelectItem>
+                    <SelectItem value="belgium">Belgique</SelectItem>
+                    <SelectItem value="switzerland">Suisse</SelectItem>
+                    <SelectItem value="canada">Canada</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Photo de profil */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-foreground">Photo de profil</h3>
-          <div className="flex items-center justify-center">
-            {formData.profilePhoto ? (
-              <div className="relative group">
-                <div className="w-32 h-32 bg-primary/10 border-2 border-primary border-dashed rounded-full flex items-center justify-center overflow-hidden">
-                  <img 
-                    src={URL.createObjectURL(formData.profilePhoto)} 
-                    alt="Photo de profil" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="absolute -top-2 -right-2 rounded-full w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                  onClick={removePhoto}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ) : (
-              <label className="cursor-pointer group">
-                <div className="w-32 h-32 bg-background border-2 border-dashed border-border group-hover:border-primary transition-all duration-200 rounded-full flex flex-col items-center justify-center space-y-2 group-hover:bg-primary/5">
-                  <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
-                  <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors duration-200">
-                    Ajouter une photo
-                  </span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
+              
+              <div className="space-y-3">
+                <Label htmlFor="city" className="text-sm font-medium text-foreground">Ville *</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => onFormDataChange('city', e.target.value)}
+                  placeholder="Ville"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
                 />
-              </label>
-            )}
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="postalCode" className="text-sm font-medium text-foreground">Code postal *</Label>
+                <Input
+                  id="postalCode"
+                  value={formData.postalCode}
+                  onChange={(e) => onFormDataChange('postalCode', e.target.value)}
+                  placeholder="Code post"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Informations académiques */}
+          <div className="space-y-6 mb-8">
+            <h3 className="text-lg font-medium text-foreground">Informations académiques</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-foreground">Niveau d'enseignement</Label>
+                <Select value={formData.educationLevel} onValueChange={(value) => onFormDataChange('educationLevel', value)}>
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez le niveau" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
+                    <SelectItem value="primaire">Primaire</SelectItem>
+                    <SelectItem value="college">Collège</SelectItem>
+                    <SelectItem value="lycee">Lycée</SelectItem>
+                    <SelectItem value="superieur">Supérieur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-foreground">Classe(s)</Label>
+                <Select value={formData.classes} onValueChange={(value) => onFormDataChange('classes', value)}>
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez la/les classe(s)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl max-h-60">
+                    {classes.map((classe) => (
+                      <SelectItem key={classe} value={classe}>{classe}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Matières */}
+          <div className="space-y-6 mb-8">
+            <h3 className="text-lg font-medium text-foreground">Matière(s) *</h3>
+            <div className="bg-muted/30 rounded-xl p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {subjects.map((subject) => (
+                  <label 
+                    key={subject}
+                    className={`cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                      selectedSubjects.includes(subject) 
+                        ? 'bg-primary/10 border-primary text-primary' 
+                        : 'bg-background border-border hover:border-primary/50 hover:bg-primary/5'
+                    } border rounded-lg p-4 flex items-center space-x-3 group`}
+                  >
+                    <div className={`w-5 h-5 rounded-full border-2 transition-all duration-200 flex items-center justify-center ${
+                      selectedSubjects.includes(subject)
+                        ? 'bg-primary border-primary'
+                        : 'border-border group-hover:border-primary/50'
+                    }`}>
+                      {selectedSubjects.includes(subject) && (
+                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                      )}
+                    </div>
+                    <span className={`text-sm transition-colors duration-200 ${
+                      selectedSubjects.includes(subject) 
+                        ? 'text-primary font-medium' 
+                        : 'text-foreground group-hover:text-primary'
+                    }`}>
+                      {subject}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={selectedSubjects.includes(subject)}
+                      onChange={() => handleSubjectChange(subject)}
+                      className="hidden"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section de liaison */}
+          <div className="space-y-6 mb-8">
+            <h3 className="text-lg font-medium text-foreground">Liaison</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="linkCode" className="text-sm font-medium text-foreground">Code de liaison</Label>
+                <Input
+                  id="linkCode"
+                  value={formData.linkCode}
+                  onChange={(e) => onFormDataChange('linkCode', e.target.value)}
+                  placeholder="Code de liaison"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-foreground">Relation liaison</Label>
+                <Select value={formData.linkRelation} onValueChange={(value) => onFormDataChange('linkRelation', value)}>
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Type de relation" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
+                    <SelectItem value="parent">Parent</SelectItem>
+                    <SelectItem value="tuteur">Tuteur</SelectItem>
+                    <SelectItem value="enseignant">Enseignant</SelectItem>
+                    <SelectItem value="autre">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section ENT et IA */}
+          <div className="space-y-6 mb-8">
+            <h3 className="text-lg font-medium text-foreground">Outils numériques</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-foreground">ENT / Pronote</Label>
+                <Select value={formData.ent} onValueChange={(value) => onFormDataChange('ent', value)}>
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez votre ENT" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
+                    <SelectItem value="pronote">Pronote</SelectItem>
+                    <SelectItem value="elyco">Elyco</SelectItem>
+                    <SelectItem value="eclat-bfc">Eclat-BFC</SelectItem>
+                    <SelectItem value="monbureaunumerique">MonBureauNumerique</SelectItem>
+                    <SelectItem value="autre">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-foreground">Niveau de l'IA</Label>
+                <Select value={formData.aiLevel} onValueChange={(value) => onFormDataChange('aiLevel', value)}>
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Niveau souhaité" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
+                    <SelectItem value="debutant">Débutant</SelectItem>
+                    <SelectItem value="intermediaire">Intermédiaire</SelectItem>
+                    <SelectItem value="avance">Avancé</SelectItem>
+                    <SelectItem value="expert">Expert</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Photo de profil */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-foreground">Photo de profil</h3>
+            <div className="flex items-center justify-center">
+              {formData.profilePhoto ? (
+                <div className="relative group">
+                  <div className="w-32 h-32 bg-muted/50 border-2 border-dashed border-primary rounded-2xl flex items-center justify-center overflow-hidden">
+                    <img 
+                      src={URL.createObjectURL(formData.profilePhoto)} 
+                      alt="Photo de profil" 
+                      className="w-full h-full object-cover rounded-2xl"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute -top-2 -right-2 rounded-full w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    onClick={removePhoto}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="cursor-pointer group">
+                  <div className="w-32 h-32 bg-muted/50 border-2 border-dashed border-border group-hover:border-primary transition-all duration-200 rounded-2xl flex flex-col items-center justify-center space-y-2 group-hover:bg-primary/5">
+                    <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+                    <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors duration-200">
+                      Ajouter une photo
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
           </div>
         </div>
       </div>

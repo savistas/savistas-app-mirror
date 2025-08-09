@@ -29,6 +29,10 @@ const Register = () => {
     classes: "",
     subjects: "",
     profilePhoto: null as File | null,
+    linkCode: "",
+    linkRelation: "",
+    ent: "",
+    aiLevel: "",
     // Step 4: Personal Info
     fullName: "",
     email: "",
