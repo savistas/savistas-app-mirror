@@ -1,9 +1,10 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
+import { Upload, X, ChevronDown, Check } from "lucide-react";
 import { useState } from "react";
 
 const subjects = [
@@ -160,9 +161,49 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
           <div className="space-y-6 mb-8">
             <Label className="text-sm font-medium text-foreground">Matière(s) *</Label>
             
-            {/* Affichage des matières sélectionnées */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full h-12 justify-between border-0 bg-muted/50 rounded-xl hover:bg-background transition-all duration-200"
+                >
+                  <span className="text-left">
+                    {selectedSubjects.length === 0 
+                      ? "Sélectionnez une ou plusieurs matières"
+                      : selectedSubjects.length === 1
+                      ? selectedSubjects[0]
+                      : `${selectedSubjects.length} matières sélectionnées`
+                    }
+                  </span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 bg-background border border-border shadow-lg rounded-xl" align="start">
+                <div className="max-h-60 overflow-y-auto p-2">
+                  {subjects.map((subject) => (
+                    <div
+                      key={subject}
+                      className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors duration-200"
+                      onClick={() => handleSubjectChange(subject)}
+                    >
+                      <Checkbox
+                        checked={selectedSubjects.includes(subject)}
+                        onChange={() => handleSubjectChange(subject)}
+                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                      <span className="text-sm text-foreground">{subject}</span>
+                      {selectedSubjects.includes(subject) && (
+                        <Check className="h-4 w-4 text-primary ml-auto" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Affichage des matières sélectionnées sous forme de tags */}
             {selectedSubjects.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2">
                 {selectedSubjects.map((subject) => (
                   <span
                     key={subject}
@@ -180,24 +221,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                 ))}
               </div>
             )}
-
-            {/* Sélecteur de matières */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {subjects.map((subject) => (
-                <button
-                  key={subject}
-                  type="button"
-                  onClick={() => handleSubjectChange(subject)}
-                  className={`p-3 text-sm rounded-xl transition-all duration-200 border ${
-                    selectedSubjects.includes(subject)
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted/50 hover:bg-primary/10 hover:border-primary border-transparent'
-                  }`}
-                >
-                  {subject}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Section de liaison */}
