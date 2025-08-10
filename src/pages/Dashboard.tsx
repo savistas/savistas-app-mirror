@@ -5,43 +5,28 @@ import BottomNav from "@/components/BottomNav";
 import { 
   User as UserIcon, 
   Menu, 
-  Calculator,
-  Atom
+  BookOpen
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for courses
-const courses = [
-  {
-    id: 1,
-    title: "Mathématiques",
-    subject: "Fonctions affines",
-    level: "Première",
-    currentDay: 5,
-    totalDays: 15,
-    status: "En cours",
-    icon: Calculator,
-    progress: 33
-  },
-  {
-    id: 2,
-    title: "Physique",
-    subject: "Mécanique",
-    level: "Première", 
-    currentDay: 12,
-    totalDays: 12,
-    status: "Terminé",
-    icon: Atom,
-    progress: 100
-  }
-];
+interface Course {
+  id: string;
+  title: string;
+  subject: string | null;
+  level: string | null;
+  cover_url: string | null;
+  file_url: string | null;
+  created_at: string;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState<string>("");
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -77,6 +62,21 @@ const Dashboard = () => {
     return () => { isMounted = false; };
   }, [user]);
 
+  useEffect(() => {
+    const loadCourses = async () => {
+      if (!user) return;
+      setLoadingCourses(true);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('id,title,subject,level,cover_url,file_url,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) setCourses(data as Course[]);
+      setLoadingCourses(false);
+    };
+    loadCourses();
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -97,37 +97,33 @@ const Dashboard = () => {
           <h2 className="text-2xl font-semibold text-foreground">Mes cours</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(!loadingCourses && courses.length === 0) && (
+              <div className="text-muted-foreground">Aucun cours. <Link className="underline" to="/upload-course">Créer un cours</Link></div>
+            )}
             {courses.map((course) => (
-              <Card key={course.id} className="border-border hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <course.icon className="w-6 h-6 text-primary" strokeWidth={1.5} />
-                    </div>
-                    
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-foreground">{course.title}</h3>
-                        <p className="text-sm text-muted-foreground">{course.subject} • {course.level}</p>
+              <Link key={course.id} to={`/courses/${course.id}`}>
+                <Card className="border-border hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-4">
+                      <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-center w-12 h-12 overflow-hidden">
+                        {course.cover_url ? (
+                          <img src={course.cover_url} alt={`Couverture ${course.title}`} className="w-12 h-12 object-cover rounded" />
+                        ) : (
+                          <BookOpen className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                        )}
                       </div>
                       
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            Jour {course.currentDay}/{course.totalDays}
-                          </span>
-                          <span className={`font-medium ${
-                            course.status === "Terminé" ? "text-success" : "text-primary"
-                          }`}>
-                            {course.status}
-                          </span>
+                      <div className="flex-1 space-y-2">
+                        <div>
+                          <h3 className="font-semibold text-foreground">{course.title}</h3>
+                          <p className="text-sm text-muted-foreground">{course.subject || '—'} • {course.level || '—'}</p>
                         </div>
-                        <Progress value={course.progress} className="h-2" />
+                        <p className="text-xs text-muted-foreground">Ajouté le {new Date(course.created_at).toLocaleDateString('fr-FR')}</p>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         </div>
