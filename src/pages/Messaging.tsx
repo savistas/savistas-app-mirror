@@ -112,7 +112,7 @@ const Messaging = () => {
                   ? 'bg-muted text-foreground' 
                   : 'bg-primary text-primary-foreground'
               }`}>
-                <p className="text-sm leading-relaxed">{msg.text}</p>
+                <p className="text-sm leading-relaxed break-words whitespace-normal text-pretty">{msg.text}</p>
               </div>
               <div className={`text-xs text-muted-foreground mt-1 ${
                 msg.isAI ? 'text-left' : 'text-right'
@@ -136,7 +136,7 @@ const Messaging = () => {
                 key={index}
                 variant="outline"
                 size="sm"
-                className="text-left justify-start h-auto p-3 border-border hover:bg-muted"
+                className="text-left justify-start h-auto p-3 border-border hover:bg-muted whitespace-normal break-words text-pretty max-w-full"
                 onClick={() => setMessage(question)}
               >
                 {question}

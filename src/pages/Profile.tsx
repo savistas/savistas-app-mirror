@@ -137,7 +137,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background px-6 py-8">
+    <div className="min-h-screen bg-background px-6 py-8 pb-28">
       <div className="max-w-2xl mx-auto animate-fade-in">
         <Card className="border-border">
           <CardHeader>
