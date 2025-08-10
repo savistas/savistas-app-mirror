@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Welcome = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-8">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
@@ -31,15 +34,14 @@ const Welcome = () => {
             </Link>
             
             <div className="pt-4">
-              <Link to="/auth">
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  className="px-8 py-6 text-lg font-medium rounded-xl border-2"
-                >
-                  Se connecter
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="lg"
+                className="px-8 py-6 text-lg font-medium rounded-xl border-2"
+                onClick={() => navigate(user ? "/dashboard" : "/auth")}
+              >
+                Se connecter
+              </Button>
             </div>
           </div>
 

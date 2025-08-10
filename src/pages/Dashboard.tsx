@@ -3,12 +3,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import BottomNav from "@/components/BottomNav";
 import { 
-  User, 
+  User as UserIcon, 
   Menu, 
   Calculator,
   Atom
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock data for courses
 const courses = [
@@ -37,13 +40,50 @@ const courses = [
 ];
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadProfile = async () => {
+      if (!user) return;
+      // Try fetch current user's profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name,email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        // Fallback to auth user metadata
+        if (isMounted) setDisplayName(user.user_metadata?.full_name || user.email || 'Mon profil');
+        return;
+      }
+
+      if (!data) {
+        // Create minimal profile row if missing
+        await supabase.from('profiles').insert({
+          user_id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || ''
+        });
+        if (isMounted) setDisplayName(user.user_metadata?.full_name || user.email || 'Mon profil');
+      } else {
+        if (isMounted) setDisplayName(data.full_name || user.user_metadata?.full_name || data.email || user.email || 'Mon profil');
+      }
+    };
+
+    loadProfile();
+    return () => { isMounted = false; };
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center space-x-3">
-          <User className="w-8 h-8 text-primary" strokeWidth={1.5} />
-          <span className="font-medium text-foreground">Sarah Martin</span>
+          <UserIcon className="w-8 h-8 text-primary" strokeWidth={1.5} />
+          <span className="font-medium text-foreground">{displayName || 'Mon profil'}</span>
         </div>
         <Button variant="ghost" size="sm">
           <Menu className="w-5 h-5" strokeWidth={1.5} />
