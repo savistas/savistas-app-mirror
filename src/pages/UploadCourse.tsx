@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Camera, Upload, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
@@ -19,7 +20,8 @@ const UploadCourse = () => {
     subject: "",
     level: "",
     lesson: "",
-    difficulties: ""
+    difficulties: "",
+    days: 7,
   });
   const [file, setFile] = useState<File | null>(null);
   const [uploadKind, setUploadKind] = useState<'photo' | 'pdf' | null>(null);
@@ -217,6 +219,24 @@ const UploadCourse = () => {
                   value={formData.difficulties}
                   onChange={(e) => setFormData({...formData, difficulties: e.target.value})}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="qcm-days">Nombre de jours d’exercices (1 à 30)</Label>
+                <div className="flex items-center gap-4">
+                  <Slider
+                    value={[formData.days]}
+                    onValueChange={(v) => setFormData({ ...formData, days: v[0] })}
+                    min={1}
+                    max={30}
+                    step={1}
+                    aria-label="Nombre de jours d’exercices"
+                    className="w-full"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {formData.days} {formData.days > 1 ? "jours" : "jour"}
+                  </span>
+                </div>
               </div>
 
 

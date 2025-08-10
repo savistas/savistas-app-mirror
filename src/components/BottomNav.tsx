@@ -54,11 +54,6 @@ const BottomNav = () => {
                   isActive('/dashboard') ? 'text-primary-foreground' : 'text-muted-foreground'
                 }`} strokeWidth={1.5} />
               </div>
-              <span className={`text-xs ${
-                isActive('/dashboard') ? 'text-primary font-medium' : 'text-muted-foreground'
-              }`}>
-                Accueil
-              </span>
             </Link>
             
             <Link to="/calendar" className="flex flex-col items-center space-y-1">
@@ -69,11 +64,6 @@ const BottomNav = () => {
                   isActive('/calendar') ? 'text-primary-foreground' : 'text-muted-foreground'
                 }`} strokeWidth={1.5} />
               </div>
-              <span className={`text-xs ${
-                isActive('/calendar') ? 'text-primary font-medium' : 'text-muted-foreground'
-              }`}>
-                Agenda
-              </span>
             </Link>
           </div>
 
@@ -87,11 +77,6 @@ const BottomNav = () => {
                   isActive('/messaging') ? 'text-primary-foreground' : 'text-muted-foreground'
                 }`} strokeWidth={1.5} />
               </div>
-              <span className={`text-xs ${
-                isActive('/messaging') ? 'text-primary font-medium' : 'text-muted-foreground'
-              }`}>
-                Chat
-              </span>
             </Link>
             
             <Link to="/profile" className="flex flex-col items-center space-y-1">
@@ -103,11 +88,6 @@ const BottomNav = () => {
                   <AvatarFallback>{(fullName || 'P').slice(0,1).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </div>
-              <span className={`text-xs ${
-                isActive('/profile') ? 'text-primary font-medium' : 'text-muted-foreground'
-              }`}>
-                Profil
-              </span>
             </Link>
           </div>
         </div>
