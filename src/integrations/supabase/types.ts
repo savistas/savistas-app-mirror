@@ -14,6 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
+      courses: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          file_url: string | null
+          id: string
+          level: string | null
+          subject: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          level?: string | null
+          subject?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          level?: string | null
+          subject?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exercise_responses: {
+        Row: {
+          answer: string | null
+          course_id: string
+          created_at: string
+          exercise_id: string
+          id: string
+          is_correct: boolean | null
+          score: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          course_id: string
+          created_at?: string
+          exercise_id: string
+          id?: string
+          is_correct?: boolean | null
+          score?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          course_id?: string
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          is_correct?: boolean | null
+          score?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_responses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_responses_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercises: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          order_index: number | null
+          question: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          order_index?: number | null
+          question?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          order_index?: number | null
+          question?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercises_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ai_level: string | null
