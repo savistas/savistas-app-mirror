@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,15 @@ const Auth = () => {
     confirmPassword: ""
   });
   
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -95,7 +101,20 @@ const Auth = () => {
           title: "Inscription réussie",
           description: "Votre compte a été créé avec succès",
         });
-        navigate("/register");
+        // Tentative de connexion automatique
+        const { error: autoSignInError } = await signIn(formData.email, formData.password);
+        if (autoSignInError) {
+          toast({
+            title: "Vérification requise",
+            description: "Confirmez votre email pour terminer l'inscription",
+          });
+        } else {
+          toast({
+            title: "Connexion automatique",
+            description: "Redirection vers votre dashboard",
+          });
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
       toast({

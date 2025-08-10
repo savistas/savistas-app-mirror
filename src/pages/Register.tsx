@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Register = () => {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -123,6 +123,16 @@ const Register = () => {
             variant: "destructive",
           });
         } else {
+          // Connexion automatique après création du compte
+          const { error: autoSignInError } = await signIn(formData.email, formData.password);
+          if (autoSignInError) {
+            toast({
+              title: "Vérification requise",
+              description: "Confirmez votre email depuis votre boîte mail",
+            });
+            return;
+          }
+
           // Mettre à jour le profil avec toutes les données
           const { error: profileError } = await supabase
             .from('profiles')
@@ -135,7 +145,7 @@ const Register = () => {
 
           toast({
             title: "Compte créé avec succès!",
-            description: "Vous pouvez maintenant accéder à votre dashboard",
+            description: "Redirection vers votre dashboard",
           });
           navigate("/dashboard");
         }
