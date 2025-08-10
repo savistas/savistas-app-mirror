@@ -33,7 +33,7 @@ export const RoleStep = ({ selectedRole, onRoleSelect }: RoleStepProps) => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
         {roles.map((role) => {
           if (!role.available) {
             return (
@@ -58,7 +58,7 @@ export const RoleStep = ({ selectedRole, onRoleSelect }: RoleStepProps) => {
           return (
             <Card 
               key={role.id}
-              className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-2 ${
+              className={`cursor-pointer rounded-xl hover-scale transition-all duration-300 hover:shadow-lg hover:scale-105 border-2 ${
                 selectedRole === role.id 
                   ? 'border-primary bg-primary/5 shadow-md' 
                   : 'border-border hover:border-primary/50 hover:bg-primary/5'

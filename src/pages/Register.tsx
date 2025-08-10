@@ -172,7 +172,7 @@ const Register = () => {
         return (
           <RoleStep 
             selectedRole={formData.role}
-            onRoleSelect={(role) => handleFormDataChange('role', role)}
+            onRoleSelect={(role) => { handleFormDataChange('role', role); setTimeout(() => handleNext(), 150); }}
           />
         );
       case 2:
@@ -222,7 +222,7 @@ const Register = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
-            {renderStep()}
+            <div className="animate-fade-in">{renderStep()}</div>
             
             <div className="flex justify-between pt-6">
               <Button

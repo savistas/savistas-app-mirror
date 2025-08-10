@@ -63,12 +63,12 @@ export const SubscriptionStep = ({ selectedSubscription, onSubscriptionSelect }:
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
         {subscriptions.map((subscription) => (
           <Card 
             key={subscription.id}
             className={cn(
-              "cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] border-2 relative",
+              "cursor-pointer rounded-2xl hover-scale transition-all duration-300 hover:shadow-xl hover:scale-105 border-2 relative",
               selectedSubscription === subscription.id 
                 ? 'border-primary bg-primary/5 shadow-lg' 
                 : 'border-border hover:border-primary/50 hover:bg-primary/5',

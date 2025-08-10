@@ -125,7 +125,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Informations académiques */}
           <div className="space-y-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Niveau d'enseignement</Label>
                 <Select value={formData.educationLevel} onValueChange={(value) => onFormDataChange('educationLevel', value)}>
@@ -225,7 +225,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Section de liaison */}
           <div className="space-y-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
               <div className="space-y-3">
                 <Label htmlFor="linkCode" className="text-sm font-medium text-foreground">Code de liaison</Label>
                 <Input
@@ -256,7 +256,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
 
           {/* Section ENT et IA */}
           <div className="space-y-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">ENT / Pronote</Label>
                 <Select value={formData.ent} onValueChange={(value) => onFormDataChange('ent', value)}>
