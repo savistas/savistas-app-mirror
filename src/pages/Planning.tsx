@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useDisplayName } from "@/hooks/use-display-name";
 
 const Planning = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const displayName = useDisplayName();
   
   // Get current month and year
   const currentMonth = currentDate.toLocaleDateString('fr-FR', { month: 'long' });
@@ -85,7 +87,7 @@ const Planning = () => {
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center space-x-3">
           <User className="w-8 h-8 text-primary" strokeWidth={1.5} />
-          <span className="font-medium text-foreground">Sarah Martin</span>
+          <span className="font-medium text-foreground">{displayName || 'Mon profil'}</span>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="ghost" size="sm">

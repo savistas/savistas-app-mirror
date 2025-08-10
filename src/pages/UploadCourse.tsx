@@ -3,9 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Camera, Upload, BarChart3, ArrowLeft } from "lucide-react";
+import { Camera, Upload, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,9 +19,7 @@ const UploadCourse = () => {
     subject: "",
     level: "",
     lesson: "",
-    difficulties: "",
-    duration: [15],
-    format: "20QCM"
+    difficulties: ""
   });
   const [file, setFile] = useState<File | null>(null);
   const [uploadKind, setUploadKind] = useState<'photo' | 'pdf' | null>(null);
@@ -104,6 +100,7 @@ const UploadCourse = () => {
           ref={photoInputRef}
           type="file"
           accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0] || null;
@@ -222,54 +219,9 @@ const UploadCourse = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="file">Fichier du cours ({uploadKind === 'pdf' ? 'PDF' : 'Image'})</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept={uploadKind === 'pdf' ? 'application/pdf' : 'image/*'}
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-                <p className="text-xs text-muted-foreground">Le fichier sera stocké de façon sécurisée.</p>
-              </div>
 
-              <div className="space-y-4">
-                <Label>Durée : {formData.duration[0]} jour(s)</Label>
-                <Slider
-                  value={formData.duration}
-                  onValueChange={(value) => setFormData({...formData, duration: value})}
-                  max={31}
-                  min={1}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
 
-              <div className="flex items-center justify-between">
-                <Label htmlFor="format">Format</Label>
-                <div className="flex items-center space-x-2">
-                  <span className={formData.format === "20QCM" ? "text-primary font-medium" : "text-muted-foreground"}>
-                    20 QCM
-                  </span>
-                  <Switch 
-                    checked={formData.format === "40QCM"}
-                    onCheckedChange={(checked) => setFormData({...formData, format: checked ? "40QCM" : "20QCM"})}
-                  />
-                  <span className={formData.format === "40QCM" ? "text-primary font-medium" : "text-muted-foreground"}>
-                    40 QCM
-                  </span>
-                </div>
-              </div>
 
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <BarChart3 className="w-5 h-5 text-primary" strokeWidth={1.5} />
-                  <span className="font-medium">Aperçu graphique évolutif</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Votre progression sera suivie jour par jour avec des graphiques détaillés.
-                </p>
-              </div>
 
               <Button 
                 onClick={handleCreate}
