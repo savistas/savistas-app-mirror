@@ -7,10 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Camera, Upload, BarChart3, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
@@ -28,6 +28,9 @@ const UploadCourse = () => {
   const [file, setFile] = useState<File | null>(null);
   const [uploadKind, setUploadKind] = useState<'photo' | 'pdf' | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = async () => {
     if (!user) {
@@ -96,6 +99,35 @@ const UploadCourse = () => {
       </header>
 
       <div className="p-6 max-w-2xl mx-auto animate-fade-in">
+        {/* Hidden file inputs for initial selection */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0] || null;
+            setFile(f);
+            if (f) {
+              setUploadKind('photo');
+              setStep(2);
+            }
+          }}
+        />
+        <input
+          ref={pdfInputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0] || null;
+            setFile(f);
+            if (f) {
+              setUploadKind('pdf');
+              setStep(2);
+            }
+          }}
+        />
         {step === 1 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-semibold text-center text-foreground">
@@ -105,7 +137,7 @@ const UploadCourse = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card 
                 className="cursor-pointer transition-all hover:shadow-md border-border"
-                onClick={() => { setUploadKind('photo'); setStep(2); }}
+                onClick={() => { setUploadKind('photo'); photoInputRef.current?.click(); }}
               >
                 <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                   <Camera className="w-12 h-12 text-primary" strokeWidth={1.5} />
@@ -117,7 +149,7 @@ const UploadCourse = () => {
 
               <Card 
                 className="cursor-pointer transition-all hover:shadow-md border-border"
-                onClick={() => { setUploadKind('pdf'); setStep(2); }}
+                onClick={() => { setUploadKind('pdf'); pdfInputRef.current?.click(); }}
               >
                 <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                   <Upload className="w-12 h-12 text-primary" strokeWidth={1.5} />
