@@ -68,7 +68,7 @@ const Messaging = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pb-28">
       {/* Header */}
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center space-x-3">
@@ -89,7 +89,7 @@ const Messaging = () => {
       </header>
 
       {/* Chat Messages */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in">
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in pb-28">
         {messages.map((msg) => (
           <div 
             key={msg.id}
@@ -147,13 +147,13 @@ const Messaging = () => {
       )}
 
       {/* Message Input */}
-      <div className="p-4 border-t border-border pb-24">
+      <div className="p-4 border-t border-border bg-background sticky bottom-24 z-10">
         <div className="flex space-x-2">
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Tapez votre message..."
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSendMessage())}
             className="flex-1"
           />
           <Button 
