@@ -70,30 +70,8 @@ const Register = () => {
       setLoading(true);
       
       try {
-        // Upload photo de profil si elle existe
-        let profilePhotoUrl = null;
-        if (formData.profilePhoto) {
-          const fileExt = formData.profilePhoto.name.split('.').pop();
-          const fileName = `${Date.now()}.${fileExt}`;
-          const filePath = `${formData.fullName || 'user'}/${fileName}`;
-
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('profile-photos')
-            .upload(filePath, formData.profilePhoto);
-
-          if (uploadError) {
-            toast({
-              title: "Erreur d'upload",
-              description: "Impossible d'uploader la photo de profil",
-              variant: "destructive",
-            });
-          } else {
-            const { data: urlData } = supabase.storage
-              .from('profile-photos')
-              .getPublicUrl(uploadData.path);
-            profilePhotoUrl = urlData.publicUrl;
-          }
-        }
+        // Préparer l'URL de photo (upload après connexion pour utiliser l'ID utilisateur)
+        let profilePhotoUrl: string | null = null;
 
         // Créer le compte avec toutes les données du formulaire
         const userData = {
@@ -133,14 +111,44 @@ const Register = () => {
             return;
           }
 
-          // Mettre à jour le profil avec toutes les données
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update(userData)
-            .eq('email', formData.email);
+          // Récupérer l'ID utilisateur puis uploader la photo dans le dossier de l'utilisateur
+          const { data: userResp } = await supabase.auth.getUser();
+          const uid = userResp.user?.id;
+          if (uid && formData.profilePhoto) {
+            const fileExt = formData.profilePhoto.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `${uid}/${fileName}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('profile-photos')
+              .upload(filePath, formData.profilePhoto, { upsert: true });
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage
+                .from('profile-photos')
+                .getPublicUrl(uploadData.path);
+              profilePhotoUrl = urlData.publicUrl;
+            }
+          }
 
-          if (profileError) {
-            console.error('Erreur mise à jour profil:', profileError);
+          // Vérifier l'existence du profil puis mettre à jour/insérer
+          const { data: existing } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('user_id', uid as string)
+            .maybeSingle();
+
+          const profileUpdate = { ...userData, email: formData.email, ...(profilePhotoUrl ? { profile_photo_url: profilePhotoUrl } : {}) };
+
+          if (existing) {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update(profileUpdate)
+              .eq('user_id', uid as string);
+            if (profileError) console.error('Erreur mise à jour profil:', profileError);
+          } else {
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({ ...profileUpdate, user_id: uid as string });
+            if (insertError) console.error('Erreur création profil:', insertError);
           }
 
           toast({

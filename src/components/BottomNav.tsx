@@ -2,16 +2,43 @@ import {
   Home, 
   Calendar, 
   MessageCircle,
-  User,
   Plus
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 const BottomNav = () => {
   const location = useLocation();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => currentPath === path;
+  const { user } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!user) { setAvatarUrl(null); setFullName(""); return; }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('profile_photo_url, full_name, email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        setAvatarUrl(null);
+        setFullName(user.email || "");
+        return;
+      }
+      setAvatarUrl(data?.profile_photo_url ?? null);
+      setFullName(data?.full_name || data?.email || user.email || "");
+    };
+    load();
+    return () => { active = false; };
+  }, [user?.id]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
@@ -69,11 +96,12 @@ const BottomNav = () => {
             
             <Link to="/profile" className="flex flex-col items-center space-y-1">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                isActive('/profile') ? 'bg-primary' : ''
+                isActive('/profile') ? 'bg-primary/10 ring-2 ring-primary' : ''
               }`}>
-                <User className={`w-5 h-5 ${
-                  isActive('/profile') ? 'text-primary-foreground' : 'text-muted-foreground'
-                }`} strokeWidth={1.5} />
+                <Avatar className="w-9 h-9">
+                  <AvatarImage src={avatarUrl ?? undefined} alt={fullName || 'Avatar'} />
+                  <AvatarFallback>{(fullName || 'P').slice(0,1).toUpperCase()}</AvatarFallback>
+                </Avatar>
               </div>
               <span className={`text-xs ${
                 isActive('/profile') ? 'text-primary font-medium' : 'text-muted-foreground'

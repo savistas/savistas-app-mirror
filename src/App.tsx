@@ -14,6 +14,7 @@ import Planning from "./pages/Planning";
 import DailyQuiz from "./pages/DailyQuiz";
 import Result from "./pages/Result";
 import Messaging from "./pages/Messaging";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/daily-quiz" element={<ProtectedRoute><DailyQuiz /></ProtectedRoute>} />
           <Route path="/result" element={<ProtectedRoute><Result /></ProtectedRoute>} />
           <Route path="/messaging" element={<ProtectedRoute><Messaging /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
