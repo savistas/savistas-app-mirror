@@ -35,10 +35,13 @@ const Calendar = () => {
     22: { completed: false, hasQCM: true }
   };
   
-  const today = new Date().getDate();
+  const today = new Date();
   
   const renderCalendarDay = (day: number) => {
-    const isToday = day === today;
+    const isToday =
+      today.getDate() === day &&
+      today.getMonth() === currentDate.getMonth() &&
+      today.getFullYear() === currentDate.getFullYear();
     const dayData = qcmDays[day];
     
     let className = "w-12 h-12 flex items-center justify-center text-sm rounded-lg transition-colors ";
@@ -88,13 +91,13 @@ const Calendar = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-foreground">Agenda</h1>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}>
               <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
             </Button>
             <span className="font-medium text-foreground min-w-[140px] text-center">
               {currentMonth} {currentYear}
             </span>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}>
               <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
             </Button>
           </div>

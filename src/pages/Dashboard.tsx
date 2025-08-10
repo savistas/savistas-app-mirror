@@ -27,6 +27,7 @@ const Dashboard = () => {
   const [displayName, setDisplayName] = useState<string>("");
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
+  const [progressByCourse, setProgressByCourse] = useState<Record<string, { total: number; answered: number }>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -77,6 +78,30 @@ const Dashboard = () => {
     loadCourses();
   }, [user]);
 
+  useEffect(() => {
+    if (!user || courses.length === 0) return;
+    let cancelled = false;
+    const fetchProgress = async () => {
+      const entries = await Promise.all(
+        courses.map(async (course) => {
+          const { count: totalExercises } = await supabase
+            .from('exercises')
+            .select('id', { count: 'exact', head: true })
+            .eq('course_id', course.id);
+          const { count: answeredByUser } = await supabase
+            .from('exercise_responses')
+            .select('id', { count: 'exact', head: true })
+            .eq('course_id', course.id)
+            .eq('user_id', user.id);
+          return [course.id, { total: totalExercises || 0, answered: answeredByUser || 0 }] as const;
+        })
+      );
+      if (!cancelled) setProgressByCourse(Object.fromEntries(entries));
+    };
+    fetchProgress();
+    return () => { cancelled = true; };
+  }, [user, courses]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -119,6 +144,14 @@ const Dashboard = () => {
                           <p className="text-sm text-muted-foreground">{course.subject || '—'} • {course.level || '—'}</p>
                         </div>
                         <p className="text-xs text-muted-foreground">Ajouté le {new Date(course.created_at).toLocaleDateString('fr-FR')}</p>
+                        {progressByCourse[course.id] && (
+                          <div className="space-y-1">
+                            <Progress value={progressByCourse[course.id].total ? (progressByCourse[course.id].answered / progressByCourse[course.id].total) * 100 : 0} />
+                            <p className="text-xs text-muted-foreground">
+                              {progressByCourse[course.id].answered} / {progressByCourse[course.id].total} exercices
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
