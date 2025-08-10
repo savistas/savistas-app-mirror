@@ -8,9 +8,14 @@ import { Slider } from "@/components/ui/slider";
 import { Camera, Upload, BarChart3, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     subject: "",
@@ -20,10 +25,62 @@ const UploadCourse = () => {
     duration: [15],
     format: "20QCM"
   });
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadKind, setUploadKind] = useState<'photo' | 'pdf' | null>(null);
+  const [creating, setCreating] = useState(false);
 
-  const handleCreate = () => {
-    // Handle course creation logic here
-    navigate("/planning");
+  const handleCreate = async () => {
+    if (!user) {
+      toast({ title: "Connexion requise", description: "Veuillez vous connecter pour créer un cours.", variant: "destructive" });
+      return;
+    }
+    if (!formData.lesson || !formData.subject || !formData.level) {
+      toast({ title: "Champs manquants", description: "Matière, niveau et leçon sont requis.", variant: "destructive" });
+      return;
+    }
+    if (!file) {
+      toast({ title: "Fichier requis", description: "Ajoutez une image ou un PDF pour votre cours.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setCreating(true);
+      const unique = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`;
+      const path = `${user.id}/${unique}-${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('courses')
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { data: pub } = supabase.storage.from('courses').getPublicUrl(path);
+      const publicUrl = pub.publicUrl;
+      const isImage = file.type.startsWith('image/');
+
+      const { error: insertError } = await supabase
+        .from('courses')
+        .insert([
+          {
+            title: formData.lesson,
+            subject: formData.subject,
+            level: formData.level,
+            description: formData.difficulties || null,
+            file_url: publicUrl,
+            cover_url: isImage ? publicUrl : null,
+            user_id: user.id,
+          },
+        ]);
+
+      if (insertError) throw insertError;
+
+      toast({ title: "Cours créé", description: "Votre cours a été enregistré." });
+      navigate("/planning");
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Échec de la création", description: e?.message ?? "Une erreur est survenue.", variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -48,7 +105,7 @@ const UploadCourse = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card 
                 className="cursor-pointer transition-all hover:shadow-md border-border"
-                onClick={() => setStep(2)}
+                onClick={() => { setUploadKind('photo'); setStep(2); }}
               >
                 <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                   <Camera className="w-12 h-12 text-primary" strokeWidth={1.5} />
@@ -60,7 +117,7 @@ const UploadCourse = () => {
 
               <Card 
                 className="cursor-pointer transition-all hover:shadow-md border-border"
-                onClick={() => setStep(2)}
+                onClick={() => { setUploadKind('pdf'); setStep(2); }}
               >
                 <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                   <Upload className="w-12 h-12 text-primary" strokeWidth={1.5} />
@@ -133,6 +190,17 @@ const UploadCourse = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="file">Fichier du cours ({uploadKind === 'pdf' ? 'PDF' : 'Image'})</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept={uploadKind === 'pdf' ? 'application/pdf' : 'image/*'}
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+                <p className="text-xs text-muted-foreground">Le fichier sera stocké de façon sécurisée.</p>
+              </div>
+
               <div className="space-y-4">
                 <Label>Durée : {formData.duration[0]} jour(s)</Label>
                 <Slider
@@ -173,9 +241,10 @@ const UploadCourse = () => {
 
               <Button 
                 onClick={handleCreate}
+                disabled={creating}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
               >
-                Créer
+                {creating ? "Création..." : "Créer"}
               </Button>
             </CardContent>
           </Card>
