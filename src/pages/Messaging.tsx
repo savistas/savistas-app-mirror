@@ -43,6 +43,17 @@ const suggestedQuestions = [
   "Aide-moi avec la conjugaison des verbes",
 ];
 
+const sanitizeContent = (input: string) => {
+  try {
+    const div = document.createElement("div");
+    div.innerHTML = input;
+    const text = div.textContent || "";
+    return text;
+  } catch {
+    return input;
+  }
+};
+
 const Messaging = () => {
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -173,14 +184,15 @@ const Messaging = () => {
         body: JSON.stringify({ message: text, conversation_id: conversationId }),
       });
 
-      const botMarkdown = await resp.text();
+const botRaw = await resp.text();
+const botMarkdown = sanitizeContent(botRaw);
 
-      // Insert bot message
-      const botMsg: Omit<MessageRow, "id" | "created_at"> = {
-        conversation_id: conversationId!,
-        sender: "bot",
-        content: botMarkdown || "",
-      } as any;
+// Insert bot message
+const botMsg: Omit<MessageRow, "id" | "created_at"> = {
+  conversation_id: conversationId!,
+  sender: "bot",
+  content: botMarkdown || "",
+} as any;
 
       const { data: insBotMsg, error: insBotErr } = await supabase
         .from("messages")
@@ -332,7 +344,7 @@ const Messaging = () => {
                   )}
                   <div className={`p-3 rounded-lg ${msg.sender === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground"}`}>
                     <div className="prose prose-sm max-w-none prose-headings:mt-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-a:text-primary prose-invert:prose-strong:font-semibold">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{sanitizeContent(msg.content)}</ReactMarkdown>
                     </div>
                   </div>
                 </div>
