@@ -1,170 +1,378 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import BottomNav from "@/components/BottomNav";
-import { 
-  User, 
-  Power, 
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Bot,
   Menu,
   Send,
-  Bot,
-  Zap
+  Plus,
+  Loader2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Local types to avoid dependency on generated Supabase types
+type Conversation = {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type MessageRow = {
+  id: string;
+  conversation_id: string;
+  sender: "user" | "bot";
+  content: string;
+  created_at: string;
+};
+
+const WEBHOOK_URL = "https://n8n.srv932562.hstgr.cloud/webhook/chatbot-savistas";
+
+const suggestedQuestions = [
+  "Explique-moi les fonctions affines",
+  "Comment résoudre une équation du second degré ?",
+  "Quelles sont les propriétés des triangles ?",
+  "Aide-moi avec la conjugaison des verbes",
+];
 
 const Messaging = () => {
+  const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Bonjour ! Je suis votre assistant IA Savistas. Comment puis-je vous aider avec vos révisions aujourd'hui ?",
-      isAI: true,
-      timestamp: "10:30"
-    },
-    {
-      id: 2,
-      text: "Salut ! J'ai des difficultés avec les fonctions affines, peux-tu m'expliquer ?",
-      isAI: false,
-      timestamp: "10:31"
-    },
-    {
-      id: 3,
-      text: "Bien sûr ! Une fonction affine est une fonction de la forme f(x) = ax + b où a et b sont des constantes. Le coefficient 'a' détermine la pente de la droite, et 'b' l'ordonnée à l'origine. Voulez-vous que je vous donne des exemples concrets ?",
-      isAI: true,
-      timestamp: "10:32"
+  const [messages, setMessages] = useState<MessageRow[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  // Load conversations for the current user
+  useEffect(() => {
+    if (!user?.id) return;
+    let mounted = true;
+    const load = async () => {
+      setLoadingConversations(true);
+      const { data, error } = await supabase
+        .from("conversations")
+        .select("*")
+        .order("updated_at", { ascending: false });
+      if (error) {
+        toast({ title: "Erreur", description: "Impossible de charger l'historique.", variant: "destructive" });
+      } else if (mounted) {
+        setConversations(data as Conversation[]);
+        // Auto-select the most recent conversation
+        if (!activeConversationId && data && data.length > 0) {
+          setActiveConversationId(data[0].id);
+        }
+      }
+      setLoadingConversations(false);
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user?.id]);
+
+  // Load messages when the active conversation changes
+  useEffect(() => {
+    if (!activeConversationId) {
+      setMessages([]);
+      return;
     }
-  ]);
+    let mounted = true;
+    const load = async () => {
+      setLoadingMessages(true);
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", activeConversationId)
+        .order("created_at", { ascending: true });
+      if (error) {
+        toast({ title: "Erreur", description: "Impossible de charger les messages.", variant: "destructive" });
+      } else if (mounted) {
+        setMessages(data as MessageRow[]);
+      }
+      setLoadingMessages(false);
+    };
+    load();
+    return () => { mounted = false; };
+  }, [activeConversationId]);
 
-  const suggestedQuestions = [
-    "Explique-moi les fonctions affines",
-    "Comment résoudre une équation du second degré ?",
-    "Quelles sont les propriétés des triangles ?",
-    "Aide-moi avec la conjugaison des verbes"
-  ];
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === activeConversationId) || null,
+    [conversations, activeConversationId]
+  );
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      const newMessage = {
-        id: messages.length + 1,
-        text: message,
-        isAI: false,
-        timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages([...messages, newMessage]);
+  const startNewConversation = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setMessage("");
+  };
+
+  const truncateTitle = (text: string) => {
+    const trimmed = text.trim();
+    if (trimmed.length <= 30) return trimmed || "Nouvelle conversation";
+    return `${trimmed.slice(0, 30)}…`;
+  };
+
+  const handleSendMessage = async () => {
+    const text = message.trim();
+    if (!text || !user?.id || sending) return;
+    setSending(true);
+
+    try {
+      let conversationId = activeConversationId;
+
+      // Create conversation on first message
+      if (!conversationId) {
+        const title = truncateTitle(text) || "Nouvelle conversation";
+        const { data: convData, error: convError } = await supabase
+          .from("conversations")
+          .insert({ user_id: user.id, title })
+          .select()
+          .single();
+        if (convError || !convData) {
+          throw convError || new Error("Création de la conversation échouée");
+        }
+        conversationId = convData.id;
+        setConversations((prev) => [{ ...(convData as Conversation) }, ...prev]);
+        setActiveConversationId(conversationId);
+      }
+
+      // Insert user message
+      const userMsg: Omit<MessageRow, "id" | "created_at"> = {
+        conversation_id: conversationId!,
+        sender: "user",
+        content: text,
+      } as any;
+
+      const { data: insUserMsg, error: insUserErr } = await supabase
+        .from("messages")
+        .insert(userMsg)
+        .select()
+        .single();
+      if (insUserErr || !insUserMsg) throw insUserErr || new Error("Envoi du message échoué");
+
+      setMessages((prev) => [...prev, insUserMsg as MessageRow]);
       setMessage("");
-      
-      // Simulate AI response
-      setTimeout(() => {
-        const aiResponse = {
-          id: messages.length + 2,
-          text: "Merci pour votre question ! Je vais vous aider avec cela...",
-          isAI: true,
-          timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages(prev => [...prev, aiResponse]);
-      }, 1000);
+
+      // Call webhook
+      const resp = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, conversation_id: conversationId }),
+      });
+
+      const botMarkdown = await resp.text();
+
+      // Insert bot message
+      const botMsg: Omit<MessageRow, "id" | "created_at"> = {
+        conversation_id: conversationId!,
+        sender: "bot",
+        content: botMarkdown || "",
+      } as any;
+
+      const { data: insBotMsg, error: insBotErr } = await supabase
+        .from("messages")
+        .insert(botMsg)
+        .select()
+        .single();
+      if (insBotErr || !insBotMsg) throw insBotErr || new Error("Réponse du bot échouée");
+
+      setMessages((prev) => [...prev, insBotMsg as MessageRow]);
+
+      // Move conversation to top
+      setConversations((prev) => {
+        const updated = prev.map((c) => (c.id === conversationId ? { ...c, updated_at: new Date().toISOString() } : c));
+        updated.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+        return updated;
+      });
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Une erreur est survenue.", variant: "destructive" });
+    } finally {
+      setSending(false);
     }
   };
 
+  const Sidebar = (
+    <aside className="hidden md:flex w-72 shrink-0 border-r border-border flex-col">
+      <div className="p-4 flex items-center justify-between border-b border-border">
+        <div className="flex items-center space-x-2">
+          <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
+          <span className="font-medium text-foreground">Historique</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={startNewConversation}>
+          <Plus className="w-4 h-4 mr-1" /> Nouveau
+        </Button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {loadingConversations ? (
+          <div className="p-4 text-sm text-muted-foreground">Chargement…</div>
+        ) : conversations.length === 0 ? (
+          <div className="p-4 text-sm text-muted-foreground">Aucune conversation.</div>
+        ) : (
+          <ul className="p-2">
+            {conversations.map((c) => (
+              <li key={c.id}>
+                <Button
+                  variant={c.id === activeConversationId ? "secondary" : "ghost"}
+                  className="w-full justify-start truncate"
+                  onClick={() => setActiveConversationId(c.id)}
+                >
+                  {c.title || "Conversation"}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </aside>
+  );
+
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-28">
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-border">
+    <div className="min-h-screen bg-background flex flex-col md:flex-row pb-28">
+      {/* Desktop sidebar */}
+      {Sidebar}
+
+      {/* Mobile header with drawer trigger */}
+      <header className="md:hidden flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background z-10">
         <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Bot className="w-8 h-8 text-primary" strokeWidth={1.5} />
-            <Zap className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400" strokeWidth={2} />
-          </div>
+          <Bot className="w-6 h-6 text-primary" strokeWidth={1.5} />
           <span className="font-medium text-foreground">AI Assistant</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm">
-            <Power className="w-5 h-5" strokeWidth={1.5} />
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Menu className="w-5 h-5" strokeWidth={1.5} />
-          </Button>
-        </div>
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Historique">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-5/6 p-0">
+            <SheetHeader className="p-4">
+              <SheetTitle>Historique</SheetTitle>
+            </SheetHeader>
+            <div className="p-2 border-t border-border">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => { startNewConversation(); setSidebarOpen(false); }}>
+                <Plus className="w-4 h-4 mr-1" /> Nouveau
+              </Button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto">
+              {loadingConversations ? (
+                <div className="p-4 text-sm text-muted-foreground">Chargement…</div>
+              ) : conversations.length === 0 ? (
+                <div className="p-4 text-sm text-muted-foreground">Aucune conversation.</div>
+              ) : (
+                <ul className="p-2">
+                  {conversations.map((c) => (
+                    <li key={c.id}>
+                      <Button
+                        variant={c.id === activeConversationId ? "secondary" : "ghost"}
+                        className="w-full justify-start truncate"
+                        onClick={() => { setActiveConversationId(c.id); setSidebarOpen(false); }}
+                      >
+                        {c.title || "Conversation"}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </header>
 
-      {/* Chat Messages */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in pb-28">
-        {messages.map((msg) => (
-          <div 
-            key={msg.id}
-            className={`flex ${msg.isAI ? 'justify-start' : 'justify-end'}`}
-          >
-            <div className={`max-w-[80%] md:max-w-[60%] ${
-              msg.isAI ? 'order-2' : 'order-1'
-            }`}>
-              {msg.isAI && (
-                <div className="flex items-center space-x-2 mb-1">
-                  <div className="relative">
-                    <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
-                    <Zap className="w-2 h-2 absolute -top-0.5 -right-0.5 text-yellow-400" strokeWidth={2} />
-                  </div>
-                  <span className="text-xs text-muted-foreground">AI Assistant</span>
-                </div>
-              )}
-              <div className={`p-3 rounded-lg ${
-                msg.isAI 
-                  ? 'bg-muted text-foreground' 
-                  : 'bg-primary text-primary-foreground'
-              }`}>
-                <p className="text-sm leading-relaxed break-words whitespace-normal text-pretty">{msg.text}</p>
-              </div>
-              <div className={`text-xs text-muted-foreground mt-1 ${
-                msg.isAI ? 'text-left' : 'text-right'
-              }`}>
-                {msg.timestamp}
+      {/* Chat area */}
+      <main className="flex-1 flex flex-col">
+        {/* Desktop header */}
+        <header className="hidden md:flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center space-x-3">
+            <Bot className="w-6 h-6 text-primary" strokeWidth={1.5} />
+            <span className="font-medium text-foreground">AI Assistant</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={startNewConversation}>
+              <Plus className="w-4 h-4 mr-1" /> Nouveau
+            </Button>
+          </div>
+        </header>
+
+        {/* Messages */}
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in pb-40">
+          {loadingMessages ? (
+            <div className="text-sm text-muted-foreground">Chargement des messages…</div>
+          ) : messages.length === 0 && !activeConversationId ? (
+            <div className="max-w-2xl mx-auto">
+              <div className="text-sm text-muted-foreground mb-3">Questions suggérées :</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {suggestedQuestions.map((q) => (
+                  <Button key={q} variant="outline" size="sm" className="justify-start h-auto p-3 whitespace-normal" onClick={() => setMessage(q)}>
+                    {q}
+                  </Button>
+                ))}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.sender === "bot" ? "justify-start" : "justify-end"}`}>
+                <div className={`max-w-[80%] md:max-w-[65%] ${msg.sender === "bot" ? "order-2" : "order-1"}`}>
+                  {msg.sender === "bot" && (
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
+                      <span className="text-xs text-muted-foreground">AI Assistant</span>
+                    </div>
+                  )}
+                  <div className={`p-3 rounded-lg ${msg.sender === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground"}`}>
+                    <div className="prose prose-sm max-w-none prose-headings:mt-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-a:text-primary prose-invert:prose-strong:font-semibold">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
 
-      {/* Suggested Questions */}
-      {messages.length <= 3 && (
-        <div className="p-4 border-t border-border">
-          <h3 className="text-sm font-medium text-muted-foreground mb-3">
-            Questions suggérées :
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {suggestedQuestions.map((question, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="text-left justify-start h-auto p-3 border-border hover:bg-muted whitespace-normal break-words text-pretty max-w-full"
-                onClick={() => setMessage(question)}
-              >
-                {question}
-              </Button>
-            ))}
+          {sending && (
+            <div className="flex justify-start">
+              <div className="max-w-[80%] md:max-w-[65%]">
+                <div className="flex items-center space-x-2 mb-1">
+                  <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
+                  <span className="text-xs text-muted-foreground">AI Assistant</span>
+                </div>
+                <div className="p-3 rounded-lg bg-muted text-foreground inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Rédaction de la réponse…</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t border-border bg-background sticky bottom-24 md:bottom-0 z-10">
+          <div className="flex gap-2">
+            <Input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Tapez votre message…"
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSendMessage())}
+              className="flex-1"
+              aria-label="Message"
+            />
+            <Button onClick={handleSendMessage} size="icon" disabled={sending} className="bg-primary hover:bg-primary/90">
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" strokeWidth={1.5} />}
+            </Button>
           </div>
         </div>
-      )}
-
-      {/* Message Input */}
-      <div className="p-4 border-t border-border bg-background sticky bottom-24 z-10">
-        <div className="flex space-x-2">
-          <Input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Tapez votre message..."
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSendMessage())}
-            className="flex-1"
-          />
-          <Button 
-            onClick={handleSendMessage}
-            size="icon"
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Send className="w-4 h-4" strokeWidth={1.5} />
-          </Button>
-        </div>
-      </div>
+      </main>
 
       {/* Bottom Navigation */}
       <BottomNav />
