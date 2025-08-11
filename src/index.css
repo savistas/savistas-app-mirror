@@ -115,10 +115,15 @@ All colors MUST be HSL.
   }
 }
 
-/* Fallback for browsers that don't support scrollbar-gutter */
-@supports not (scrollbar-gutter: stable) {
-  html {
-    overflow-y: scroll;
+/* Mobile: hide scrollbars on touch devices (no layout shift) */
+@media (hover: none) and (pointer: coarse) {
+  html, body {
+    -ms-overflow-style: none; /* IE/Edge legacy */
+    scrollbar-width: none; /* Firefox */
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none; /* Safari/Chrome */
   }
 }
 
