@@ -45,10 +45,28 @@ const suggestedQuestions = [
 
 const sanitizeContent = (input: string) => {
   try {
-    const div = document.createElement("div");
-    div.innerHTML = input;
-    const text = div.textContent || "";
-    return text;
+    if (!input) return "";
+    const trimmed = input.trim();
+
+    // If webhook wrapped the markdown inside an <iframe srcdoc="...">, extract and decode it
+    if (trimmed.startsWith("<iframe")) {
+      const doc = new DOMParser().parseFromString(trimmed, "text/html");
+      const iframe = doc.querySelector("iframe");
+      const srcdoc = iframe?.getAttribute("srcdoc") || "";
+      const decoder = document.createElement("textarea");
+      decoder.innerHTML = srcdoc;
+      return (decoder.value || decoder.textContent || "").trim();
+    }
+
+    // If any other HTML slips in, strip tags to plain text
+    if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+      const div = document.createElement("div");
+      div.innerHTML = trimmed;
+      return (div.textContent || "").trim();
+    }
+
+    // Already plain markdown/text
+    return trimmed;
   } catch {
     return input;
   }
@@ -333,7 +351,7 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
               </div>
             </div>
           ) : (
-            messages.map((msg) => (
+            messages.filter((m) => (m.content || "").trim().length > 0).map((msg) => (
               <div key={msg.id} className={`flex ${msg.sender === "bot" ? "justify-start" : "justify-end"}`}>
                 <div className={`max-w-[80%] md:max-w-[65%] ${msg.sender === "bot" ? "order-2" : "order-1"}`}>
                   {msg.sender === "bot" && (
