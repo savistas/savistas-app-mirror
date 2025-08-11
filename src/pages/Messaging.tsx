@@ -199,7 +199,7 @@ const Messaging = () => {
       const resp = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversation_id: conversationId }),
+        body: JSON.stringify({ message: text, conversation_id: conversationId, user_id: user.id }),
       });
 
 const botRaw = await resp.text();
