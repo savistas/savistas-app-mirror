@@ -159,6 +159,7 @@ const UploadCourse = () => {
             accept="image/*"
             className="hidden"
             multiple // Added multiple attribute
+            capture="environment" // Added capture attribute for camera
             onChange={handleFileChange} // Changed to handleFileChange
           />
           <input
