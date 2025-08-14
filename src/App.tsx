@@ -30,10 +30,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/welcome" element={<Welcome />} />
-          
+
           <Route path="/auth" element={<Auth />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/informations" element={<ProtectedRoute><InformationSurvey /></ProtectedRoute>} /> {/* Nouvelle route */}
+          <Route path="/informations" element={<ProtectedRoute><InformationSurvey /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/upload-course" element={<ProtectedRoute><UploadCourse /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />

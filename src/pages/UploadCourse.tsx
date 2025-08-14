@@ -338,10 +338,6 @@ const UploadCourse = () => {
                   </div>
                 </div>
 
-
-
-
-
                 <Button 
                   onClick={handleCreate}
                   disabled={creating}
