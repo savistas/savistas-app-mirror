@@ -10,7 +10,8 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
@@ -28,10 +29,13 @@ const UploadCourse = () => {
   const [uploadKind, setUploadKind] = useState<'photo' | 'pdf' | null>(null);
   const [creating, setCreating] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
+  const [showAddMoreOptions, setShowAddMoreOptions] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null); // New ref for gallery
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // New ref for combined file input
+  const isMobile = useIsMobile();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -179,49 +183,31 @@ const UploadCourse = () => {
             multiple
             onChange={handleFileChange}
           />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,image/png,image/jpeg"
+            className="hidden"
+            multiple
+            onChange={handleFileChange}
+          />
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-center text-foreground">
                 Comment souhaitez-vous ajouter votre cours ?
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card 
-                  className="cursor-pointer transition-all hover:shadow-md border-border"
-                  onClick={() => { setUploadKind('photo'); photoInputRef.current?.click(); }}
-                >
-                  <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
-                    <Camera className="w-12 h-12 text-primary" strokeWidth={1.5} />
-                    <span className="text-lg font-medium text-foreground">
-                      Prendre une photo
-                    </span>
-                  </CardContent>
-                </Card>
-
-                <Card 
-                  className="cursor-pointer transition-all hover:shadow-md border-border"
-                  onClick={() => { setUploadKind('photo'); galleryInputRef.current?.click(); }} // Use gallery input
-                >
-                  <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
-                    <Image className="w-12 h-12 text-primary" strokeWidth={1.5} /> {/* Changed to Image icon */}
-                    <span className="text-lg font-medium text-foreground">
-                      Choisir dans la galerie
-                    </span>
-                  </CardContent>
-                </Card>
-
-                <Card 
-                  className="cursor-pointer transition-all hover:shadow-md border-border"
-                  onClick={() => { setUploadKind('pdf'); pdfInputRef.current?.click(); }}
-                >
-                  <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
-                    <Upload className="w-12 h-12 text-primary" strokeWidth={1.5} />
-                    <span className="text-lg font-medium text-foreground">
-                      Uploader un document (PDF)
-                    </span>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card 
+                className="cursor-pointer transition-all hover:shadow-md border-border"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
+                  <Upload className="w-12 h-12 text-primary" strokeWidth={1.5} />
+                  <span className="text-lg font-medium text-foreground">
+                    Ajouter un document
+                  </span>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -252,19 +238,63 @@ const UploadCourse = () => {
                         </li>
                       ))}
                     </ul>
-                    <Button
-                      variant="outline"
-                      className="w-full mt-2"
-                      onClick={() => {
-                        if (uploadKind === 'photo') {
-                          photoInputRef.current?.click();
-                        } else if (uploadKind === 'pdf') {
-                          pdfInputRef.current?.click();
-                        }
-                      }}
-                    >
-                      <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
-                    </Button>
+                    {isMobile ? (
+                      <Dialog open={showAddMoreOptions} onOpenChange={setShowAddMoreOptions}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full mt-2">
+                            <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Ajouter plus de documents</DialogTitle>
+                            <DialogDescription>
+                              Choisissez comment vous souhaitez ajouter d'autres documents.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid grid-cols-1 gap-4 py-4">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setUploadKind('photo');
+                                photoInputRef.current?.click();
+                                setShowAddMoreOptions(false);
+                              }}
+                            >
+                              <Camera className="w-5 h-5 mr-2" /> Prendre une photo
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setUploadKind('photo');
+                                galleryInputRef.current?.click();
+                                setShowAddMoreOptions(false);
+                              }}
+                            >
+                              <Image className="w-5 h-5 mr-2" /> Choisir dans la galerie
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setUploadKind('pdf'); // This will be for PDF, PNG, JPEG
+                                fileInputRef.current?.click();
+                                setShowAddMoreOptions(false);
+                              }}
+                            >
+                              <Upload className="w-5 h-5 mr-2" /> Ajouter un document (PDF, PNG, JPEG)
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-2"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
+                      </Button>
+                    )}
                   </div>
                 )}
 
