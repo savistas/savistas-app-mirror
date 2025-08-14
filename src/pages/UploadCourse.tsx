@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Camera, Upload, ArrowLeft, Plus, XCircle } from "lucide-react";
+import { Camera, Upload, ArrowLeft, Plus, XCircle, Image } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +30,7 @@ const UploadCourse = () => {
   const [showLoader, setShowLoader] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null); // New ref for gallery
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,17 +159,25 @@ const UploadCourse = () => {
             type="file"
             accept="image/*"
             className="hidden"
-            multiple // Added multiple attribute
-            capture="environment" // Added capture attribute for camera
-            onChange={handleFileChange} // Changed to handleFileChange
+            multiple
+            capture="environment" // Force camera on mobile
+            onChange={handleFileChange}
+          />
+          <input
+            ref={galleryInputRef} // New input for gallery
+            type="file"
+            accept="image/*"
+            className="hidden"
+            multiple
+            onChange={handleFileChange}
           />
           <input
             ref={pdfInputRef}
             type="file"
             accept="application/pdf"
             className="hidden"
-            multiple // Added multiple attribute
-            onChange={handleFileChange} // Changed to handleFileChange
+            multiple
+            onChange={handleFileChange}
           />
           {step === 1 && (
             <div className="space-y-6">
@@ -191,12 +200,24 @@ const UploadCourse = () => {
 
                 <Card 
                   className="cursor-pointer transition-all hover:shadow-md border-border"
+                  onClick={() => { setUploadKind('photo'); galleryInputRef.current?.click(); }} // Use gallery input
+                >
+                  <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
+                    <Image className="w-12 h-12 text-primary" strokeWidth={1.5} /> {/* Changed to Image icon */}
+                    <span className="text-lg font-medium text-foreground">
+                      Choisir dans la galerie
+                    </span>
+                  </CardContent>
+                </Card>
+
+                <Card 
+                  className="cursor-pointer transition-all hover:shadow-md border-border"
                   onClick={() => { setUploadKind('pdf'); pdfInputRef.current?.click(); }}
                 >
                   <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                     <Upload className="w-12 h-12 text-primary" strokeWidth={1.5} />
                     <span className="text-lg font-medium text-foreground">
-                      Uploader un PDF
+                      Uploader un document (PDF)
                     </span>
                   </CardContent>
                 </Card>
