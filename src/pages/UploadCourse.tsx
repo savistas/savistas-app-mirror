@@ -238,63 +238,13 @@ const UploadCourse = () => {
                         </li>
                       ))}
                     </ul>
-                    {isMobile ? (
-                      <Dialog open={showAddMoreOptions} onOpenChange={setShowAddMoreOptions}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="w-full mt-2">
-                            <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                          <DialogHeader>
-                            <DialogTitle>Ajouter plus de documents</DialogTitle>
-                            <DialogDescription>
-                              Choisissez comment vous souhaitez ajouter d'autres documents.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid grid-cols-1 gap-4 py-4">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setUploadKind('photo');
-                                photoInputRef.current?.click();
-                                setShowAddMoreOptions(false);
-                              }}
-                            >
-                              <Camera className="w-5 h-5 mr-2" /> Prendre une photo
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setUploadKind('photo');
-                                galleryInputRef.current?.click();
-                                setShowAddMoreOptions(false);
-                              }}
-                            >
-                              <Image className="w-5 h-5 mr-2" /> Choisir dans la galerie
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setUploadKind('pdf'); // This will be for PDF, PNG, JPEG
-                                fileInputRef.current?.click();
-                                setShowAddMoreOptions(false);
-                              }}
-                            >
-                              <Upload className="w-5 h-5 mr-2" /> Ajouter un document (PDF, PNG, JPEG)
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="w-full mt-2"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full mt-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
+                    </Button>
                   </div>
                 )}
 
