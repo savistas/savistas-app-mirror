@@ -41,7 +41,7 @@ const BottomNav = () => {
   }, [user?.id]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border">
       <div className="relative flex items-center justify-center py-4 px-6">
         <div className="flex items-center justify-between w-full max-w-md">
           {/* Left side - Accueil & Agenda */}
@@ -81,11 +81,11 @@ const BottomNav = () => {
             
             <Link to="/profile" className="flex flex-col items-center space-y-1">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                isActive('/profile') ? 'bg-primary/10 ring-2 ring-primary' : ''
+                isActive('/profile') ? 'bg-sky-100 ring-2 ring-sky-500' : 'bg-gradient-to-br from-sky-400 to-sky-600'
               }`}>
                 <Avatar className="w-9 h-9">
                   <AvatarImage src={avatarUrl ?? undefined} alt={fullName || 'Avatar'} />
-                  <AvatarFallback>{(fullName || 'P').slice(0,1).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className="bg-sky-500 text-white">{(fullName || 'P').slice(0,1).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </div>
             </Link>

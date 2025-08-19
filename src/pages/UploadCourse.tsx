@@ -124,20 +124,32 @@ const UploadCourse = () => {
           if (!response.ok) {
             throw new Error(`Webhook error: ${response.statusText}`);
           }
-          toast({ title: "Webhook envoyé", description: "Les exercices sont en cours de génération." });
+
+          const webhookResponse = await response.json();
+          const courseIdFromWebhook = webhookResponse.id_course;
+
+          if (courseIdFromWebhook) {
+            toast({ title: "Webhook envoyé", description: "Les exercices sont en cours de génération." });
+            navigate(`/courses/${courseIdFromWebhook}`);
+          } else {
+            toast({ title: "Webhook envoyé", description: "Les exercices sont en cours de génération, mais l'ID du cours n'a pas été reçu du webhook." });
+            navigate("/planning"); // Fallback if id_course is not in webhook response
+          }
         } catch (webhookError: any) {
           console.error("Webhook error:", webhookError);
           toast({ title: "Erreur Webhook", description: webhookError?.message ?? "Échec de l'envoi au webhook.", variant: "destructive" });
+          navigate("/planning"); // Navigate to planning on webhook error
         } finally {
           setShowLoader(false); // Hide loader
         }
+      } else {
+        toast({ title: "Cours créé", description: "Votre cours a été enregistré." });
+        navigate("/planning"); // Fallback if courseId is not available from Supabase insert
       }
-
-      toast({ title: "Cours créé", description: "Votre cours a été enregistré." });
-      navigate("/planning");
     } catch (e: any) {
       console.error(e);
       toast({ title: "Échec de la création", description: e?.message ?? "Une erreur est survenue.", variant: "destructive" });
+      navigate("/planning"); // Navigate to planning on general error
     } finally {
       setCreating(false);
     }
@@ -248,34 +260,14 @@ const UploadCourse = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="subject">Matière</Label>
-                    <Select value={formData.subject} onValueChange={(value) => setFormData({...formData, subject: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner une matière" />
-                      </SelectTrigger>
-                      <SelectContent className="overflow-y-scroll overflow-x-hidden scrollbar-hide">
-                        <SelectItem value="mathematiques">Mathématiques</SelectItem>
-                        <SelectItem value="physique">Physique</SelectItem>
-                        <SelectItem value="chimie">Chimie</SelectItem>
-                        <SelectItem value="francais">Français</SelectItem>
-                        <SelectItem value="histoire">Histoire</SelectItem>
-                        <SelectItem value="geographie">Géographie</SelectItem>
-                        <SelectItem value="svt">SVT</SelectItem>
-                        <SelectItem value="anglais">Anglais</SelectItem>
-                        <SelectItem value="espagnol">Espagnol</SelectItem>
-                        <SelectItem value="allemand">Allemand</SelectItem>
-                        <SelectItem value="philosophie">Philosophie</SelectItem>
-                        <SelectItem value="economie">Économie</SelectItem>
-                        <SelectItem value="droit">Droit</SelectItem>
-                        <SelectItem value="informatique">Informatique</SelectItem>
-                        <SelectItem value="art">Art</SelectItem>
-                        <SelectItem value="musique">Musique</SelectItem>
-                        <SelectItem value="sport">Sport</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Matière</Label>
+                  <Input
+                    id="subject"
+                    placeholder="Ex: Mathématiques, Histoire, etc."
+                    value={formData.subject}
+                    onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                  />
                 </div>
 
                 <div className="space-y-2">
