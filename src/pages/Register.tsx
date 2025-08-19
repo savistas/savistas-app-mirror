@@ -6,6 +6,7 @@ import { StepIndicator } from "@/components/register/StepIndicator";
 import { RoleStep } from "@/components/register/RoleStep";
 import { SubscriptionStep } from "@/components/register/SubscriptionStep";
 import { InformationStep } from "@/components/register/InformationStep";
+import { EducationStep } from "@/components/register/EducationStep";
 import { PersonalInfoStep } from "@/components/register/PersonalInfoStep";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -27,33 +28,34 @@ const Register = () => {
     role: "",
     // Step 2: Subscription
     subscription: "",
-    // Step 3: Information
-    country: "",
-    city: "",
-    postalCode: "",
+    // Step 3: Education
     educationLevel: "",
     classes: "",
     subjects: "",
+    // Step 4: Information
+    country: "",
+    city: "",
+    postalCode: "",
     profilePhoto: null as File | null,
     linkCode: "",
     linkRelation: "",
     ent: "",
     aiLevel: "",
-    // Step 4: Personal Info
+    // Step 5: Personal Info
     fullName: "",
     email: "",
     phone: "",
-    password: ""
+    password: "",
   });
 
-  const stepTitles = ["Rôle", "Abonnement", "Informations", "Compte"];
+  const stepTitles = ["Rôle", "Abonnement", "Parcours scolaire", "Informations", "Compte"];
 
   const handleFormDataChange = (field: string, value: string | File | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleNext = () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -66,7 +68,7 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentStep === 4 && termsAccepted && privacyAccepted) {
+    if (currentStep === 5 && termsAccepted && privacyAccepted) {
       setLoading(true);
       
       try {
@@ -176,8 +178,10 @@ const Register = () => {
       case 2:
         return formData.subscription !== "";
       case 3:
-        return true; // Information step is optional
+        return formData.educationLevel !== "" && formData.classes !== "" && formData.subjects !== "";
       case 4:
+        return true; // Information step is optional
+      case 5:
         return formData.fullName && formData.email && formData.password && termsAccepted && privacyAccepted;
       default:
         return false;
@@ -202,12 +206,19 @@ const Register = () => {
         );
       case 3:
         return (
-          <InformationStep 
+          <EducationStep 
             formData={formData}
             onFormDataChange={handleFormDataChange}
           />
         );
       case 4:
+        return (
+          <InformationStep 
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+          />
+        );
+      case 5:
         return (
           <PersonalInfoStep 
             formData={formData}
@@ -234,7 +245,7 @@ const Register = () => {
             </h1>
             <StepIndicator 
               currentStep={currentStep}
-              totalSteps={4}
+              totalSteps={5}
               stepTitles={stepTitles}
             />
           </div>
@@ -254,7 +265,7 @@ const Register = () => {
                 <span>Précédent</span>
               </Button>
               
-              {currentStep < 4 ? (
+              {currentStep < 5 ? (
                 <Button
                   type="button"
                   onClick={handleNext}

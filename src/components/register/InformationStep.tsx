@@ -7,34 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, ChevronDown, Check } from "lucide-react";
 import { useState } from "react";
 
-const subjects = [
-  "Mathématiques",
-  "Français", 
-  "Anglais",
-  "Histoire-Géographie",
-  "Physique-Chimie",
-  "SVT",
-  "Philosophie",
-  "Économie",
-  "Informatique",
-  "Autre"
-];
-
-const classes = [
-  "CP", "CE1", "CE2", "CM1", "CM2", // Primaire
-  "6ème", "5ème", "4ème", "3ème", // Collège
-  "Seconde", "Première", "Terminale", // Lycée
-  "Bac+1", "Bac+2", "Bac+3", "Bac+4", "Bac+5+" // Supérieur
-];
-
 interface InformationStepProps {
   formData: {
     country: string;
     city: string;
     postalCode: string;
-    educationLevel: string;
-    classes: string;
-    subjects: string;
     profilePhoto: File | null;
     linkCode: string;
     linkRelation: string;
@@ -45,18 +22,6 @@ interface InformationStepProps {
 }
 
 export const InformationStep = ({ formData, onFormDataChange }: InformationStepProps) => {
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
-    formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(s => s.length > 0) : []
-  );
-
-  const handleSubjectChange = (subject: string) => {
-    const newSelection = selectedSubjects.includes(subject)
-      ? selectedSubjects.filter(s => s !== subject)
-      : [...selectedSubjects, subject];
-    
-    setSelectedSubjects(newSelection);
-    onFormDataChange('subjects', newSelection.join(', '));
-  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -123,105 +88,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
             </div>
           </div>
 
-          {/* Informations académiques */}
-          <div className="space-y-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-foreground">Niveau d'enseignement</Label>
-                <Select value={formData.educationLevel} onValueChange={(value) => onFormDataChange('educationLevel', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez le niveau" className="text-xs" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
-                    <SelectItem value="primaire">Primaire</SelectItem>
-                    <SelectItem value="college">Collège</SelectItem>
-                    <SelectItem value="lycee">Lycée</SelectItem>
-                    <SelectItem value="superieur">Supérieur</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-foreground">Classe(s)</Label>
-                <Select value={formData.classes} onValueChange={(value) => onFormDataChange('classes', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez la/les classe(s)" className="text-xs" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border border-border shadow-lg rounded-xl max-h-60">
-                    {classes.map((classe) => (
-                      <SelectItem key={classe} value={classe}>{classe}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Matières */}
-          <div className="space-y-6 mb-8">
-            <Label className="text-sm font-medium text-foreground">Matière(s) *</Label>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full h-12 justify-between border-0 bg-muted/50 rounded-xl text-sm hover:bg-background transition-all duration-200"
-                >
-                  <span className="text-left text-xs">
-                    {selectedSubjects.length === 0 
-                      ? "Sélectionnez une ou plusieurs matières"
-                      : selectedSubjects.length === 1
-                      ? selectedSubjects[0]
-                      : `${selectedSubjects.length} matières sélectionnées`
-                    }
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0 bg-background border border-border shadow-lg rounded-xl" align="start">
-                <div className="max-h-60 overflow-y-auto p-2">
-                  {subjects.map((subject) => (
-                    <div
-                      key={subject}
-                      className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors duration-200"
-                      onClick={() => handleSubjectChange(subject)}
-                    >
-                      <Checkbox
-                        checked={selectedSubjects.includes(subject)}
-                        onChange={() => handleSubjectChange(subject)}
-                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <span className="text-sm text-foreground">{subject}</span>
-                      {selectedSubjects.includes(subject) && (
-                        <Check className="h-4 w-4 text-primary ml-auto" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Affichage des matières sélectionnées sous forme de tags */}
-            {selectedSubjects.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedSubjects.map((subject) => (
-                  <span
-                    key={subject}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
-                  >
-                    {subject}
-                    <button
-                      type="button"
-                      onClick={() => handleSubjectChange(subject)}
-                      className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors duration-200"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Section de liaison */}
           <div className="space-y-6 mb-8">

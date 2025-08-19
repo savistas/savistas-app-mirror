@@ -4,99 +4,140 @@ import BottomNav from "@/components/BottomNav";
 import { 
   User, 
   Power, 
-  Menu,
-  TrendingUp,
-  FileText,
-  Trash2
+  Menu
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { Json } from "@/integrations/supabase/types"; // Import Json type
 
-interface Course {
+interface Question {
+  type: string;
+  reponses: { texte: string; lettre: string; correcte: string }[];
+  question_index: string;
+  question_titre: string;
+  explication_reponse_correcte: string;
+}
+
+interface ExerciseMetadata {
+  niveau: string;
+  matiere: string;
+  questions: Question[];
+  difficulte: string;
+  total_questions: string;
+  course_id: string;
+}
+
+interface UserResponseDetail {
+  question_index: string;
+  user_answer: string;
+  is_correct_sub_question?: boolean;
+}
+
+interface ExerciseResponseMetadata {
+  user_responses: UserResponseDetail[];
+}
+
+interface ExerciseResponse {
   id: string;
-  title: string;
-  subject: string | null;
-  level: string | null;
-  file_url: string | null;
-}
-
-interface Resp {
+  exercise_id: string;
+  user_id: string;
+  metadata: Json | null; // Updated to use Json type for metadata
   created_at: string;
-  is_correct: boolean | null;
-  score: number | null;
 }
-
 
 const Result = () => {
-  const { courseId } = useParams();
+  const { id } = useParams<{ id: string }>(); // Exercise ID
   const { user } = useAuth();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [responses, setResponses] = useState<Resp[]>([]);
+  const [exerciseMetadata, setExerciseMetadata] = useState<ExerciseMetadata | null>(null);
+  const [userResponsesDetails, setUserResponsesDetails] = useState<UserResponseDetail[]>([]); // Store detailed responses
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      if (!courseId || !user) return;
-      const { data } = await supabase
-        .from('courses')
-        .select('id,title,subject,level,file_url')
-        .eq('id', courseId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setCourse((data as Course) || null);
+    const fetchResults = async () => {
+      if (!id || !user) {
+        setError("Exercise ID or User ID is missing.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch exercise metadata
+        const { data: exerciseData, error: exerciseError } = await supabase
+          .from("exercises")
+          .select("metadata, course_id")
+          .eq("id", id)
+          .single();
+
+        if (exerciseError) {
+          throw exerciseError;
+        }
+
+        if (exerciseData && exerciseData.metadata) {
+          setExerciseMetadata({
+            ...(exerciseData.metadata as unknown as ExerciseMetadata),
+            course_id: exerciseData.course_id,
+          });
+        } else {
+          setError("Exercise metadata not found.");
+        }
+
+        // Fetch user responses for this exercise
+        const { data: responsesData, error: responsesError } = await supabase
+          .from("exercise_responses")
+          .select("metadata") // Select only metadata
+          .eq("exercise_id", id)
+          .eq("user_id", user.id)
+          .single(); // Expecting a single response for the whole exercise
+
+        if (responsesError) {
+          throw responsesError;
+        }
+
+        if (responsesData && responsesData.metadata) {
+          const parsedMetadata = responsesData.metadata as unknown as ExerciseResponseMetadata;
+          setUserResponsesDetails(parsedMetadata.user_responses || []);
+        } else {
+          setError("User responses metadata not found.");
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
-    load();
-  }, [courseId, user]);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!courseId || !user) return;
-      const { data } = await supabase
-        .from('exercise_responses')
-        .select('created_at,is_correct,score')
-        .eq('course_id', courseId)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-      setResponses((data as Resp[]) || []);
-    };
-    load();
-  }, [courseId, user]);
+    fetchResults();
+  }, [id, user]);
 
-  const correctCount = useMemo(() => responses.filter(r => r.is_correct).length, [responses]);
-  const totalCount = responses.length;
-  const percentage = totalCount ? Math.round((correctCount / totalCount) * 100) : 0;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Chargement des résultats...</p>
+      </div>
+    );
+  }
 
-  const chartData = useMemo(() => {
-    const map = new Map<string, { total: number; correct: number }>();
-    for (const r of responses) {
-      const d = new Date(r.created_at);
-      const key = d.toLocaleDateString('fr-FR');
-      const prev = map.get(key) || { total: 0, correct: 0 };
-      prev.total += 1;
-      prev.correct += r.is_correct ? 1 : 0;
-      map.set(key, prev);
-    }
-    return Array.from(map.entries()).map(([date, v]) => ({ date, pct: Math.round((v.correct / v.total) * 100) }));
-  }, [responses]);
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        <p>Erreur: {error}</p>
+      </div>
+    );
+  }
 
-  const handleDeleteCourse = async () => {
-    if (!courseId) return;
-    const { error } = await supabase
-      .from('courses')
-      .delete()
-      .eq('id', courseId);
+  if (!exerciseMetadata || exerciseMetadata.questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Aucune donnée d'exercice trouvée.</p>
+      </div>
+    );
+  }
 
-    if (error) {
-      console.error("Erreur lors de la suppression du cours:", error);
-      // Gérer l'erreur, par exemple afficher un message à l'utilisateur
-    } else {
-      console.log("Cours supprimé avec succès !");
-      // Rediriger l'utilisateur après la suppression
-      window.location.href = '/dashboard'; // Ou une autre page appropriée
-    }
-  };
+  const totalQuestions = exerciseMetadata.questions.length;
+  const correctAnswersCount = userResponsesDetails.filter((res) => res.is_correct_sub_question).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -122,13 +163,10 @@ const Result = () => {
           {/* Result Header */}
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold text-foreground">
-              {course?.title || "Résultat"}
+              Résultats de l'exercice
             </h1>
             <p className="text-muted-foreground">
-              {course?.subject || "—"} {course?.level ? `• ${course.level}` : ""}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {totalCount} réponses
+              {exerciseMetadata.matiere} - {exerciseMetadata.niveau}
             </p>
           </div>
 
@@ -137,87 +175,61 @@ const Result = () => {
             <CardContent className="p-8">
               <div className="text-center space-y-4">
                 <div className="text-6xl font-bold text-primary">
-                  {correctCount}/{totalCount}
+                  {correctAnswersCount}/{totalQuestions}
                 </div>
-                <div className="text-xl text-success font-medium">
-                  {totalCount ? (percentage >= 80 ? "Excellent travail !" : percentage >= 50 ? "Bon début" : "Continuez") : "Aucune réponse pour le moment"}
+                <div className="text-xl text-green-500 font-medium">
+                  {correctAnswersCount === totalQuestions ? "Excellent travail !" : "Bon début"}
                 </div>
                 <div className="text-muted-foreground">
-                  {totalCount ? `Vous avez obtenu ${percentage}% de bonnes réponses` : "Répondez aux exercices pour voir vos résultats"}
+                  Vous avez obtenu {Math.round((correctAnswersCount / totalQuestions) * 100)}% de bonnes réponses
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button 
-              variant="outline" 
-              className="w-full border-border hover:bg-muted"
-            >
-              <TrendingUp className="w-4 h-4 mr-2" strokeWidth={1.5} />
-              Voir mes résultats
-            </Button>
-            
-            {course?.file_url ? (
-              <Button asChild variant="outline" className="w-full border-border hover:bg-muted">
-                <a href={course.file_url} target="_blank" rel="noopener noreferrer">
-                  <FileText className="w-4 h-4 mr-2" strokeWidth={1.5} />
-                  Ouvrir le fichier
-                </a>
-              </Button>
-            ) : (
-              <Button variant="outline" disabled className="w-full border-border">Aucun fichier</Button>
-            )}
-            
-            <Button 
-              variant="outline" 
-              className="w-full border-border hover:bg-muted text-destructive hover:text-destructive"
-              onClick={handleDeleteCourse}
-            >
-              <Trash2 className="w-4 h-4 mr-2" strokeWidth={1.5} />
-              Supprimer
-            </Button>
-          </div>
+          {/* Questions Review */}
+          <h2 className="text-xl font-semibold text-foreground mt-8">Récapitulatif des questions</h2>
+          {exerciseMetadata.questions.map((question, index) => {
+            const userResponseDetail = userResponsesDetails.find(
+              (res) => res.question_index === question.question_index
+            );
+            const correctAnswer = question.reponses.find((rep) => rep.correcte === "true");
+            const isUserAnswerCorrect = userResponseDetail?.is_correct_sub_question;
 
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-center">
-                Graphique évolutif
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {chartData.length ? (
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip formatter={(val: any) => [`${val}%`, 'Taux de réussite']} />
-                      <Line type="monotone" dataKey="pct" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-32 bg-muted/50 rounded-lg flex items-center justify-center">
-                  <div className="text-center space-y-2">
-                    <TrendingUp className="w-8 h-8 text-primary mx-auto" strokeWidth={1.5} />
-                    <p className="text-sm text-muted-foreground">
-                      Aucune donnée pour le moment
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            return (
+              <Card key={index} className="border-border">
+                <CardContent className="p-6 space-y-4">
+                  <h3 className="text-lg font-medium text-foreground">
+                    Question {question.question_index}: {question.question_titre}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Votre réponse:{" "}
+                    <span
+                      className={isUserAnswerCorrect ? "text-green-500" : "text-red-500"}
+                    >
+                      {userResponseDetail ? `${userResponseDetail.user_answer}. ${question.reponses.find(rep => rep.lettre === userResponseDetail.user_answer)?.texte}` : "Non répondu"}
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Bonne réponse:{" "}
+                    <span className="text-green-500">
+                      {correctAnswer?.lettre}. {correctAnswer?.texte}
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    Explication: {question.explication_reponse_correcte}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
 
           {/* Main CTA */}
           <Button 
             asChild
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
           >
-            <Link to="/calendar">Voir ma progression</Link>
+            <Link to="/dashboard">Retour au tableau de bord</Link>
           </Button>
         </div>
       </main>

@@ -17,6 +17,7 @@ import Messaging from "./pages/Messaging";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import InformationSurvey from "./pages/InformationSurvey";
+import CourseDetail from "./pages/CourseDetail";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -38,11 +39,11 @@ const App = () => (
           <Route path="/upload-course" element={<ProtectedRoute><UploadCourse /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
           <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
-          <Route path="/daily-quiz" element={<ProtectedRoute><DailyQuiz /></ProtectedRoute>} />
-          <Route path="/result" element={<ProtectedRoute><Result /></ProtectedRoute>} />
+          <Route path="/daily-quiz/:id" element={<ProtectedRoute><DailyQuiz /></ProtectedRoute>} />
+          <Route path="/result/:id" element={<ProtectedRoute><Result /></ProtectedRoute>} />
           <Route path="/messaging" element={<ProtectedRoute><Messaging /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/courses/:courseId" element={<ProtectedRoute><Result /></ProtectedRoute>} />
+          <Route path="/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

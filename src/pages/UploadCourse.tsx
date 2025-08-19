@@ -20,7 +20,6 @@ const UploadCourse = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     subject: "",
-    level: "",
     lesson: "",
     difficulties: "",
     days: 7,
@@ -54,10 +53,11 @@ const UploadCourse = () => {
       toast({ title: "Connexion requise", description: "Veuillez vous connecter pour créer un cours.", variant: "destructive" });
       return;
     }
-    if (!formData.lesson || !formData.subject || !formData.level) {
-      toast({ title: "Champs manquants", description: "Matière, niveau et leçon sont requis.", variant: "destructive" });
+    if (!formData.lesson || !formData.subject) {
+      toast({ title: "Champs manquants", description: "Matière et leçon sont requis.", variant: "destructive" });
       return;
     }
+
     if (files.length === 0) { // Changed from 'file' to 'files.length'
       toast({ title: "Fichier requis", description: "Ajoutez au moins une image ou un PDF pour votre cours.", variant: "destructive" });
       return;
@@ -93,11 +93,11 @@ const UploadCourse = () => {
           {
             title: formData.lesson,
             subject: formData.subject,
-            level: formData.level,
             description: formData.difficulties || null,
             file_url: fileUrls, // Store as JSON array
             cover_url: coverUrls.length > 0 ? coverUrls : null, // Store as JSON array or null
             user_id: user.id,
+            days_number: formData.days, // Store days_number
           },
         ])
         .select(); // Select the inserted data to get the ID
@@ -116,8 +116,8 @@ const UploadCourse = () => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              course_id: courseId,
-              user_id: user.id,
+              course_id: String(courseId), // Ensure course_id is a string
+              user_id: String(user.id),   // Ensure user_id is a string
             }),
           });
 
@@ -161,7 +161,7 @@ const UploadCourse = () => {
           <input
             ref={photoInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,image/webp"
             className="hidden"
             multiple
             capture="environment" // Force camera on mobile
@@ -170,7 +170,7 @@ const UploadCourse = () => {
           <input
             ref={galleryInputRef} // New input for gallery
             type="file"
-            accept="image/*"
+            accept="image/*,image/webp"
             className="hidden"
             multiple
             onChange={handleFileChange}
@@ -186,7 +186,7 @@ const UploadCourse = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="application/pdf,image/png,image/jpeg"
+            accept="application/pdf,image/png,image/jpeg,image/webp"
             className="hidden"
             multiple
             onChange={handleFileChange}
@@ -255,26 +255,24 @@ const UploadCourse = () => {
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner une matière" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="overflow-y-scroll overflow-x-hidden scrollbar-hide">
                         <SelectItem value="mathematiques">Mathématiques</SelectItem>
                         <SelectItem value="physique">Physique</SelectItem>
                         <SelectItem value="chimie">Chimie</SelectItem>
                         <SelectItem value="francais">Français</SelectItem>
                         <SelectItem value="histoire">Histoire</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="level">Niveau</Label>
-                    <Select value={formData.level} onValueChange={(value) => setFormData({...formData, level: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un niveau" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="seconde">Seconde</SelectItem>
-                        <SelectItem value="premiere">Première</SelectItem>
-                        <SelectItem value="terminale">Terminale</SelectItem>
+                        <SelectItem value="geographie">Géographie</SelectItem>
+                        <SelectItem value="svt">SVT</SelectItem>
+                        <SelectItem value="anglais">Anglais</SelectItem>
+                        <SelectItem value="espagnol">Espagnol</SelectItem>
+                        <SelectItem value="allemand">Allemand</SelectItem>
+                        <SelectItem value="philosophie">Philosophie</SelectItem>
+                        <SelectItem value="economie">Économie</SelectItem>
+                        <SelectItem value="droit">Droit</SelectItem>
+                        <SelectItem value="informatique">Informatique</SelectItem>
+                        <SelectItem value="art">Art</SelectItem>
+                        <SelectItem value="musique">Musique</SelectItem>
+                        <SelectItem value="sport">Sport</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
