@@ -1,10 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, Check, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea"; // Added Textarea import
+import { useEffect } from "react"; // Removed useState as selectedSubjects is no longer needed
 
 interface EducationStepProps {
   formData: {
@@ -18,73 +15,53 @@ interface EducationStepProps {
 const educationLevels = [
   { value: "primaire", label: "École primaire" },
   { value: "college", label: "Collège" },
-  { value: "lycee_general_techno", label: "Lycée – général & techno" },
-  { value: "lycee_professionnel", label: "Lycée – professionnel" },
-  { value: "post_bac_courts", label: "Post-bac courts" },
-  { value: "universite", label: "Université" },
-  { value: "ecoles", label: "Écoles" },
-  { value: "forces_armees_securite", label: "Forces armées et sécurité" },
-  { value: "formations_metiers_artisanat", label: "Formations métiers et artisanat" },
-  { value: "formation_continue", label: "Formation continue / reprise d’études" },
+  { value: "lycee", label: "Lycée" }, // Mappé à 'lycee'
+  { value: "superieur", label: "Enseignement supérieur" }, // Mappé à 'superieur'
 ];
+
+// Mappage des niveaux d'enseignement détaillés aux catégories de la base de données
+const mapEducationLevelToDB = (level: string): string => {
+  if (level.startsWith("lycee")) return "lycee";
+  if (["post_bac_courts", "universite", "ecoles", "forces_armees_securite", "formations_metiers_artisanat", "formation_continue"].includes(level)) return "superieur";
+  return level; // Pour 'primaire' et 'college' qui correspondent directement
+};
 
 const classesByEducationLevel: Record<string, string[]> = {
   primaire: ["CP", "CE1", "CE2", "CM1", "CM2"],
   college: ["6ᵉ", "5ᵉ", "4ᵉ", "3ᵉ"],
-  lycee_general_techno: ["Seconde", "Première", "Terminale"],
-  lycee_professionnel: ["CAP 1ʳᵉ année", "CAP 2ᵉ année", "Seconde pro", "Première pro", "Terminale pro"],
-  post_bac_courts: ["BTS 1", "BTS 2", "BUT 1", "BUT 2", "BUT 3", "CPGE 1 (prépa)", "CPGE 2 (prépa)"],
-  universite: ["Licence L1", "Licence L2", "Licence L3", "Master M1", "Master M2", "Doctorat (année 1+)"],
-  ecoles: ["École d’ingénieur (années 1–5)", "École de commerce / PGE (années 1–3)", "Écoles santé (PASS/LAS ou équivalent)"],
-  forces_armees_securite: ["Préparation militaire initiale", "École de sous-officiers", "École d’officiers", "École de la gendarmerie", "École de police", "École des pompiers", "École militaire spécialisée (ex. Saint-Cyr, Navale, Air)"],
-  formations_metiers_artisanat: [
+  lycee: ["Seconde", "Première", "Terminale", "CAP 1ʳᵉ année", "CAP 2ᵉ année", "Seconde pro", "Première pro", "Terminale pro"], // Regroupe général, techno et pro
+  superieur: [
+    "BTS 1", "BTS 2", "BUT 1", "BUT 2", "BUT 3", "CPGE 1 (prépa)", "CPGE 2 (prépa)",
+    "Licence L1", "Licence L2", "Licence L3", "Master M1", "Master M2", "Doctorat (année 1+)",
+    "École d’ingénieur (années 1–5)", "École de commerce / PGE (années 1–3)", "Écoles santé (PASS/LAS ou équivalent)",
+    "Préparation militaire initiale", "École de sous-officiers", "École d’officiers", "École de la gendarmerie", "École de police", "École des pompiers", "École militaire spécialisée (ex. Saint-Cyr, Navale, Air)",
     "CAP Coiffure", "CAP Esthétique", "CAP Cuisine", "CAP Boulangerie", "CAP Pâtisserie",
     "CAP Mécanique auto/moto", "CAP Menuiserie", "CAP Électricité", "BP (Brevet Professionnel) Coiffure",
     "BP Esthétique", "BP Métiers de bouche", "Bac pro Métiers de la beauté", "Bac pro Métiers de la restauration",
-    "Bac pro Maintenance", "Bac pro Bâtiment / Travaux publics"
+    "Bac pro Maintenance", "Bac pro Bâtiment / Travaux publics",
+    "Remise à niveau / Alphabétisation", "Reprise d’études (adultes)", "VAE", "Préparation concours/examen", "Certification professionnelle", "Autre (à préciser)"
   ],
-  formation_continue: ["Remise à niveau / Alphabétisation", "Reprise d’études (adultes)", "VAE", "Préparation concours/examen", "Certification professionnelle", "Autre (à préciser)"],
 };
 
 const subjectsByEducationLevel: Record<string, string[]> = {
   primaire: ["Lecture / Écriture", "Mathématiques", "Sciences", "Histoire", "Géographie", "Arts plastiques", "Éducation musicale", "Éducation physique et sportive (EPS)"],
   college: ["Français", "Mathématiques", "Anglais", "Histoire-Géographie", "Sciences de la Vie et de la Terre (SVT)", "Physique-Chimie", "Technologie", "EPS", "Arts plastiques", "Musique"],
-  lycee_general_techno: ["Français", "Mathématiques", "Physique-Chimie", "SVT", "Histoire-Géographie", "Philosophie", "Langues vivantes (Anglais, Espagnol, Allemand…)", "Sciences économiques et sociales (SES)", "Numérique et sciences informatiques (NSI)", "Enseignement de spécialité (à préciser)"],
-  lycee_professionnel: ["Français", "Mathématiques", "Physique-Chimie", "SVT", "Histoire-Géographie", "Philosophie", "Langues vivantes (Anglais, Espagnol, Allemand…)", "Sciences économiques et sociales (SES)", "Numérique et sciences informatiques (NSI)", "Enseignement de spécialité (à préciser)"], // Same as general/techno for now, adjust if needed
-  post_bac_courts: ["Sciences (Mathématiques, Physique, Chimie, Biologie, Informatique…)", "Sciences humaines et sociales (Psychologie, Sociologie, Philosophie, Histoire, Géographie…)", "Langues et littérature", "Économie, Gestion, Droit", "Ingénierie, Architecture", "Médecine, Santé, Pharmacie", "Arts, Design, Communication"],
-  universite: ["Sciences (Mathématiques, Physique, Chimie, Biologie, Informatique…)", "Sciences humaines et sociales (Psychologie, Sociologie, Philosophie, Histoire, Géographie…)", "Langues et littérature", "Économie, Gestion, Droit", "Ingénierie, Architecture", "Médecine, Santé, Pharmacie", "Arts, Design, Communication"],
-  ecoles: ["Sciences (Mathématiques, Physique, Chimie, Biologie, Informatique…)", "Sciences humaines et sociales (Psychologie, Sociologie, Philosophie, Histoire, Géographie…)", "Langues et littérature", "Économie, Gestion, Droit", "Ingénierie, Architecture", "Médecine, Santé, Pharmacie", "Arts, Design, Communication"],
-  forces_armees_securite: ["Sciences (Mathématiques, Physique, Chimie, Biologie, Informatique…)", "Sciences humaines et sociales (Psychologie, Sociologie, Philosophie, Histoire, Géographie…)", "Langues et littérature", "Économie, Gestion, Droit", "Ingénierie, Architecture", "Médecine, Santé, Pharmacie", "Arts, Design, Communication"],
-  formations_metiers_artisanat: ["Sciences (Mathématiques, Physique, Chimie, Biologie, Informatique…)", "Sciences humaines et sociales (Psychologie, Sociologie, Philosophie, Histoire, Géographie…)", "Langues et littérature", "Économie, Gestion, Droit", "Ingénierie, Architecture", "Médecine, Santé, Pharmacie", "Arts, Design, Communication"],
-  formation_continue: ["Alphabétisation / Remise à niveau", "Formation professionnelle (commerce, industrie, services, artisanat…)", "Préparation à un concours ou un examen (à préciser)", "Autre (à préciser)"],
+  lycee: ["Français", "Mathématiques", "Physique-Chimie", "SVT", "Histoire-Géographie", "Philosophie", "Langues vivantes (Anglais, Espagnol, Allemand…)", "Sciences économiques et sociales (SES)", "Numérique et sciences informatiques (NSI)", "Enseignement de spécialité (à préciser)"],
+  superieur: ["Sciences (Mathématiques, Physique, Chimie, Biologie, Informatique…)", "Sciences humaines et sociales (Psychologie, Sociologie, Philosophie, Histoire, Géographie…)", "Langues et littérature", "Économie, Gestion, Droit", "Ingénierie, Architecture", "Médecine, Santé, Pharmacie", "Arts, Design, Communication", "Formation professionnelle (commerce, industrie, services, artisanat…)", "Préparation à un concours ou un examen (à préciser)", "Autre (à préciser)"],
 };
 
 
 export const EducationStep = ({ formData, onFormDataChange }: EducationStepProps) => {
   console.log("EducationStep rendered with formData:", formData);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
-    formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(s => s.length > 0) : []
-  );
 
   const availableClasses = formData.educationLevel ? classesByEducationLevel[formData.educationLevel] || [] : [];
-  const availableSubjects = formData.educationLevel ? subjectsByEducationLevel[formData.educationLevel] || [] : [];
 
   useEffect(() => {
     console.log("EducationStep useEffect triggered. Education Level:", formData.educationLevel);
     // Reset classes and subjects when education level changes
     onFormDataChange('classes', '');
-    setSelectedSubjects([]);
-    onFormDataChange('subjects', '');
+    onFormDataChange('subjects', ''); // subjects is now free text, so just clear it
   }, [formData.educationLevel]);
-
-  const handleSubjectChange = (subject: string) => {
-    const newSelection = selectedSubjects.includes(subject)
-      ? selectedSubjects.filter(s => s !== subject)
-      : [...selectedSubjects, subject];
-    
-    setSelectedSubjects(newSelection);
-    onFormDataChange('subjects', newSelection.join(', '));
-  };
 
   return (
     <div className="space-y-8">
@@ -145,71 +122,13 @@ export const EducationStep = ({ formData, onFormDataChange }: EducationStepProps
           <div className="space-y-6 mb-8">
             <Label className="text-sm font-medium text-foreground">Matière(s) suivie(s) ou étudiée(s) actuellement *</Label>
             
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full h-12 justify-between border-0 bg-muted/50 rounded-xl text-sm hover:bg-background transition-all duration-200"
-                  disabled={!formData.educationLevel}
-                >
-                  <span className="text-left text-xs">
-                    {selectedSubjects.length === 0 
-                      ? "Sélectionnez une ou plusieurs matières"
-                      : selectedSubjects.length === 1
-                      ? selectedSubjects[0]
-                      : `${selectedSubjects.length} matières sélectionnées`
-                    }
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0 bg-background border border-border shadow-lg rounded-xl" align="start">
-                <div className="max-h-60 overflow-y-auto p-2">
-                  {availableSubjects.length > 0 ? (
-                    availableSubjects.map((subject) => (
-                      <div
-                        key={subject}
-                        className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors duration-200"
-                        onClick={() => handleSubjectChange(subject)}
-                      >
-                        <Checkbox
-                          checked={selectedSubjects.includes(subject)}
-                          onChange={() => handleSubjectChange(subject)}
-                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                        />
-                        <span className="text-sm text-foreground">{subject}</span>
-                        {selectedSubjects.includes(subject) && (
-                          <Check className="h-4 w-4 text-primary ml-auto" />
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-2 text-sm text-muted-foreground">Sélectionnez d'abord un niveau d'enseignement</div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Affichage des matières sélectionnées sous forme de tags */}
-            {selectedSubjects.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedSubjects.map((subject) => (
-                  <span
-                    key={subject}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
-                  >
-                    {subject}
-                    <button
-                      type="button"
-                      onClick={() => handleSubjectChange(subject)}
-                      className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors duration-200"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <Textarea
+              placeholder="Ex: Mathématiques, Physique, Histoire, etc."
+              value={formData.subjects}
+              onChange={(e) => onFormDataChange('subjects', e.target.value)}
+              className="h-24 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200 resize-y"
+              disabled={!formData.educationLevel}
+            />
           </div>
         </div>
       </div>

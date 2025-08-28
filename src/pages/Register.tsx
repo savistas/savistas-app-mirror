@@ -26,13 +26,12 @@ const Register = () => {
   const [formData, setFormData] = useState({
     // Step 1: Role
     role: "",
-    // Step 2: Subscription
-    subscription: "",
-    // Step 3: Education
-    educationLevel: "",
-    classes: "",
-    subjects: "",
-    // Step 4: Information
+    // Step 2: Personal Info
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    // Step 3: Information
     country: "",
     city: "",
     postalCode: "",
@@ -41,20 +40,105 @@ const Register = () => {
     linkRelation: "",
     ent: "",
     aiLevel: "",
-    // Step 5: Personal Info
-    fullName: "",
-    email: "",
-    phone: "",
-    password: "",
+    // Step 4: Education
+    educationLevel: "",
+    classes: "",
+    subjects: "",
+    // Step 5: Subscription
+    subscription: "",
   });
 
-  const stepTitles = ["Rôle", "Abonnement", "Parcours scolaire", "Informations", "Compte"];
+  const stepTitles = ["Rôle", "Compte", "Informations", "Parcours scolaire", "Abonnement"];
 
   const handleFormDataChange = (field: string, value: string | File | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (currentStep === 2) {
+      // Logique de création de compte déplacée ici
+      setLoading(true);
+      try {
+        const userData = {
+          full_name: formData.fullName,
+          role: formData.role,
+          phone: formData.phone,
+        };
+
+        const { error } = await signUp(formData.email, formData.password, userData);
+        
+        if (error) {
+          console.error("Erreur d'inscription Supabase:", error);
+          toast({
+            title: "Erreur d'inscription",
+            description: error.message,
+            variant: "destructive",
+          });
+          setLoading(false); // Arrêter le chargement en cas d'erreur
+          return; // Ne pas passer à l'étape suivante en cas d'erreur
+        } else {
+          // Connexion automatique après création du compte
+          const { error: autoSignInError } = await signIn(formData.email, formData.password);
+          if (autoSignInError) {
+            toast({
+              title: "Vérification requise",
+              description: "Confirmez votre email depuis votre boîte mail",
+            });
+            setLoading(false);
+            return;
+          }
+
+          // Récupérer l'ID utilisateur et créer/mettre à jour le profil initial
+          const { data: userResp } = await supabase.auth.getUser();
+          const uid = userResp.user?.id;
+
+          if (uid) {
+            const profileData = {
+              full_name: formData.fullName,
+              email: formData.email,
+              role: formData.role,
+              phone: formData.phone,
+              // Les autres champs seront mis à jour aux étapes suivantes
+            };
+
+            // Vérifier si le profil existe déjà
+            const { data: existingProfile, error: fetchError } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('user_id', uid)
+              .maybeSingle();
+
+            if (fetchError) {
+              console.error('Erreur lors de la vérification du profil existant:', fetchError);
+            } else if (existingProfile) {
+              // Si le profil existe, le mettre à jour
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update(profileData)
+                .eq('user_id', uid);
+              if (updateError) console.error('Erreur mise à jour profil initial:', updateError);
+            } else {
+              // Si le profil n'existe pas, l'insérer
+              const { error: insertError } = await supabase
+                .from('profiles')
+                .insert({ ...profileData, user_id: uid });
+              if (insertError) console.error('Erreur création profil initial:', insertError);
+            }
+          }
+        }
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors de la création du compte",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     if (currentStep < 5) {
       setCurrentStep(prev => prev + 1);
     }
@@ -75,94 +159,79 @@ const Register = () => {
         // Préparer l'URL de photo (upload après connexion pour utiliser l'ID utilisateur)
         let profilePhotoUrl: string | null = null;
 
-        // Créer le compte avec toutes les données du formulaire
-        const userData = {
-          full_name: formData.fullName,
-          role: formData.role,
-          subscription: formData.subscription,
+        // Récupérer l'ID utilisateur
+        const { data: userResp } = await supabase.auth.getUser();
+        const uid = userResp.user?.id;
+
+        if (!uid) {
+          toast({
+            title: "Erreur",
+            description: "Utilisateur non connecté. Veuillez vous reconnecter.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Uploader la photo de profil si elle existe
+        if (formData.profilePhoto) {
+          const fileExt = formData.profilePhoto.name.split('.').pop();
+          const fileName = `${Date.now()}.${fileExt}`;
+          const filePath = `${uid}/${fileName}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('profile-photos')
+            .upload(filePath, formData.profilePhoto, { upsert: true });
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('profile-photos')
+              .getPublicUrl(uploadData.path);
+            profilePhotoUrl = urlData.publicUrl;
+          } else {
+            console.error('Erreur upload photo:', uploadError);
+          }
+        }
+
+        // Mettre à jour le profil avec les données des étapes 3, 4 et 5
+        const profileUpdate = {
           country: formData.country,
           city: formData.city,
           postal_code: formData.postalCode,
-          education_level: formData.educationLevel,
+          education_level: formData.educationLevel, // Cette valeur est-elle correcte ?
           classes: formData.classes,
           subjects: formData.subjects,
-          phone: formData.phone,
           link_code: formData.linkCode,
           link_relation: formData.linkRelation,
           ent: formData.ent,
           ai_level: formData.aiLevel,
-          profile_photo_url: profilePhotoUrl
+          ...(profilePhotoUrl ? { profile_photo_url: profilePhotoUrl } : {})
         };
 
-        const { error } = await signUp(formData.email, formData.password, userData);
-        
-        if (error) {
+        console.log("Mise à jour du profil avec:", profileUpdate); // Ajout du console.log
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(profileUpdate)
+          .eq('user_id', uid);
+
+        if (profileError) {
+          console.error('Erreur mise à jour profil final:', profileError);
           toast({
-            title: "Erreur d'inscription",
-            description: error.message,
+            title: "Erreur de mise à jour du profil",
+            description: profileError.message,
             variant: "destructive",
           });
         } else {
-          // Connexion automatique après création du compte
-          const { error: autoSignInError } = await signIn(formData.email, formData.password);
-          if (autoSignInError) {
-            toast({
-              title: "Vérification requise",
-              description: "Confirmez votre email depuis votre boîte mail",
-            });
-            return;
-          }
-
-          // Récupérer l'ID utilisateur puis uploader la photo dans le dossier de l'utilisateur
-          const { data: userResp } = await supabase.auth.getUser();
-          const uid = userResp.user?.id;
-          if (uid && formData.profilePhoto) {
-            const fileExt = formData.profilePhoto.name.split('.').pop();
-            const fileName = `${Date.now()}.${fileExt}`;
-            const filePath = `${uid}/${fileName}`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('profile-photos')
-              .upload(filePath, formData.profilePhoto, { upsert: true });
-            if (!uploadError) {
-              const { data: urlData } = supabase.storage
-                .from('profile-photos')
-                .getPublicUrl(uploadData.path);
-              profilePhotoUrl = urlData.publicUrl;
-            }
-          }
-
-          // Vérifier l'existence du profil puis mettre à jour/insérer
-          const { data: existing } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('user_id', uid as string)
-            .maybeSingle();
-
-          const profileUpdate = { ...userData, email: formData.email, ...(profilePhotoUrl ? { profile_photo_url: profilePhotoUrl } : {}) };
-
-          if (existing) {
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .update(profileUpdate)
-              .eq('user_id', uid as string);
-            if (profileError) console.error('Erreur mise à jour profil:', profileError);
-          } else {
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert({ ...profileUpdate, user_id: uid as string });
-            if (insertError) console.error('Erreur création profil:', insertError);
-          }
-
           toast({
-            title: "Compte créé avec succès!",
+            title: "Compte créé et profil mis à jour avec succès!",
             description: "Redirection vers votre dashboard",
           });
           navigate("/dashboard");
         }
       } catch (error) {
+        console.error('Erreur inattendue lors de la finalisation du compte:', error); // Ajout pour débogage
         toast({
           title: "Erreur",
-          description: "Une erreur est survenue lors de la création du compte",
+          description: "Une erreur est survenue lors de la finalisation du compte",
           variant: "destructive",
         });
       } finally {
@@ -176,13 +245,13 @@ const Register = () => {
       case 1:
         return formData.role !== "";
       case 2:
-        return formData.subscription !== "";
+        return formData.fullName && formData.email && formData.password && termsAccepted && privacyAccepted && !loading; // Ajout de !loading
       case 3:
-        return formData.educationLevel !== "" && formData.classes !== "" && formData.subjects !== "";
+        return formData.country !== "" && formData.city !== "" && formData.postalCode !== "";
       case 4:
-        return true; // Information step is optional
+        return formData.educationLevel !== "" && formData.classes !== "" && formData.subjects !== "";
       case 5:
-        return formData.fullName && formData.email && formData.password && termsAccepted && privacyAccepted;
+        return formData.subscription !== "";
       default:
         return false;
     }
@@ -199,27 +268,6 @@ const Register = () => {
         );
       case 2:
         return (
-          <SubscriptionStep 
-            selectedSubscription={formData.subscription}
-            onSubscriptionSelect={(subscription) => handleFormDataChange('subscription', subscription)}
-          />
-        );
-      case 3:
-        return (
-          <EducationStep 
-            formData={formData}
-            onFormDataChange={handleFormDataChange}
-          />
-        );
-      case 4:
-        return (
-          <InformationStep 
-            formData={formData}
-            onFormDataChange={handleFormDataChange}
-          />
-        );
-      case 5:
-        return (
           <PersonalInfoStep 
             formData={formData}
             onFormDataChange={handleFormDataChange}
@@ -227,6 +275,28 @@ const Register = () => {
             privacyAccepted={privacyAccepted}
             onTermsChange={setTermsAccepted}
             onPrivacyChange={setPrivacyAccepted}
+            loading={loading} // Passer l'état de chargement
+          />
+        );
+      case 3:
+        return (
+          <InformationStep 
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+          />
+        );
+      case 4:
+        return (
+          <EducationStep 
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+          />
+        );
+      case 5:
+        return (
+          <SubscriptionStep 
+            selectedSubscription={formData.subscription}
+            onSubscriptionSelect={(subscription) => handleFormDataChange('subscription', subscription)}
           />
         );
       default:
@@ -258,7 +328,7 @@ const Register = () => {
                 type="button"
                 variant="outline"
                 onClick={handlePrev}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || loading} // Désactiver pendant le chargement
                 className="flex items-center space-x-2"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -269,7 +339,7 @@ const Register = () => {
                 <Button
                   type="button"
                   onClick={handleNext}
-                  disabled={!canProceed()}
+                  disabled={!canProceed() || loading} // Désactiver pendant le chargement
                   className="flex items-center space-x-2"
                 >
                   <span>Suivant</span>
@@ -281,7 +351,7 @@ const Register = () => {
                       disabled={!canProceed() || loading}
                       className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
                     >
-                      {loading ? "Création..." : "Créer un compte"}
+                      {loading ? "Finalisation..." : "Créer un compte"}
                     </Button>
               )}
             </div>

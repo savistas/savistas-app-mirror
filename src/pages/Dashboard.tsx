@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import BottomNav from "@/components/BottomNav";
+import { Badge } from "@/components/ui/badge"; // Importation ajoutée
 import {
-  User as UserIcon,
   Menu,
   BookOpen,
   Book
@@ -35,10 +35,49 @@ const Dashboard = () => {
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [surveyCurrentQuestionIndex, setSurveyCurrentQuestionIndex] = useState(0);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | string[]>>({});
+  const [topLearningStyles, setTopLearningStyles] = useState<string[]>([]);
+
+  const learningStyleNames: Record<string, string> = {
+    score_visuel: 'Visuel',
+    score_spatial: 'Spatial',
+    score_auditif: 'Auditif',
+    score_linguistique: 'Linguistique',
+    score_kinesthésique: 'Kinesthésique',
+    score_lecture: 'Lecture',
+    score_ecriture: 'Écriture',
+    score_logique_mathematique: 'Logique-mathématique',
+    score_interpersonnelle: 'Interpersonnelle',
+    score_musicale: 'Musicale',
+    score_naturaliste: 'Naturaliste',
+    score_intrapersonnelle: 'Intrapersonnelle',
+  };
 
   useEffect(() => {
     let isMounted = true;
     const loadProfileAndCheckSurvey = async () => {
+      if (!user) return;
+
+      // Fetch learning styles
+      const { data: learningStylesData, error: learningStylesError } = await supabase
+        .from('styles_apprentissage')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (learningStylesData && !learningStylesError) {
+        const scores = Object.entries(learningStylesData)
+          .filter(([key]) => key.startsWith('score_'))
+          .map(([key, value]) => ({
+            name: learningStyleNames[key] || key.replace('score_', ''),
+            score: value as number,
+          }))
+          .sort((a, b) => b.score - a.score);
+        
+        setTopLearningStyles(scores.slice(0, 3).map(style => style.name));
+      } else if (learningStylesError && learningStylesError.code !== 'PGRST116') {
+        console.error('Error fetching learning styles:', learningStylesError);
+      }
+
       if (!user) return;
       // Try fetch current user's profile
       const { data, error } = await supabase
@@ -184,9 +223,7 @@ const Dashboard = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-6 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
         <div className="flex items-center space-x-4">
-          <div className="p-2 bg-[#3d84f6] rounded-xl shadow-lg">
-            <UserIcon className="w-6 h-6 text-white" strokeWidth={2} />
-          </div>
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-10 h-10 object-contain" />
           <span className="font-semibold text-slate-800 text-lg tracking-tight">{displayName || 'Mon profil'}</span>
         </div>
         <Button variant="ghost" size="sm" className="hover:bg-slate-100/80 transition-colors duration-200">
@@ -202,6 +239,31 @@ const Dashboard = () => {
             L'excellence éducative à portée de main
           </p>
         </div>
+
+        {/* Top Learning Styles Section */}
+        {topLearningStyles.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-lg p-8 text-center">
+            <h2 className="text-xl font-bold text-black mb-4">Vos styles d'apprentissage dominants</h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {topLearningStyles.map((style, index) => {
+                const pastelColors = [
+                  "bg-pink-100 text-pink-800",
+                  "bg-green-100 text-green-800",
+                  "bg-purple-100 text-purple-800",
+                  "bg-yellow-100 text-yellow-800",
+                  "bg-blue-100 text-blue-800",
+                  "bg-indigo-100 text-indigo-800",
+                ];
+                const colorClass = pastelColors[index % pastelColors.length];
+                return (
+                  <Badge key={index} variant="secondary" className={`px-4 py-2 text-md font-semibold ${colorClass}`}>
+                    {style}
+                  </Badge>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* My Courses Section */}
         <div className="space-y-6">

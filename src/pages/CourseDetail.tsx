@@ -34,7 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { CartesianGrid, XAxis, YAxis, LineChart, Line } from "recharts"; // Changed BarChart to LineChart, Bar to Line
-import { Json } from "@/integrations/supabase/types";
+// import { Json } from "@/integrations/supabase/types"; // Removed Json import
 
 interface Course {
   id: string;
@@ -58,7 +58,7 @@ interface Exercise {
   statut: string;
   user_id: string;
   exercice_title?: string; // Re-added based on user feedback
-  exercise_responses?: { metadata: Json }[]; // Changed to Json
+  exercise_responses?: { metadata: any }[]; // Changed to any
 }
 
 interface ProgressData {
@@ -92,6 +92,46 @@ const CourseDetail = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isLoadingRevision, setIsLoadingRevision] = useState(false); // New state for loading
+
+  const handleGenerateRevisionSheet = async () => {
+    if (!id) {
+      alert("ID du cours manquant pour générer la fiche de révision.");
+      return;
+    }
+
+    setIsLoadingRevision(true);
+    try {
+      const response = await fetch("https://n8n.srv932562.hstgr.cloud/webhook/recap-cours", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ course_id: id }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Webhook response:", result);
+
+      // Check if the response contains id_course
+      if (result && result.id_course) {
+        alert("Fiche de révision générée avec succès ! Redirection...");
+        // Assuming there's a route to view the revision sheet
+        navigate(`/revision-sheet/${result.id_course}`);
+      } else {
+        alert("Fiche de révision demandée, mais l'ID du cours n'a pas été retourné par le webhook.");
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de l'appel du webhook:", error);
+      alert(`Erreur lors de la génération de la fiche de révision: ${error.message}`);
+    } finally {
+      setIsLoadingRevision(false);
+    }
+  };
 
   const confirmDelete = async () => {
     if (!id) {
@@ -533,6 +573,28 @@ const CourseDetail = () => {
             ) : (
               <p className="text-muted-foreground text-center">
                 Aucun exercice disponible pour ce cours.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Section Récapitulatif de révision */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-foreground">Récapitulatif de révision</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {completedExercises === totalExercises && totalExercises > 0 ? (
+              <Button
+                className="w-full"
+                onClick={handleGenerateRevisionSheet}
+                disabled={isLoadingRevision}
+              >
+                {isLoadingRevision ? "Génération en cours..." : "Générer ma fiche de révision"}
+              </Button>
+            ) : (
+              <p className="text-muted-foreground text-center">
+                Terminez tous les exercices pour générer un récapitulatif de révision, basé sur vos réponses.
               </p>
             )}
           </CardContent>

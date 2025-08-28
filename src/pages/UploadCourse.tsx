@@ -48,6 +48,22 @@ const UploadCourse = () => {
     setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
+  // Function to sanitize filename for storage
+  const sanitizeFileName = (fileName: string): string => {
+    // Get file extension
+    const lastDotIndex = fileName.lastIndexOf('.');
+    const name = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
+    const extension = lastDotIndex !== -1 ? fileName.substring(lastDotIndex) : '';
+    
+    // Replace invalid characters with underscores and remove multiple consecutive underscores
+    const sanitizedName = name
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace invalid chars with underscore
+      .replace(/_+/g, '_') // Replace multiple underscores with single one
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+    
+    return sanitizedName + extension;
+  };
+
   const handleCreate = async () => {
     if (!user) {
       toast({ title: "Connexion requise", description: "Veuillez vous connecter pour créer un cours.", variant: "destructive" });
@@ -70,7 +86,8 @@ const UploadCourse = () => {
 
       for (const file of files) {
         const unique = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`;
-        const path = `${user.id}/${unique}-${file.name}`;
+        const sanitizedFileName = sanitizeFileName(file.name);
+        const path = `${user.id}/${unique}-${sanitizedFileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('courses')

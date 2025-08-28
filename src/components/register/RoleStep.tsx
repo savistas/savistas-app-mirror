@@ -26,7 +26,7 @@ export const RoleStep = ({ selectedRole, onRoleSelect }: RoleStepProps) => {
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-semibold text-foreground mb-2">
-          Sélectionnez votre rôle
+          Sélectionnez votre profil
         </h2>
         <p className="text-muted-foreground">
           Choisissez le rôle qui vous correspond le mieux

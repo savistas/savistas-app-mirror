@@ -14,6 +14,7 @@ interface PersonalInfoStepProps {
   privacyAccepted: boolean;
   onTermsChange: (checked: boolean) => void;
   onPrivacyChange: (checked: boolean) => void;
+  loading: boolean; // Nouvelle prop
 }
 
 export const PersonalInfoStep = ({ 
@@ -94,7 +95,7 @@ export const PersonalInfoStep = ({
               onCheckedChange={onTermsChange}
             />
             <Label htmlFor="terms" className="text-sm">
-              J'accepte les conditions d'utilisation *
+              J'accepte les <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">conditions d'utilisation</a> *
             </Label>
           </div>
           
@@ -105,7 +106,7 @@ export const PersonalInfoStep = ({
               onCheckedChange={onPrivacyChange}
             />
             <Label htmlFor="privacy" className="text-sm">
-              J'accepte la politique de confidentialité *
+              J'accepte la <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">politique de confidentialité</a> *
             </Label>
           </div>
         </div>

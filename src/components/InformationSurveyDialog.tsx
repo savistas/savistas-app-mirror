@@ -21,332 +21,187 @@ interface Question {
 const questions: Question[] = [
   {
     id: 'q1',
-    part: '1. Informations générales',
-    text: 'Âge :',
+    part: '1. Préférence d\'apprentissage',
+    text: 'Quand tu veux comprendre une nouvelle idée…',
     type: 'radio',
     options: [
-      { value: 'moins de 15', label: 'Moins de 15 ans' },
-      { value: '15-18', label: '15-18 ans' },
-      { value: '18+', label: '18 ans et plus' },
+      { value: 'A', label: 'Je préfère voir un schéma, une image ou une vidéo.' },
+      { value: 'B', label: 'J’aime écouter quelqu’un l’expliquer à l’oral.' },
+      { value: 'C', label: 'Je préfère manipuler, tester, faire un exemple pratique.' },
+      { value: 'D', label: 'J’aime lire un texte ou un résumé.' },
     ],
   },
   {
     id: 'q2',
-    part: '1. Informations générales',
-    text: 'Niveau d’études actuel :',
+    part: '2. Mémoire et mémorisation',
+    text: 'Quand tu apprends une poésie ou une leçon…',
     type: 'radio',
     options: [
-      { value: 'secondaire', label: 'Secondaire (Collège/Lycée)' },
-      { value: 'superieur', label: 'Enseignement supérieur' },
-      { value: 'autre', label: 'Autre' },
+      { value: 'A', label: 'Je la lis et relis pour mémoriser.' },
+      { value: 'B', label: 'Je l’écoute plusieurs fois ou je la chante.' },
+      { value: 'C', label: 'Je fais des gestes ou je marche en répétant.' },
+      { value: 'D', label: 'J’invente des dessins ou des couleurs pour me souvenir.' },
     ],
   },
   {
     id: 'q3',
-    part: '1. Informations générales',
-    text: 'Matières ou domaines où tu réussis le mieux :',
-    type: 'textarea',
-    placeholder: 'Ex: Mathématiques, Histoire, Sport...',
+    part: '3. Résolution de problèmes',
+    text: 'Quand tu dois résoudre un problème de maths…',
+    type: 'radio',
+    options: [
+      { value: 'A', label: 'Je dessine le problème sous forme de schéma.' },
+      { value: 'B', label: 'Je réfléchis étape par étape, comme un calcul logique.' },
+      { value: 'C', label: 'J’aime en discuter avec quelqu’un.' },
+      { value: 'D', label: 'Je préfère imaginer une situation réelle pour tester.' },
+    ],
   },
   {
     id: 'q4',
-    part: '1. Informations générales',
-    text: 'Matières ou domaines où tu rencontres le plus de difficultés :',
-    type: 'textarea',
-    placeholder: 'Ex: Physique, Français, Langues...',
+    part: '4. Intérêts personnels',
+    text: 'Quand tu as du temps libre, tu préfères…',
+    type: 'radio',
+    options: [
+      { value: 'A', label: 'Lire ou écrire (journal, histoire, poème).' },
+      { value: 'B', label: 'Jouer d’un instrument ou écouter de la musique.' },
+      { value: 'C', label: 'Faire du sport, bouger, bricoler.' },
+      { value: 'D', label: 'Observer la nature, les animaux, les plantes.' },
+    ],
   },
   {
     id: 'q5',
-    part: '2. Méthodes et habitudes d’apprentissage',
-    text: 'Comment préfères-tu apprendre ?',
-    type: 'multiselect',
+    part: '5. Travail en groupe',
+    text: 'Quand tu travailles en groupe…',
+    type: 'radio',
     options: [
-      { value: 'lire', label: 'Lire' },
-      { value: 'ecouter', label: 'Écouter (podcasts, cours audio)' },
-      { value: 'pratiquer', label: 'Pratiquer (exercices, projets)' },
-      { value: 'videos', label: 'Regarder des vidéos' },
-      { value: 'discuter', label: 'Discuter/Expliquer à d\'autres' },
+      { value: 'A', label: 'Je préfère écouter et ensuite donner mon avis.' },
+      { value: 'B', label: 'J’aime organiser les idées et trouver une logique.' },
+      { value: 'C', label: 'Je participe activement aux échanges.' },
+      { value: 'D', label: 'Je propose souvent de dessiner ou visualiser nos idées.' },
     ],
   },
   {
     id: 'q6',
-    part: '2. Méthodes et habitudes d’apprentissage',
-    text: 'Quand tu apprends, prends-tu des notes ?',
+    part: '6. Rétention d\'information',
+    text: 'Quand tu dois retenir une information importante…',
     type: 'radio',
     options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
+      { value: 'A', label: 'Je la réécris plusieurs fois.' },
+      { value: 'B', label: 'Je l’associe à une mélodie ou un rythme.' },
+      { value: 'C', label: 'J’en fais un dessin ou un schéma.' },
+      { value: 'D', label: 'Je l’explique à quelqu’un ou je la mets en pratique.' },
     ],
   },
   {
     id: 'q7',
-    part: '2. Méthodes et habitudes d’apprentissage',
-    text: 'Utilises-tu des résumés ou des schémas pour comprendre ?',
+    part: '7. Préférence d\'enseignement',
+    text: 'En classe, tu préfères que l’enseignant…',
     type: 'radio',
     options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
+      { value: 'A', label: 'Fasse un dessin ou une carte mentale au tableau.' },
+      { value: 'B', label: 'Explique avec beaucoup d’exemples concrets.' },
+      { value: 'C', label: 'Raconte et détaille la leçon à l’oral.' },
+      { value: 'D', label: 'Donne un texte ou un document à lire.' },
     ],
   },
   {
     id: 'q8',
-    part: '2. Méthodes et habitudes d’apprentissage',
-    text: 'Préfères-tu travailler seul(e) ou en groupe ?',
+    part: '8. Découverte de nouveaux lieux',
+    text: 'Quand tu découvres un nouvel endroit…',
     type: 'radio',
     options: [
-      { value: 'seul', label: 'Seul(e)' },
-      { value: 'groupe', label: 'En groupe' },
-      { value: 'indifferent', label: 'Indifférent' },
+      { value: 'A', label: 'J’observe les lieux et les détails autour de moi.' },
+      { value: 'B', label: 'J’écoute les sons, les voix, l’ambiance.' },
+      { value: 'C', label: 'J’explore en marchant et en touchant les choses.' },
+      { value: 'D', label: 'Je préfère lire un plan ou des informations écrites.' },
     ],
   },
   {
     id: 'q9',
-    part: '2. Méthodes et habitudes d’apprentissage',
-    text: 'Étudies-tu régulièrement ou plutôt juste avant les examens ?',
+    part: '9. Définition de la réussite',
+    text: 'Pour toi, réussir c’est surtout…',
     type: 'radio',
     options: [
-      { value: 'regulierement', label: 'Régulièrement' },
-      { value: 'avant_examens', label: 'Juste avant les examens' },
-      { value: 'les_deux', label: 'Un peu des deux' },
+      { value: 'A', label: 'Bien comprendre les mots et savoir les utiliser.' },
+      { value: 'B', label: 'Trouver la solution logique à un problème.' },
+      { value: 'C', label: 'Savoir travailler en équipe avec les autres.' },
+      { value: 'D', label: 'Découvrir par soi-même et exprimer sa créativité.' },
     ],
   },
   {
     id: 'q10',
-    part: '2. Méthodes et habitudes d’apprentissage',
-    text: 'Utilises-tu Internet ou des applications pour t’aider à apprendre ? Lesquels ?',
-    type: 'textarea',
-    placeholder: 'Ex: YouTube, Khan Academy, Quizlet...',
-  },
-  {
-    id: 'q11',
-    part: '3. Compréhension et traitement de l’information',
-    text: 'Quand tu lis un texte scolaire, arrives-tu à comprendre rapidement l’idée principale ?',
+    part: '10. Rappel de souvenirs',
+    text: 'Quand tu veux te souvenir d’un moment important…',
     type: 'radio',
     options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q12',
-    part: '3. Compréhension et traitement de l’information',
-    text: 'Sais-tu repérer les mots-clés importants dans un texte ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q13',
-    part: '3. Compréhension et traitement de l’information',
-    text: 'Arrives-tu facilement à reformuler un texte avec tes propres mots ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q14',
-    part: '3. Compréhension et traitement de l’information',
-    text: 'Sais-tu planifier ta réponse avant de répondre à une question écrite ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q15',
-    part: '3. Compréhension et traitement de l’information',
-    text: 'Est-ce que tu fais souvent des erreurs d’inattention dans tes réponses ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q16',
-    part: '4. Organisation et gestion du temps',
-    text: 'As-tu un planning ou un agenda pour organiser tes études ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-    ],
-  },
-  {
-    id: 'q17',
-    part: '4. Organisation et gestion du temps',
-    text: 'Combien d’heures en moyenne travailles-tu par jour pour l’école ?',
-    type: 'radio',
-    options: [
-      { value: 'moins_2h', label: 'Moins de 2 heures' },
-      { value: '2-3h', label: '2-3 heures' },
-      { value: '3h+', label: '3 heures et plus' },
-    ],
-  },
-  {
-    id: 'q18',
-    part: '4. Organisation et gestion du temps',
-    text: 'As-tu du mal à commencer un travail ou un devoir ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q19',
-    part: '4. Organisation et gestion du temps',
-    text: 'Arrives-tu à finir tes travaux dans les délais ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q20',
-    part: '5. Concentration et difficultés d’apprentissage',
-    text: 'As-tu parfois du mal à rester concentré(e) longtemps ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q21',
-    part: '5. Concentration et difficultés d’apprentissage',
-    text: 'Te distrais-tu facilement pendant que tu étudies ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q22',
-    part: '5. Concentration et difficultés d’apprentissage',
-    text: 'As-tu déjà été évalué(e) ou diagnostiqué(e) pour un trouble comme :',
-    type: 'multiselect',
-    options: [
-      { value: 'TDA/TDAH', label: 'TDA/TDAH (trouble du déficit de l’attention avec ou sans hyperactivité)' },
-      { value: 'Troubles DYS', label: 'Troubles DYS (Dyslexie/Dysorthographie/Dyscalculie)' },
-      { value: 'Autres', label: 'Autres (préciser)' },
-    ],
-  },
-  {
-    id: 'q23',
-    part: '5. Concentration et difficultés d’apprentissage',
-    text: 'Si oui, as-tu un plan d’aide ou un aménagement scolaire ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'non_applicable', label: 'Non applicable' },
-    ],
-  },
-  {
-    id: 'q24',
-    part: '6. Motivation et aspects psychologiques',
-    text: 'Aimes-tu apprendre de nouvelles choses ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q25',
-    part: '6. Motivation et aspects psychologiques',
-    text: 'Te sens-tu souvent découragé(e) face à un travail scolaire difficile ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q26',
-    part: '6. Motivation et aspects psychologiques',
-    text: 'Est-ce que tu stresses beaucoup avant ou pendant un examen ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q27',
-    part: '6. Motivation et aspects psychologiques',
-    text: 'Te fixes-tu des objectifs pour tes études ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
-    ],
-  },
-  {
-    id: 'q28',
-    part: '6. Motivation et aspects psychologiques',
-    text: 'Te récompenses-tu quand tu atteins un objectif ?',
-    type: 'radio',
-    options: [
-      { value: 'oui', label: 'Oui' },
-      { value: 'non', label: 'Non' },
-      { value: 'parfois', label: 'Parfois' },
+      { value: 'A', label: 'Je revois les images dans ma tête.' },
+      { value: 'B', label: 'Je me rappelle ce que j’ai entendu ou dit.' },
+      { value: 'C', label: 'Je revois les gestes que j’ai faits.' },
+      { value: 'D', label: 'Je relis mes notes ou ce que j’ai écrit.' },
     ],
   },
 ];
 
-const columnMapping: Record<string, string> = {
-  q1: 'age',
-  q2: 'niveau_etudes',
-  q3: 'matieres_reussite',
-  q4: 'matieres_difficulte',
-  q5: 'pref_apprendre',
-  q6: 'prend_notes',
-  q7: 'utilise_resumes',
-  q8: 'travail_seul_groupe',
-  q9: 'etude_frequence',
-  q10: 'outils_apprentissage',
-  q11: 'comprehension_texte',
-  q12: 'reperer_mots_cles',
-  q13: 'reformuler_texte',
-  q14: 'planifier_reponse',
-  q15: 'erreurs_inattention',
-  q16: 'planning_etudes',
-  q17: 'heures_travail_ecole',
-  q18: 'difficulte_commencer',
-  q19: 'finir_travaux_delais',
-  q20: 'difficulte_concentration',
-  q21: 'distraction_etudes',
-  q22: 'trouble_diagnostique',
-  q23: 'plan_aide_scolaire',
-  q24: 'aime_apprendre',
-  q25: 'decouragement_travail',
-  q26: 'stress_examen',
-  q27: 'objectifs_etudes',
-  q28: 'recompense_objectif',
+const scoringRules: Record<string, Record<string, Record<string, number>>> = {
+  q1: {
+    A: { score_visuel: 1, score_spatial: 1 },
+    B: { score_auditif: 1, score_linguistique: 1 },
+    C: { score_kinesthésique: 1 },
+    D: { score_lecture: 1 },
+  },
+  q2: {
+    A: { score_linguistique: 1 },
+    B: { score_musicale: 1, score_auditif: 1 },
+    C: { score_kinesthésique: 1 },
+    D: { score_visuel: 1 },
+  },
+  q3: {
+    A: { score_spatial: 1 },
+    B: { score_logique_mathematique: 1 },
+    C: { score_interpersonnelle: 1 },
+    D: { score_kinesthésique: 1 },
+  },
+  q4: {
+    A: { score_linguistique: 1 },
+    B: { score_musicale: 1 },
+    C: { score_kinesthésique: 1 },
+    D: { score_naturaliste: 1 },
+  },
+  q5: {
+    A: { score_intrapersonnelle: 1 },
+    B: { score_logique_mathematique: 1 },
+    C: { score_interpersonnelle: 1 },
+    D: { score_spatial: 1, score_visuel: 1 },
+  },
+  q6: {
+    A: { score_ecriture: 1 },
+    B: { score_musicale: 1 },
+    C: { score_visuel: 1 },
+    D: { score_kinesthésique: 1, score_interpersonnelle: 1 },
+  },
+  q7: {
+    A: { score_visuel: 1 },
+    B: { score_kinesthésique: 1 },
+    C: { score_auditif: 1 },
+    D: { score_lecture: 1 },
+  },
+  q8: {
+    A: { score_spatial: 1 },
+    B: { score_auditif: 1 },
+    C: { score_kinesthésique: 1 },
+    D: { score_lecture: 1 },
+  },
+  q9: {
+    A: { score_linguistique: 1 },
+    B: { score_logique_mathematique: 1 },
+    C: { score_interpersonnelle: 1 },
+    D: { score_intrapersonnelle: 1, score_spatial: 1 },
+  },
+  q10: {
+    A: { score_visuel: 1 },
+    B: { score_auditif: 1 },
+    C: { score_kinesthésique: 1 },
+    D: { score_lecture: 1, score_ecriture: 1 },
+  },
 };
 
 interface InformationSurveyDialogProps {
@@ -404,19 +259,20 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers); // Pass the new state directly
 
-    if (currentQuestion.type === 'radio' || currentQuestion.type === 'multiselect') {
-      // For radio and multiselect, automatically go to next question after selection
+    if (currentQuestion.type === 'radio') {
+      // For radio, automatically go to next question after selection
       // unless it's the last question
       if (currentQuestionIndex < questions.length - 1) {
         handleNextAnimated();
       } else {
-        // If it's the last question and it's radio/multiselect, save immediately
+        // If it's the last question and it's radio, save immediately
         handleNext();
       }
     }
   };
 
   const handleNext = async () => {
+    console.log('handleNext called'); // Debugging: Check if handleNext is called
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
@@ -427,32 +283,141 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        const answersToInsert: Record<string, string | string[]> = {};
+
+        // Calculate learning style scores
+        const learningStyleScores: Record<string, number> = {
+          score_visuel: 0,
+          score_spatial: 0,
+          score_auditif: 0,
+          score_linguistique: 0,
+          score_kinesthésique: 0,
+          score_lecture: 0,
+          score_ecriture: 0,
+          score_logique_mathematique: 0,
+          score_interpersonnelle: 0,
+          score_musicale: 0,
+          score_naturaliste: 0,
+          score_intrapersonnelle: 0,
+        };
+
         for (const questionId in answers) {
-          const columnName = columnMapping[questionId];
-          if (columnName) {
-            answersToInsert[columnName] = answers[questionId];
+          const answerOption = answers[questionId];
+          if (typeof answerOption === 'string' && scoringRules[questionId] && scoringRules[questionId][answerOption]) {
+            const scoresToAdd = scoringRules[questionId][answerOption];
+            for (const style in scoresToAdd) {
+              learningStyleScores[style] += scoresToAdd[style];
+            }
           }
         }
 
-        const { error } = await supabase
-          .from('profiles_infos')
-          .insert({ user_id: user.id, ...answersToInsert });
+        console.log('Calculated learning style scores:', learningStyleScores);
 
-        if (error) {
-          console.error('Error saving answers to Supabase:', error);
-          // Optionally, handle the error (e.g., show a message to the user)
+        // Check if a record already exists for the user in styles_apprentissage
+        const { data: existingStyle, error: fetchError } = await supabase
+          .from('styles_apprentissage')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means "no rows found"
+          console.error('Error fetching existing learning style:', fetchError);
+          // Optionally, handle the error
         } else {
-          console.log('Answers saved to Supabase successfully!');
-          onSurveyComplete(); // Notify parent component that survey is complete
-          onClose(); // Close the dialog
+          let saveError;
+          if (existingStyle) {
+            // Update existing record
+            const { error } = await supabase
+              .from('styles_apprentissage')
+              .update(learningStyleScores)
+              .eq('user_id', user.id);
+            saveError = error;
+          } else {
+            // Insert new record
+            const { error } = await supabase
+              .from('styles_apprentissage')
+              .insert({ user_id: user.id, ...learningStyleScores });
+            saveError = error;
+          }
+
+          if (saveError) {
+            console.error('Error saving learning styles to Supabase:', saveError);
+            // Optionally, handle the error
+          } else {
+            console.log('Learning styles saved to Supabase successfully!');
+
+            // Save raw answers to profiles_infos
+            const rawAnswersToSave: Record<string, string> = {};
+            questions.forEach(question => {
+              const answerValue = answers[question.id];
+              if (question.type === 'radio' && typeof answerValue === 'string' && question.options) {
+                const selectedOption = question.options.find(option => option.value === answerValue);
+                if (selectedOption) {
+                  switch (question.id) {
+                    case 'q1': rawAnswersToSave.pref_apprendre_idee = selectedOption.label; break;
+                    case 'q2': rawAnswersToSave.memoire_poesie = selectedOption.label; break;
+                    case 'q3': rawAnswersToSave.resoudre_maths = selectedOption.label; break;
+                    case 'q4': rawAnswersToSave.temps_libre_pref = selectedOption.label; break;
+                    case 'q5': rawAnswersToSave.travail_groupe_role = selectedOption.label; break;
+                    case 'q6': rawAnswersToSave.retenir_info = selectedOption.label; break;
+                    case 'q7': rawAnswersToSave.pref_enseignant = selectedOption.label; break;
+                    case 'q8': rawAnswersToSave.decouvrir_endroit = selectedOption.label; break;
+                    case 'q9': rawAnswersToSave.reussir_definition = selectedOption.label; break;
+                    case 'q10': rawAnswersToSave.souvenir_important = selectedOption.label; break;
+                  }
+                }
+              }
+            });
+            console.log('Raw answers to save:', rawAnswersToSave);
+            console.log('User ID:', user.id);
+
+            const { data: existingProfile, error: fetchProfileError } = await supabase
+              .from('profiles_infos')
+              .select('user_id')
+              .eq('user_id', user.id)
+              .single();
+
+            if (fetchProfileError && fetchProfileError.code !== 'PGRST116') {
+              console.error('Error fetching existing profile info:', fetchProfileError);
+            } else {
+              let profileSaveError;
+              if (existingProfile) {
+                console.log('Existing profile found, updating...');
+                const { error } = await supabase
+                  .from('profiles_infos')
+                  .update(rawAnswersToSave)
+                  .eq('user_id', user.id);
+                profileSaveError = error;
+              } else {
+                console.log('No existing profile found, inserting new...');
+                const { error } = await supabase
+                  .from('profiles_infos')
+                  .insert({ user_id: user.id, ...rawAnswersToSave });
+                profileSaveError = error;
+              }
+
+              if (profileSaveError) {
+                console.error('Error saving profile info to Supabase:', profileSaveError);
+              } else {
+                console.log('Profile info saved to Supabase successfully!');
+                onSurveyComplete(); // Notify parent component that survey is complete
+                onClose(); // Close the dialog
+              }
+            }
+          }
         }
       } else {
-        console.warn('No user logged in. Answers not saved.');
+        console.warn('No user logged in. Data not saved.');
         onClose(); // Close dialog even if not logged in, or handle differently
       }
     }
   };
+
+  // Réactiver la fermeture du dialogue en cas de succès
+  useEffect(() => {
+    if (!isOpen && initialQuestionIndex === questions.length && Object.keys(initialAnswers).length > 0) {
+      onClose();
+    }
+  }, [isOpen, initialQuestionIndex, initialAnswers, onClose]);
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
@@ -475,52 +440,16 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
             className="flex flex-col space-y-2"
           >
             {question.options?.map((option) => (
-              <div key={option.value} className="flex items-center space-x-2 p-3 border rounded-md cursor-pointer bg-white hover:bg-gray-100">
+              <div
+                key={option.value}
+                className="flex items-center space-x-2 p-3 border rounded-md cursor-pointer bg-white hover:bg-gray-100"
+                onClick={() => handleAnswerChange(question.id, option.value)}
+              >
                 <RadioGroupItem value={option.value} id={option.value} />
                 <Label htmlFor={option.value} className="flex-grow cursor-pointer">{option.label}</Label>
               </div>
             ))}
           </RadioGroup>
-        );
-      case 'text':
-        return (
-          <Input
-            type="text"
-            placeholder={question.placeholder}
-            value={currentValue as string}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="w-full bg-white"
-          />
-        );
-      case 'textarea':
-        return (
-          <Textarea
-            placeholder={question.placeholder}
-            value={currentValue as string}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="w-full min-h-[100px] bg-white"
-          />
-        );
-      case 'multiselect':
-        const selectedValues = (currentValue || []) as string[];
-        return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-            {question.options?.map((option) => (
-              <Button
-                key={option.value}
-                variant={selectedValues.includes(option.value) ? "default" : "outline"}
-                onClick={() => {
-                  const newSelection = selectedValues.includes(option.value)
-                    ? selectedValues.filter((val) => val !== option.value)
-                    : [...selectedValues, option.value];
-                  handleAnswerChange(question.id, newSelection);
-                }}
-                className="w-full px-4 py-2 rounded-full bg-white hover:bg-gray-100"
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
         );
       default:
         return null;
@@ -554,23 +483,41 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
     handlePrevious();
   };
 
+  const allQuestionsAnswered = () => {
+    // Pour les nouvelles questions, toutes sont de type radio et doivent avoir une réponse
+    for (const question of questions) {
+      const answer = answers[question.id];
+      if (!answer || (typeof answer === 'string' && answer.trim() === '')) {
+        console.log(`Question ${question.id} not answered.`);
+        return false;
+      }
+    }
+    console.log('All questions answered!');
+    return true;
+  };
+
+  const isLastQuestion = currentQuestionIndex === questions.length - 1;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={() => {}}> {/* Empêche la fermeture pendant la réponse */}
       <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+            <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" /> {/* Ajout du logo */}
             <DialogHeader className="mb-8">
               <DialogTitle className="text-3xl font-bold text-gray-800">Bienvenue !</DialogTitle>
               <DialogDescription className="text-lg text-gray-600 mt-2">
-                Afin de te proposer des réponses et exercices adaptés à ta situation, nous t'invitons à répondre à ces quelques questions sur tes préférences d'apprentissage.
+                Afin de personnaliser au mieux votre apprentissage afin de l’adapter au type de méthode veuillez remplir judicieusement ce questionnaire
               </DialogDescription>
             </DialogHeader>
-            <Button
-              onClick={() => setShowWelcome(false)}
-              className="mt-8 px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full"
-            >
-              Commencer le questionnaire
-            </Button>
+            <div className="w-full flex justify-center">
+              <Button
+                onClick={() => setShowWelcome(false)}
+                className="mt-8 px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+              >
+                Commencer le questionnaire
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -582,7 +529,7 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
             </header>
 
             {/* Title - fixe */}
-            <div className="flex-shrink-0 w-full text-center pt-8">
+            <div className="flex-shrink-0 w-[90%] mx-auto text-center pt-8">
               <h2 className="text-2xl font-bold text-gray-800">{currentQuestion.part}</h2>
             </div>
 
@@ -590,12 +537,12 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
             <main className="flex-1 flex items-center justify-center p-4">
               <div className="w-full max-w-2xl flex flex-col items-center space-y-8">
                 {/* Question */}
-                <div className="p-6 text-center w-full">
+                <div className="p-6 text-center w-full mt-4">
                   <p className="text-lg text-gray-600 mt-1">{currentQuestion.text}</p>
                 </div>
 
                 {/* Animated answers */}
-                <div className="relative overflow-hidden w-full px-6 pb-4 min-h-[180px] flex items-center justify-center">
+                <div className="relative overflow-hidden w-full px-6 pb-4 min-h-[250px] flex items-center justify-center">
                   <AnimatePresence initial={false} custom={direction}>
                     <motion.div
                       key={currentQuestionIndex}
@@ -616,19 +563,28 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
                 </div>
 
                 {/* Navigation directly under answers */}
-                <div className="flex justify-between w-full px-6">
+                <div className="flex justify-between w-full px-6 mt-4">
                   <Button
                     onClick={handlePreviousAnimated}
-                    disabled={currentQuestionIndex === 0 && showWelcome} // Disable if on first question and welcome screen is shown
+                    disabled={currentQuestionIndex === 0 && showWelcome}
                     variant="ghost"
                     className="w-12 h-12 rounded-full flex items-center justify-center bg-white border text-gray-800 hover:bg-gray-100"
                   >
                     <ChevronLeft className="h-8 w-8" />
                   </Button>
-                  {(currentQuestion.type === 'text' || currentQuestion.type === 'textarea') && (
+                  {isLastQuestion ? (
+                    <Button
+                      onClick={handleNext} // Call handleNext directly for submission
+                      disabled={!allQuestionsAnswered()} // Disable if not all questions are answered
+                      variant="default"
+                      className="px-6 py-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 text-lg"
+                    >
+                      Soumettre
+                    </Button>
+                  ) : (
                     <Button
                       onClick={handleNextAnimated}
-                      disabled={!answers[currentQuestion.id]}
+                      disabled={!answers[currentQuestion.id] || (Array.isArray(answers[currentQuestion.id]) && (answers[currentQuestion.id] as string[]).length === 0)}
                       variant="default"
                       className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700"
                     >

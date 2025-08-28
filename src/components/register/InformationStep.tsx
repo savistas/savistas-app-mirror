@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Upload, X, ChevronDown, Check } from "lucide-react";
+import { Upload, X, ChevronDown, Check, HelpCircle } from "lucide-react";
 import { useState } from "react";
 
 interface InformationStepProps {
@@ -81,7 +81,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   id="postalCode"
                   value={formData.postalCode}
                   onChange={(e) => onFormDataChange('postalCode', e.target.value)}
-                  placeholder="Code post"
+                  placeholder="Code postal"
                   className="h-12 border-0 bg-muted/50 rounded-xl text-sm placeholder:text-xs focus:bg-background transition-all duration-200"
                 />
               </div>
@@ -93,7 +93,17 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
           <div className="space-y-6 mb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
               <div className="space-y-3">
-                <Label htmlFor="linkCode" className="text-sm font-medium text-foreground">Code de liaison</Label>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="linkCode" className="text-sm font-medium text-foreground">Code de liaison</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <HelpCircle className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <p className="text-sm text-muted-foreground">Le code de liaison permet de lier votre compte à celui d'un autre utilisateur (ex: parent, tuteur, enseignant) pour partager des informations ou des progrès.</p>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <Input
                   id="linkCode"
                   value={formData.linkCode}

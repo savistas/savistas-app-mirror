@@ -10,7 +10,7 @@ const Welcome = () => {
       <div className="w-full max-w-md space-y-8 animate-fade-in">
         {/* Logo */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">Savistas</h1>
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-48 mx-auto mb-4" />
         </div>
 
         {/* Main Content */}

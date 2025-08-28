@@ -1,18 +1,38 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import BottomNav from "@/components/BottomNav";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Bot,
-  Menu,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Send,
   Plus,
   Loader2,
+  History,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks"; // Import remark-breaks
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,14 +78,7 @@ const sanitizeContent = (input: string) => {
       return (decoder.value || decoder.textContent || "").trim();
     }
 
-    // If any other HTML slips in, strip tags to plain text
-    if (/<[a-z][\s\S]*>/i.test(trimmed)) {
-      const div = document.createElement("div");
-      div.innerHTML = trimmed;
-      return (div.textContent || "").trim();
-    }
-
-    // Already plain markdown/text
+    // Return the original trimmed input, let ReactMarkdown handle it
     return trimmed;
   } catch {
     return input;
@@ -77,7 +90,6 @@ const Messaging = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -86,6 +98,42 @@ const Messaging = () => {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // État pour le pop-up de confirmation
+  const [botMessageLoading, setBotMessageLoading] = useState(false); // État pour l'effet de flou du message du bot
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"; // Réinitialiser la hauteur pour calculer la nouvelle
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+    }
+  }, [message]); // Déclencher l'effet quand le message change
+
+  const handleDeleteConversation = async () => {
+    if (!activeConversationId) return;
+
+    try {
+      // Supprimer la conversation (les messages devraient être supprimés en cascade si la FK est configurée)
+      const { error } = await supabase
+        .from("conversations")
+        .delete()
+        .eq("id", activeConversationId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({ title: "Succès", description: "Conversation supprimée.", variant: "default" });
+
+      // Mettre à jour l'état des conversations
+      setConversations((prev) => prev.filter((c) => c.id !== activeConversationId));
+      setActiveConversationId(null); // Réinitialiser la conversation active
+      setMessages([]); // Effacer les messages affichés
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Une erreur est survenue lors de la suppression.", variant: "destructive" });
+    }
+  };
 
   // Load conversations for the current user
   useEffect(() => {
@@ -212,6 +260,8 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
   content: botMarkdown || "",
 } as any;
 
+      setBotMessageLoading(true); // Activer le flou avant d'afficher le message du bot
+
       const { data: insBotMsg, error: insBotErr } = await supabase
         .from("messages")
         .insert(botMsg)
@@ -220,6 +270,7 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
       if (insBotErr || !insBotMsg) throw insBotErr || new Error("Réponse du bot échouée");
 
       setMessages((prev) => [...prev, insBotMsg as MessageRow]);
+      setTimeout(() => setBotMessageLoading(false), 500); // Désactiver le flou après un court délai
 
       // Move conversation to top
       setConversations((prev) => {
@@ -234,109 +285,72 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
     }
   };
 
-  const Sidebar = (
-    <aside className="hidden md:flex w-72 shrink-0 border-r border-border flex-col">
-      <div className="p-4 flex items-center justify-between border-b border-border">
-        <div className="flex items-center space-x-2">
-          <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
-          <span className="font-medium text-foreground">Historique</span>
-        </div>
-        <Button variant="outline" size="sm" onClick={startNewConversation}>
-          <Plus className="w-4 h-4 mr-1" /> Nouveau
-        </Button>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {loadingConversations ? (
-          <div className="p-4 text-sm text-muted-foreground">Chargement…</div>
-        ) : conversations.length === 0 ? (
-          <div className="p-4 text-sm text-muted-foreground">Aucune conversation.</div>
-        ) : (
-          <ul className="p-2">
-            {conversations.map((c) => (
-              <li key={c.id}>
-                <Button
-                  variant={c.id === activeConversationId ? "secondary" : "ghost"}
-                  className="w-full justify-start truncate"
-                  onClick={() => setActiveConversationId(c.id)}
-                >
-                  {c.title || "Conversation"}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </aside>
-  );
-
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row pb-28">
-      {/* Desktop sidebar */}
-      {Sidebar}
-
-      {/* Mobile header with drawer trigger */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background z-10">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background z-10">
         <div className="flex items-center space-x-3">
-          <Bot className="w-6 h-6 text-primary" strokeWidth={1.5} />
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-6 h-6 object-contain" />
           <span className="font-medium text-foreground">AI Assistant</span>
         </div>
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Historique">
-              <Menu className="w-5 h-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-5/6 p-0">
-            <SheetHeader className="p-4">
-              <SheetTitle>Historique</SheetTitle>
-            </SheetHeader>
-            <div className="p-2 border-t border-border">
-              <Button variant="outline" size="sm" className="w-full" onClick={() => { startNewConversation(); setSidebarOpen(false); }}>
-                <Plus className="w-4 h-4 mr-1" /> Nouveau
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm" onClick={startNewConversation}>
+            <Plus className="w-4 h-4" />
+            <span className="ml-1 hidden md:inline">Nouveau</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <History className="w-4 h-4" />
+                <span className="ml-1 hidden md:inline">Historique</span>
               </Button>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto">
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuLabel>Conversations récentes</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               {loadingConversations ? (
-                <div className="p-4 text-sm text-muted-foreground">Chargement…</div>
+                <DropdownMenuItem disabled>Chargement…</DropdownMenuItem>
               ) : conversations.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground">Aucune conversation.</div>
+                <DropdownMenuItem disabled>Aucune conversation.</DropdownMenuItem>
               ) : (
-                <ul className="p-2">
-                  {conversations.map((c) => (
-                    <li key={c.id}>
-                      <Button
-                        variant={c.id === activeConversationId ? "secondary" : "ghost"}
-                        className="w-full justify-start truncate"
-                        onClick={() => { setActiveConversationId(c.id); setSidebarOpen(false); }}
-                      >
-                        {c.title || "Conversation"}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                conversations.map((c) => (
+                  <DropdownMenuItem key={c.id} onClick={() => setActiveConversationId(c.id)}>
+                    {truncateTitle(c.title)}
+                  </DropdownMenuItem>
+                ))
               )}
-            </div>
-          </SheetContent>
-        </Sheet>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {activeConversationId && (
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="w-4 h-4" />
+                  <span className="ml-1 hidden md:inline">Supprimer</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action ne peut pas être annulée. Cela supprimera définitivement votre conversation et tous les messages associés de nos serveurs.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => { handleDeleteConversation(); setShowDeleteConfirm(false); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Supprimer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </header>
 
       {/* Chat area */}
       <main className="flex-1 flex flex-col">
-        {/* Desktop header */}
-        <header className="hidden md:flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <Bot className="w-6 h-6 text-primary" strokeWidth={1.5} />
-            <span className="font-medium text-foreground">AI Assistant</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={startNewConversation}>
-              <Plus className="w-4 h-4 mr-1" /> Nouveau
-            </Button>
-          </div>
-        </header>
-
-        {/* Messages */}
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in pb-40">
+        {/* Messages container - full height with padding for fixed input */}
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in pb-[240px] md:pb-[200px] md:w-[70%] md:mx-auto">
           {loadingMessages ? (
             <div className="text-sm text-muted-foreground">Chargement des messages…</div>
           ) : messages.length === 0 && !activeConversationId ? (
@@ -353,16 +367,39 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
           ) : (
             messages.filter((m) => (m.content || "").trim().length > 0).map((msg) => (
               <div key={msg.id} className={`flex ${msg.sender === "bot" ? "justify-start" : "justify-end"}`}>
-                <div className={`max-w-[80%] md:max-w-[65%] ${msg.sender === "bot" ? "order-2" : "order-1"}`}>
+                <div className={`${msg.sender === "bot" ? "w-full" : "max-w-[95%] md:max-w-[65%]"} ${msg.sender === "bot" ? "order-2" : "order-1"}`}>
                   {msg.sender === "bot" && (
                     <div className="flex items-center space-x-2 mb-1">
-                      <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
+                      <img src="/logo-savistas.png" alt="Savistas Logo" className="w-5 h-5 object-contain" />
                       <span className="text-xs text-muted-foreground">AI Assistant</span>
                     </div>
                   )}
-                  <div className={`p-3 rounded-lg ${msg.sender === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground"}`}>
-                    <div className="prose prose-sm max-w-none prose-headings:mt-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-a:text-primary prose-invert:prose-strong:font-semibold">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{sanitizeContent(msg.content)}</ReactMarkdown>
+                  <div className={`p-3 rounded-lg ${msg.sender === "bot" ? "bg-muted text-foreground" : "bg-primary text-primary-foreground"} ${msg.sender === "bot" && botMessageLoading ? "blur-sm transition-all duration-500" : ""}`}>
+                    <div className="prose max-w-none prose-a:text-primary prose-invert:prose-strong:font-semibold">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{
+                          h1: ({ node, ...props }) => <h1 className="text-3xl font-bold mb-4" {...props} />,
+                          h2: ({ node, ...props }) => <h2 className="text-2xl font-bold mb-3 text-primary" {...props} />,
+                          h3: ({ node, ...props }) => <h3 className="text-xl font-bold mb-2" {...props} />,
+                          p: ({ node, ...props }) => <p className="mb-4" {...props} />,
+                          ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-2" {...props} />,
+                          ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-2" {...props} />,
+                          li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                          hr: ({ node, ...props }) => <hr className="my-8 border-t border-gray-300" {...props} />,
+                          table: ({ node, ...props }) => (
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse my-4" {...props} />
+                            </div>
+                          ),
+                          thead: ({ node, ...props }) => <thead {...props} />,
+                          tbody: ({ node, ...props }) => <tbody {...props} />,
+                          th: ({ node, ...props }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100 font-bold text-left text-base" {...props} />,
+                          td: ({ node, ...props }) => <td className="border border-gray-300 px-4 py-2 text-base" {...props} />,
+                        }}
+                      >
+                        {sanitizeContent(msg.content)}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -372,9 +409,9 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
 
           {sending && (
             <div className="flex justify-start">
-              <div className="max-w-[80%] md:max-w-[65%]">
+              <div className="w-full">
                 <div className="flex items-center space-x-2 mb-1">
-                  <Bot className="w-5 h-5 text-primary" strokeWidth={1.5} />
+                  <img src="/logo-savistas.png" alt="Savistas Logo" className="w-5 h-5 object-contain" />
                   <span className="text-xs text-muted-foreground">AI Assistant</span>
                 </div>
                 <div className="p-3 rounded-lg bg-muted text-foreground inline-flex items-center gap-2">
@@ -385,16 +422,24 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
             </div>
           )}
         </div>
+      </main>
 
-        {/* Input */}
-        <div className="p-4 border-t border-border bg-background sticky bottom-24 md:bottom-0 z-10">
+      {/* Fixed Input Bar - Centered horizontally, positioned towards bottom */}
+      <div className="fixed bottom-32 md:bottom-24 left-1/2 transform -translate-x-1/2 w-full md:w-[70%] max-w-none md:max-w-none px-[26px] z-50">
+        <div className="bg-background/60 backdrop-blur-sm rounded-lg shadow-lg p-4">
           <div className="flex gap-2">
-            <Input
+            <Textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Tapez votre message…"
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSendMessage())}
-              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              className="flex-1 resize-none min-h-[40px] max-h-[400px] overflow-y-auto"
               aria-label="Message"
             />
             <Button onClick={handleSendMessage} size="icon" disabled={sending} className="bg-primary hover:bg-primary/90">
@@ -402,7 +447,7 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
             </Button>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Bottom Navigation */}
       <BottomNav />

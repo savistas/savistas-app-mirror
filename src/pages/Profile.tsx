@@ -3,11 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
+import ProfileQuestionEditModal from "@/components/ProfileQuestionEditModal";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -25,6 +28,30 @@ const Profile = () => {
     education_level: "",
     classes: "",
     subjects: "",
+  });
+
+  const [profilesInfos, setProfilesInfos] = useState<{
+    pref_apprendre_idee?: string;
+    memoire_poesie?: string;
+    resoudre_maths?: string;
+    temps_libre_pref?: string;
+    travail_groupe_role?: string;
+    retenir_info?: string;
+    pref_enseignant?: string;
+    decouvrir_endroit?: string;
+    reussir_definition?: string;
+    souvenir_important?: string;
+  } | null>(null);
+
+  // État pour la modal d'édition
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean;
+    questionKey: string;
+    currentValue: string;
+  }>({
+    isOpen: false,
+    questionKey: '',
+    currentValue: '',
   });
 
   useEffect(() => {
@@ -63,7 +90,55 @@ const Profile = () => {
     return () => { active = false; };
   }, [user]);
 
+  useEffect(() => {
+    let active = true;
+    const loadProfilesInfos = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('profiles_infos')
+        .select('pref_apprendre_idee,memoire_poesie,resoudre_maths,temps_libre_pref,travail_groupe_role,retenir_info,pref_enseignant,decouvrir_endroit,reussir_definition,souvenir_important')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        toast({ title: "Informations d'apprentissage", description: "Impossible de charger les informations d'apprentissage", variant: "destructive" });
+        return;
+      }
+      if (data) {
+        setProfilesInfos(data);
+      }
+    };
+    loadProfilesInfos();
+    return () => { active = false; };
+  }, [user]);
+
   const onChange = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  // Gestionnaires pour la modal d'édition
+  const handleEditQuestion = (questionKey: string, currentValue: string) => {
+    setEditModal({
+      isOpen: true,
+      questionKey,
+      currentValue,
+    });
+  };
+
+  const handleCloseModal = () => {
+    setEditModal({
+      isOpen: false,
+      questionKey: '',
+      currentValue: '',
+    });
+  };
+
+  const handleSaveQuestion = (newValue: string) => {
+    if (profilesInfos) {
+      setProfilesInfos({
+        ...profilesInfos,
+        [editModal.questionKey]: newValue,
+      });
+    }
+  };
 
   const handleUpload = async (file: File) => {
     if (!user) return;
@@ -212,6 +287,157 @@ const Profile = () => {
             </form>
           </CardContent>
         </Card>
+
+        {profilesInfos && Object.values(profilesInfos).some(value => value) && (
+          <Card className="border-border mt-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Infos d'apprentissage</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-2 relative">
+                <Label>1. Préférence d'apprentissage</Label>
+                <AutoResizeTextarea value={profilesInfos.pref_apprendre_idee ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('pref_apprendre_idee', profilesInfos.pref_apprendre_idee ?? '')}
+                  aria-label="Modifier la préférence d'apprentissage"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>2. Mémoire et mémorisation</Label>
+                <AutoResizeTextarea value={profilesInfos.memoire_poesie ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('memoire_poesie', profilesInfos.memoire_poesie ?? '')}
+                  aria-label="Modifier la mémoire et mémorisation"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>3. Résolution de problèmes</Label>
+                <AutoResizeTextarea value={profilesInfos.resoudre_maths ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('resoudre_maths', profilesInfos.resoudre_maths ?? '')}
+                  aria-label="Modifier la résolution de problèmes"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>4. Intérêts personnels</Label>
+                <AutoResizeTextarea value={profilesInfos.temps_libre_pref ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('temps_libre_pref', profilesInfos.temps_libre_pref ?? '')}
+                  aria-label="Modifier les intérêts personnels"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>5. Travail en groupe</Label>
+                <AutoResizeTextarea value={profilesInfos.travail_groupe_role ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('travail_groupe_role', profilesInfos.travail_groupe_role ?? '')}
+                  aria-label="Modifier le travail en groupe"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>6. Rétention d'information</Label>
+                <AutoResizeTextarea value={profilesInfos.retenir_info ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('retenir_info', profilesInfos.retenir_info ?? '')}
+                  aria-label="Modifier la rétention d'information"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>7. Préférence d'enseignement</Label>
+                <AutoResizeTextarea value={profilesInfos.pref_enseignant ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('pref_enseignant', profilesInfos.pref_enseignant ?? '')}
+                  aria-label="Modifier la préférence d'enseignement"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>8. Découverte de nouveaux lieux</Label>
+                <AutoResizeTextarea value={profilesInfos.decouvrir_endroit ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('decouvrir_endroit', profilesInfos.decouvrir_endroit ?? '')}
+                  aria-label="Modifier la découverte de nouveaux lieux"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>9. Définition de la réussite</Label>
+                <AutoResizeTextarea value={profilesInfos.reussir_definition ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('reussir_definition', profilesInfos.reussir_definition ?? '')}
+                  aria-label="Modifier la définition de la réussite"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2 relative">
+                <Label>10. Rappel de souvenirs</Label>
+                <AutoResizeTextarea value={profilesInfos.souvenir_important ?? ""} disabled />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 mt-7 mr-2 flex hover:bg-blue-50"
+                  onClick={() => handleEditQuestion('souvenir_important', profilesInfos.souvenir_important ?? '')}
+                  aria-label="Modifier le rappel de souvenirs"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Modal d'édition des questions */}
+        <ProfileQuestionEditModal
+          isOpen={editModal.isOpen}
+          onClose={handleCloseModal}
+          questionKey={editModal.questionKey}
+          currentValue={editModal.currentValue}
+          onSave={handleSaveQuestion}
+        />
       </div>
       <BottomNav />
     </div>

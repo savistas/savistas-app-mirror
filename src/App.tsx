@@ -18,6 +18,8 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import InformationSurvey from "./pages/InformationSurvey";
 import CourseDetail from "./pages/CourseDetail";
+import Terms from "./pages/Terms"; // Import Terms page
+import Privacy from "./pages/Privacy"; // Import Privacy page
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -44,6 +46,8 @@ const App = () => (
           <Route path="/messaging" element={<ProtectedRoute><Messaging /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
+          <Route path="/terms" element={<Terms />} /> {/* Add Terms route */}
+          <Route path="/privacy" element={<Privacy />} /> {/* Add Privacy route */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
