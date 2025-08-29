@@ -229,7 +229,7 @@ const Result = () => {
             asChild
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
           >
-            <Link to="/dashboard">Retour au tableau de bord</Link>
+            <Link to={`/courses/${exerciseMetadata.course_id}`}>Retour au cours</Link>
           </Button>
         </div>
       </main>

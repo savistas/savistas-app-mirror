@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import BottomNav from "@/components/BottomNav";
-import { ArrowLeft, FileText, ArrowRight, CheckCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, ArrowRight, CheckCircle, Trash2, Download } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -47,6 +47,8 @@ interface Course {
   user_id: string;
   created_at: string;
   updated_at: string;
+  fiche_revision_url: string | null;
+  fiche_revision_status: 'not_requested' | 'generating' | 'completed' | 'failed';
 }
 
 interface Exercise {
@@ -93,6 +95,7 @@ const CourseDetail = () => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoadingRevision, setIsLoadingRevision] = useState(false); // New state for loading
+  const [hasRevisionSheet, setHasRevisionSheet] = useState(false); // New state to track if revision sheet is available
 
   const handleGenerateRevisionSheet = async () => {
     if (!id) {
@@ -101,7 +104,23 @@ const CourseDetail = () => {
     }
 
     setIsLoadingRevision(true);
+    
     try {
+      // First, mark the status as "generating" in the database
+      const { error: updateError } = await supabase
+        .from("courses")
+        .update({ fiche_revision_status: 'generating' })
+        .eq("id", id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      if (course) {
+        setCourse({ ...course, fiche_revision_status: 'generating' });
+      }
+
       const response = await fetch("https://n8n.srv932562.hstgr.cloud/webhook/recap-cours", {
         method: "POST",
         headers: {
@@ -111,6 +130,12 @@ const CourseDetail = () => {
       });
 
       if (!response.ok) {
+        // Mark as failed if webhook call fails
+        await supabase
+          .from("courses")
+          .update({ fiche_revision_status: 'failed' })
+          .eq("id", id);
+        
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
@@ -119,17 +144,76 @@ const CourseDetail = () => {
 
       // Check if the response contains id_course
       if (result && result.id_course) {
-        alert("Fiche de révision générée avec succès ! Redirection...");
-        // Assuming there's a route to view the revision sheet
-        navigate(`/revision-sheet/${result.id_course}`);
+        // Refresh course data to get the updated fiche_revision_url
+        const { data: updatedCourse, error: courseError } = await supabase
+          .from("courses")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (courseError) {
+          throw courseError;
+        }
+
+        // Update status to completed if we have the URL
+        if (updatedCourse.fiche_revision_url) {
+          await supabase
+            .from("courses")
+            .update({ fiche_revision_status: 'completed' })
+            .eq("id", id);
+          
+          updatedCourse.fiche_revision_status = 'completed';
+        }
+
+        setCourse(updatedCourse);
+        setHasRevisionSheet(!!updatedCourse.fiche_revision_url);
+        alert("Fiche de révision générée avec succès !");
       } else {
+        // Mark as failed if no id_course returned
+        await supabase
+          .from("courses")
+          .update({ fiche_revision_status: 'failed' })
+          .eq("id", id);
+          
         alert("Fiche de révision demandée, mais l'ID du cours n'a pas été retourné par le webhook.");
       }
     } catch (error: any) {
       console.error("Erreur lors de l'appel du webhook:", error);
+      
+      // Mark as failed on error
+      await supabase
+        .from("courses")
+        .update({ fiche_revision_status: 'failed' })
+        .eq("id", id);
+        
+      if (course) {
+        setCourse({ ...course, fiche_revision_status: 'failed' });
+      }
+      
       alert(`Erreur lors de la génération de la fiche de révision: ${error.message}`);
     } finally {
       setIsLoadingRevision(false);
+    }
+  };
+
+  const handleDownloadRevisionSheet = async () => {
+    if (!course?.fiche_revision_url) {
+      alert("URL de la fiche de révision non disponible.");
+      return;
+    }
+
+    try {
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = course.fiche_revision_url;
+      link.download = `Révision Savistas - ${course.title}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error: any) {
+      console.error("Erreur lors du téléchargement:", error);
+      alert(`Erreur lors du téléchargement de la fiche de révision: ${error.message}`);
     }
   };
 
@@ -210,6 +294,12 @@ const CourseDetail = () => {
           throw courseError;
         }
         setCourse(courseData);
+        setHasRevisionSheet(!!courseData.fiche_revision_url);
+        
+        // Set loading state based on database status
+        if (courseData.fiche_revision_status === 'generating') {
+          setIsLoadingRevision(true);
+        }
 
         // Fetch exercises for the course
         const { data: exercisesData, error: exercisesError } = await supabase
@@ -585,13 +675,52 @@ const CourseDetail = () => {
           </CardHeader>
           <CardContent>
             {completedExercises === totalExercises && totalExercises > 0 ? (
-              <Button
-                className="w-full"
-                onClick={handleGenerateRevisionSheet}
-                disabled={isLoadingRevision}
-              >
-                {isLoadingRevision ? "Génération en cours..." : "Générer ma fiche de révision"}
-              </Button>
+              <div className="space-y-3">
+                {course.fiche_revision_status === 'completed' && hasRevisionSheet ? (
+                  <Button
+                    className="w-full"
+                    onClick={handleDownloadRevisionSheet}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Télécharger ma fiche
+                  </Button>
+                ) : course.fiche_revision_status === 'generating' ? (
+                  <>
+                    <Button
+                      className="w-full"
+                      disabled={true}
+                    >
+                      Génération en cours...
+                    </Button>
+                    <p className="text-sm text-muted-foreground text-center">
+                      La génération de votre fiche de révision peut prendre 2 à 5 minutes.
+                    </p>
+                  </>
+                ) : course.fiche_revision_status === 'failed' ? (
+                  <Button
+                    className="w-full"
+                    onClick={handleGenerateRevisionSheet}
+                    disabled={isLoadingRevision}
+                  >
+                    {isLoadingRevision ? "Génération en cours..." : "Regénérer ma fiche de révision"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      className="w-full"
+                      onClick={handleGenerateRevisionSheet}
+                      disabled={isLoadingRevision}
+                    >
+                      {isLoadingRevision ? "Génération en cours..." : "Générer ma fiche de révision"}
+                    </Button>
+                    {isLoadingRevision && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        La génération de votre fiche de révision peut prendre 2 à 5 minutes.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             ) : (
               <p className="text-muted-foreground text-center">
                 Terminez tous les exercices pour générer un récapitulatif de révision, basé sur vos réponses.

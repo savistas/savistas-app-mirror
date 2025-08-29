@@ -304,7 +304,7 @@ const Dashboard = () => {
                           
                           <div className="flex-1 space-y-3">
                             <div className="space-y-1">
-                              <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-sky-600 transition-colors duration-200">
+                              <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-sky-600 transition-colors duration-200 h-[2.5rem] overflow-hidden">
                                 {course.title}
                               </h3>
                               <p className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full inline-block">
