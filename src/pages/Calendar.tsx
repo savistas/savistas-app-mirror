@@ -165,7 +165,7 @@ const Calendar = () => {
             >
               {/* Dégradé diagonal vert vers bleu - plus progressif et fluide */}
               <div className="absolute inset-0" style={{
-                background: 'linear-gradient(135deg, #22c55e 0%, #22c55e 35%, #3b82f6 65%, #3b82f6 100%)'
+                background: 'linear-gradient(135deg, #2a9d8f 0%, #2a9d8f 50%, #4b5563 50%, #4b5563 100%)'
               }}></div>
               <span className="relative z-10 text-white font-medium text-xs">{day}</span>
             </button>
@@ -181,10 +181,10 @@ const Calendar = () => {
     
     if (dayData?.hasCompleted && !dayData?.hasPending) {
       // Vert pour les QCM tous terminés
-      className += "bg-green-500 text-white font-medium";
+      className += "bg-[#2a9d8f] text-white font-medium";
     } else if (dayData?.hasPending && !dayData?.hasCompleted) {
       // Bleu pour les QCM tous à faire
-      className += "bg-blue-500 text-white font-medium";
+      className += "bg-gray-700 text-white font-medium";
     } else if (isToday) {
       className += "border-2 border-primary text-primary font-medium";
     } else {
@@ -282,16 +282,16 @@ const Calendar = () => {
         {/* Legend */}
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <div className="w-4 h-4 bg-[#2a9d8f] rounded"></div>
             <span className="text-muted-foreground">Terminé</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+            <div className="w-4 h-4 bg-gray-700 rounded"></div>
             <span className="text-muted-foreground">À faire</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 rounded" style={{
-              background: 'linear-gradient(135deg, #22c55e 0%, #22c55e 35%, #3b82f6 65%, #3b82f6 100%)'
+              background: 'linear-gradient(135deg, #2a9d8f 0%, #2a9d8f 50%, #4b5563 50%, #4b5563 100%)'
             }}></div>
             <span className="text-muted-foreground">Mixte (terminé + à faire)</span>
           </div>
@@ -333,7 +333,7 @@ const Calendar = () => {
                 >
                   <div 
                     className={`w-4 h-4 rounded-full mr-3 ${
-                      exercise.statut === 'Terminé' ? 'bg-green-500' : 'bg-blue-500'
+                      exercise.statut === 'Terminé' ? 'bg-[#2a9d8f]' : 'bg-gray-700'
                     }`}
                   ></div>
                   <div>

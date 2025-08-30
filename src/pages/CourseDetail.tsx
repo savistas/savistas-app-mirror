@@ -203,14 +203,32 @@ const CourseDetail = () => {
     }
 
     try {
+      // Fetch the PDF file directly to avoid exposing the Supabase URL
+      const response = await fetch(course.fiche_revision_url);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      // Convert response to blob
+      const blob = await response.blob();
+      
+      // Create object URL from blob
+      const blobUrl = URL.createObjectURL(blob);
+      
       // Create a temporary link element to trigger download
       const link = document.createElement('a');
-      link.href = course.fiche_revision_url;
+      link.href = blobUrl;
       link.download = `Révision Savistas - ${course.title}.pdf`;
-      link.target = '_blank';
+      link.style.display = 'none';
+      
+      // Add to DOM, click, and remove
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the object URL to free memory
+      URL.revokeObjectURL(blobUrl);
     } catch (error: any) {
       console.error("Erreur lors du téléchargement:", error);
       alert(`Erreur lors du téléchargement de la fiche de révision: ${error.message}`);
