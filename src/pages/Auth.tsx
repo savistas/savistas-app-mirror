@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client"; // Importation de supabase
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,9 +24,36 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate("/dashboard");
-    }
+    const checkUserProfileAndRedirect = async () => {
+      if (!authLoading && user) {
+        // Vérifier si l'utilisateur a déjà rempli les informations de profil
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('country')
+          .eq('user_id', user.id)
+          .maybeSingle(); // Utiliser maybeSingle pour gérer les cas où aucun profil n'est trouvé
+
+        if (error) {
+          console.error("Erreur lors de la récupération du profil:", error);
+          // En cas d'erreur, rediriger vers le dashboard par défaut ou gérer l'erreur
+          navigate("/dashboard");
+          return;
+        }
+
+        console.log("Profil récupéré:", profile); // Ajout d'un log pour débogage
+        console.log("Valeur de country:", profile?.country); // Ajout d'un log pour débogage
+
+        if (!profile || !profile.country || profile.country === "") {
+          // Si le profil n'existe pas, ou si le pays n'est pas renseigné (null ou chaîne vide), rediriger vers l'étape 3 du formulaire d'inscription
+          navigate("/register?step=3");
+        } else {
+          // Sinon, rediriger vers le dashboard
+          navigate("/dashboard");
+        }
+      }
+    };
+
+    checkUserProfileAndRedirect();
   }, [user, authLoading, navigate]);
 
   const handleInputChange = (field: string, value: string) => {
@@ -52,7 +80,7 @@ const Auth = () => {
           title: "Connexion réussie",
           description: "Vous êtes maintenant connecté",
         });
-        navigate("/dashboard");
+        // La redirection est maintenant gérée par le useEffect
       }
     } catch (error) {
       toast({
@@ -111,9 +139,9 @@ const Auth = () => {
         } else {
           toast({
             title: "Connexion automatique",
-            description: "Redirection vers votre dashboard",
+            description: "Redirection en cours...",
           });
-          navigate("/dashboard");
+          // La redirection est maintenant gérée par le useEffect
         }
       }
     } catch (error) {

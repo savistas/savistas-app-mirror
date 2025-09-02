@@ -30,6 +30,10 @@ const Profile = () => {
     subjects: "",
   });
 
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   const [profilesInfos, setProfilesInfos] = useState<{
     pref_apprendre_idee?: string;
     memoire_poesie?: string;
@@ -211,6 +215,27 @@ const Profile = () => {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: "Erreur", description: "Les mots de passe ne correspondent pas", variant: "destructive" });
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast({ title: "Mot de passe mis à jour", description: "Votre mot de passe a été changé avec succès." });
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message ?? "Impossible de changer le mot de passe", variant: "destructive" });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background px-6 py-8 pb-28">
       <div className="max-w-2xl mx-auto animate-fade-in">
@@ -287,6 +312,8 @@ const Profile = () => {
             </form>
           </CardContent>
         </Card>
+
+
 
         {profilesInfos && Object.values(profilesInfos).some(value => value) && (
           <Card className="border-border mt-8">
@@ -429,6 +456,46 @@ const Profile = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Section pour changer le mot de passe */}
+        <Card className="border-border mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Changer le mot de passe</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={passwordLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmNewPassword">Confirmer le nouveau mot de passe</Label>
+                <Input
+                  id="confirmNewPassword"
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={passwordLoading}
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={passwordLoading}>
+                  {passwordLoading ? 'Enregistrement...' : 'Changer le mot de passe'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
         {/* Modal d'édition des questions */}
         <ProfileQuestionEditModal
