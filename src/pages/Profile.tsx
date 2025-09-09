@@ -34,6 +34,9 @@ const Profile = () => {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+
   const [profilesInfos, setProfilesInfos] = useState<{
     pref_apprendre_idee?: string;
     memoire_poesie?: string;
@@ -233,6 +236,22 @@ const Profile = () => {
       toast({ title: "Erreur", description: e.message ?? "Impossible de changer le mot de passe", variant: "destructive" });
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleChangeEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setEmailLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) throw error;
+      toast({ title: "Email mis à jour", description: "Un email de confirmation a été envoyé à votre nouvelle adresse et à votre ancienne adresse. Veuillez cliquer sur les liens dans les deux emails pour finaliser le changement." });
+      setNewEmail("");
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message ?? "Impossible de changer l'email", variant: "destructive" });
+    } finally {
+      setEmailLoading(false);
     }
   };
 
@@ -491,6 +510,34 @@ const Profile = () => {
               <div className="flex justify-end">
                 <Button type="submit" disabled={passwordLoading}>
                   {passwordLoading ? 'Enregistrement...' : 'Changer le mot de passe'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Section pour changer l'email */}
+        <Card className="border-border mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Changer l'email</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangeEmail} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newEmail">Nouvel email</Label>
+                <Input
+                  id="newEmail"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="nouvel.email@example.com"
+                  required
+                  disabled={emailLoading}
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={emailLoading}>
+                  {emailLoading ? 'Enregistrement...' : 'Changer l\'email'}
                 </Button>
               </div>
             </form>
