@@ -584,7 +584,17 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
       <Dialog open={isOpen} onOpenChange={() => {}}>
         <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
         {showWelcome ? (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center relative">
+            {/* Bouton de fermeture */}
+            <Button
+              onClick={handleRequestExit}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            
             <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" />
             <DialogHeader className="mb-8">
               <DialogTitle className="text-3xl font-bold text-gray-800">
@@ -717,6 +727,16 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
           </div>
         ) : (
           <>
+            {/* Bouton de fermeture */}
+            <Button
+              onClick={handleRequestExit}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100 z-10"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            
             {/* Progress bar */}
             <header className="flex-shrink-0 w-full px-4 pt-4">
               <div className="w-full bg-blue-500 h-3 rounded-full overflow-hidden">
