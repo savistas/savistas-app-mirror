@@ -5,16 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil } from "lucide-react";
+import { Pencil, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
 import ProfileQuestionEditModal from "@/components/ProfileQuestionEditModal";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -255,6 +257,46 @@ const Profile = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({ title: "Déconnexion réussie", description: "Vous avez été déconnecté avec succès." });
+      navigate("/auth");
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message ?? "Impossible de se déconnecter", variant: "destructive" });
+    }
+  };
+
+  const handleRetakeQuestionnaires = async () => {
+    if (!user) return;
+    try {
+      // Reset les flags pour permettre de refaire les tests
+      await supabase
+        .from('profiles')
+        .update({ 
+          troubles_detection_completed: false,
+          learning_styles_completed: false,
+          survey_completed: false
+        })
+        .eq('user_id', user.id);
+      
+      toast({ 
+        title: "Questionnaires réinitialisés", 
+        description: "Vous pouvez maintenant refaire les questionnaires sur le tableau de bord."
+      });
+      
+      navigate('/dashboard');
+    } catch (e: any) {
+      toast({ 
+        title: "Erreur", 
+        description: e.message ?? "Impossible de réinitialiser les questionnaires", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background px-6 py-8 pb-28">
       <div className="max-w-2xl mx-auto animate-fade-in">
@@ -476,6 +518,25 @@ const Profile = () => {
           </Card>
         )}
 
+        {/* Section pour refaire les questionnaires */}
+        <Card className="border-border mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Questionnaires de personnalisation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Refaites les questionnaires de prédétection de troubles et de styles d'apprentissage pour mettre à jour votre profil.
+            </p>
+            <Button
+              onClick={handleRetakeQuestionnaires}
+              variant="outline"
+              className="w-full"
+            >
+              Refaire les questionnaires de prédétection
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Section pour changer le mot de passe */}
         <Card className="border-border mt-8">
           <CardHeader>
@@ -541,6 +602,30 @@ const Profile = () => {
                 </Button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Section pour se déconnecter */}
+        <Card className="border-red-200 bg-red-50/50 mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl text-red-700">Se déconnecter</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-red-600">
+                Vous serez redirigé vers la page de connexion après déconnexion.
+              </p>
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleLogout}
+                  variant="destructive"
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Se déconnecter
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

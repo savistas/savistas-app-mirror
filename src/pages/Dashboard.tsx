@@ -4,9 +4,21 @@ import { Progress } from "@/components/ui/progress";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge"; // Importation ajoutée
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Menu,
   BookOpen,
-  Book
+  Book,
+  Calendar,
+  Edit3
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -14,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import InformationSurveyDialog from "@/components/InformationSurveyDialog";
 import SurveyConfirmationDialog from "@/components/SurveyConfirmationDialog";
+import TroublesDetectionDialog from "@/components/TroublesDetectionDialog";
 
 interface Course {
   id: string;
@@ -36,6 +49,12 @@ const Dashboard = () => {
   const [surveyCurrentQuestionIndex, setSurveyCurrentQuestionIndex] = useState(0);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | string[]>>({});
   const [topLearningStyles, setTopLearningStyles] = useState<string[]>([]);
+  const [showTroublesDialog, setShowTroublesDialog] = useState(false);
+  const [showLearningStyleDialog, setShowLearningStyleDialog] = useState(false);
+  const [detectedTroubles, setDetectedTroubles] = useState<string[]>([]);
+  const [troublesData, setTroublesData] = useState<any>(null);
+  const [troublesLastUpdate, setTroublesLastUpdate] = useState<string | null>(null);
+  const [showRetakeTestConfirmation, setShowRetakeTestConfirmation] = useState(false);
 
   const learningStyleNames: Record<string, string> = {
     score_visuel: 'Visuel',
@@ -56,6 +75,58 @@ const Dashboard = () => {
     let isMounted = true;
     const loadProfileAndCheckSurvey = async () => {
       if (!user) return;
+
+      // Fetch troubles detection scores
+      const { data: troublesData } = await supabase
+        .from('troubles_detection_scores')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      console.log('🔍 Debug troubles data:', troublesData); // Debug log
+
+      if (troublesData) {
+        setTroublesData(troublesData);
+        setTroublesLastUpdate(troublesData.updated_at);
+        
+        const troubles = [];
+        
+        // Map des noms de troubles pour l'affichage
+        const troubleNames: Record<string, string> = {
+          tdah_score: 'TDAH',
+          dyslexie_score: 'Dyslexie',
+          dyscalculie_score: 'Dyscalculie',
+          dyspraxie_score: 'Dyspraxie',
+          tsa_score: 'TSA',
+          trouble_langage_score: 'Trouble du langage',
+          tdi_score: 'TDI',
+          tics_tourette_score: 'Tics/Tourette',
+          begaiement_score: 'Bégaiement',
+          trouble_sensoriel_isole_score: 'Trouble sensoriel',
+        };
+
+        console.log('🔍 Medical diagnosis check:', {
+          has_medical_diagnosis: troublesData.has_medical_diagnosis,
+          medical_diagnosis_details: troublesData.medical_diagnosis_details
+        }); // Debug log
+
+        // Si diagnostic médical, afficher uniquement celui-ci
+        if (troublesData.has_medical_diagnosis && troublesData.medical_diagnosis_details) {
+          troubles.push(`Diagnostic: ${troublesData.medical_diagnosis_details}`);
+        } else {
+          // Sinon, afficher les troubles détectés (Modéré ou plus)
+          Object.entries(troublesData).forEach(([key, value]) => {
+            if (key.endsWith('_score') && ['Modéré', 'Élevé', 'Très élevé'].includes(value as string)) {
+              troubles.push(`${troubleNames[key]}: ${value}`);
+            }
+          });
+        }
+        
+        console.log('🔍 Detected troubles:', troubles); // Debug log
+        setDetectedTroubles(troubles);
+      } else {
+        console.log('🔍 No troubles data found'); // Debug log
+      }
 
       // Fetch learning styles
       const { data: learningStylesData, error: learningStylesError } = await supabase
@@ -78,38 +149,38 @@ const Dashboard = () => {
         console.error('Error fetching learning styles:', learningStylesError);
       }
 
-      if (!user) return;
-      // Try fetch current user's profile
-      const { data, error } = await supabase
+      // Check which surveys need to be completed
+      const { data: profileData } = await supabase
         .from('profiles')
-        .select('full_name,email,survey_completed')
+        .select('troubles_detection_completed, learning_styles_completed, survey_completed')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
-      if (error) {
-        // Fallback to auth user metadata
-        if (isMounted) setDisplayName(user.user_metadata?.full_name || user.email || 'Mon profil');
-        return;
-      }
-
-      if (!data) {
-        // Create minimal profile row if missing
+      if (profileData) {
+        if (!profileData.troubles_detection_completed) {
+          setShowTroublesDialog(true);
+        } else if (!profileData.learning_styles_completed || !profileData.survey_completed) {
+          setShowLearningStyleDialog(true);
+        }
+      } else {
+        // New user - create profile and show troubles detection first
         await supabase.from('profiles').insert({
           user_id: user.id,
           email: user.email,
           full_name: user.user_metadata?.full_name || '',
-          survey_completed: false // Default to false for new profiles
+          survey_completed: false,
+          troubles_detection_completed: false,
+          learning_styles_completed: false
         });
         if (isMounted) {
           setDisplayName(user.user_metadata?.full_name || user.email || 'Mon profil');
-          setShowSurveyDialog(true); // Show survey for new profiles
+          setShowTroublesDialog(true);
         }
-      } else {
+      }
+
+      if (profileData) {
         if (isMounted) {
-          setDisplayName(data.full_name || user.user_metadata?.full_name || data.email || user.email || 'Mon profil');
-          if (!data.survey_completed) {
-            setShowSurveyDialog(true); // Show survey if not completed
-          }
+          setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
         }
       }
     };
@@ -122,14 +193,144 @@ const Dashboard = () => {
     if (user) {
       const { error } = await supabase
         .from('profiles')
-        .update({ survey_completed: true })
+        .update({ survey_completed: true, learning_styles_completed: true })
         .eq('user_id', user.id);
 
       if (error) {
         console.error('Error updating survey_completed status:', error);
       } else {
-        setShowSurveyDialog(false); // Hide dialog after survey is completed and status updated
+        setShowSurveyDialog(false);
+        setShowLearningStyleDialog(false);
+        window.location.reload(); // Refresh pour voir les nouveaux badges
       }
+    }
+  };
+
+  // Handlers pour les dialogs
+  const handleTroublesComplete = async () => {
+    setShowTroublesDialog(false);
+    
+    // Vérifier si le questionnaire de styles d'apprentissage a déjà été complété
+    if (user) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('learning_styles_completed, survey_completed')
+        .eq('user_id', user.id)
+        .single();
+      
+      // N'afficher le questionnaire de styles que s'il n'a pas été complété
+      if (profileData && !profileData.learning_styles_completed && !profileData.survey_completed) {
+        setShowLearningStyleDialog(true);
+      } else {
+        // Si aucun autre questionnaire à faire, recharger la page pour afficher les résultats
+        console.log('🔄 Rechargement de la page pour afficher les nouveaux résultats...');
+        window.location.reload();
+      }
+    } else {
+      // Si pas d'utilisateur, recharger quand même
+      console.log('🔄 Rechargement de la page...');
+      window.location.reload();
+    }
+  };
+
+  const handleLearningStyleComplete = async () => {
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ learning_styles_completed: true, survey_completed: true })
+        .eq('user_id', user.id);
+      
+      setShowLearningStyleDialog(false);
+      window.location.reload(); // Refresh pour voir les nouveaux badges
+    }
+  };
+
+  const handleModifyTroublesTest = async () => {
+    setShowRetakeTestConfirmation(true);
+  };
+
+  const handleConfirmRetakeTest = async () => {
+    if (user) {
+      try {
+        console.log('🔄 Début de la réinitialisation des données troubles pour user:', user.id);
+
+        // 1. Remettre le flag troubles_detection_completed à false dans profiles
+        console.log('1️⃣ Mise à jour du profil...');
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ troubles_detection_completed: false })
+          .eq('user_id', user.id);
+        
+        if (profileError) {
+          console.error('❌ Erreur mise à jour profil:', profileError);
+          throw profileError;
+        }
+        console.log('✅ Profil mis à jour');
+
+        // 2. Supprimer les réponses du questionnaire
+        console.log('2️⃣ Suppression des réponses du questionnaire...');
+        const { error: questionsError } = await supabase
+          .from('troubles_questionnaire_reponses')
+          .delete()
+          .eq('user_id', user.id);
+        
+        if (questionsError) {
+          console.error('❌ Erreur suppression questions:', questionsError);
+          throw questionsError;
+        }
+        console.log('✅ Réponses du questionnaire supprimées');
+
+        // 3. Supprimer les scores de détection
+        console.log('3️⃣ Suppression des scores de détection...');
+        const { error: scoresError } = await supabase
+          .from('troubles_detection_scores')
+          .delete()
+          .eq('user_id', user.id);
+        
+        if (scoresError) {
+          console.error('❌ Erreur suppression scores:', scoresError);
+          throw scoresError;
+        }
+        console.log('✅ Scores de détection supprimés');
+
+        // 4. Réinitialiser les états locaux
+        console.log('4️⃣ Réinitialisation des états locaux...');
+        setTroublesData(null);
+        setDetectedTroubles([]);
+        setTroublesLastUpdate(null);
+        console.log('✅ États locaux réinitialisés');
+
+        // 5. Fermer la confirmation et ouvrir le dialog de test
+        console.log('5️⃣ Ouverture du nouveau test...');
+        setShowRetakeTestConfirmation(false);
+        setShowTroublesDialog(true);
+
+        console.log('🎉 Réinitialisation complète terminée avec succès !');
+      } catch (error) {
+        console.error('❌ Erreur lors de la suppression des données:', error);
+        // Fermer quand même la modal en cas d'erreur
+        setShowRetakeTestConfirmation(false);
+        // Optionnel: ajouter une notification d'erreur pour l'utilisateur
+        alert('Une erreur est survenue lors de la réinitialisation. Veuillez réessayer.');
+      }
+    } else {
+      console.error('❌ Aucun utilisateur connecté');
+    }
+  };
+
+  // Fonction pour obtenir la couleur selon le niveau de risque
+  const getTroubleColor = (level: string) => {
+    switch (level) {
+      case 'Faible':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Modéré':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'Élevé':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'Très élevé':
+        return 'bg-red-200 text-red-900 border-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -344,6 +545,102 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Pré-détection de trouble Section - EN BAS APRÈS LES COURS */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-lg p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-black">🧠 Pré-détection de trouble</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleModifyTroublesTest}
+              className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+            >
+              <Edit3 className="h-4 w-4 mr-1" />
+              Modifier / Refaire le test
+            </Button>
+          </div>
+
+          {!troublesData ? (
+            // Aucun test n'a été fait
+            <div className="text-center py-6">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <p className="text-gray-600 mb-4">Aucun test renseigné pour l'instant.</p>
+                <Button
+                  onClick={() => setShowTroublesDialog(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Faire le test
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // Résultats disponibles
+            <div className="space-y-4">
+              {troublesData.has_medical_diagnosis && troublesData.medical_diagnosis_details && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">Diagnostic médical déclaré :</h3>
+                  <p className="text-blue-800">{troublesData.medical_diagnosis_details}</p>
+                </div>
+              )}
+
+              {/* Affichage des scores du QCM si disponibles */}
+              {Object.entries(troublesData).some(([key, value]) => 
+                key.endsWith('_score') && value && value !== 'Faible'
+              ) && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-gray-800">
+                    {troublesData.has_medical_diagnosis ? 'QCM complémentaire réalisé' : 'Résultats de la prédétection'}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {Object.entries(troublesData).map(([key, value]) => {
+                      if (!key.endsWith('_score') || !value || value === 'Faible') return null;
+                      
+                      const troubleNames: Record<string, string> = {
+                        tdah_score: 'TDAH',
+                        dyslexie_score: 'Dyslexie',
+                        dyscalculie_score: 'Dyscalculie',
+                        dyspraxie_score: 'Dyspraxie',
+                        tsa_score: 'TSA',
+                        trouble_langage_score: 'Trouble du langage',
+                        tdi_score: 'TDI',
+                        tics_tourette_score: 'Tics/Tourette',
+                        begaiement_score: 'Bégaiement',
+                        trouble_sensoriel_isole_score: 'Trouble sensoriel',
+                      };
+
+                      return (
+                        <div
+                          key={key}
+                          className={`px-3 py-2 rounded-lg border text-sm font-medium ${getTroubleColor(value as string)}`}
+                        >
+                          <span className="font-semibold">{troubleNames[key]}:</span> {value as string}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Affichage de la date de dernière mise à jour */}
+              {troublesLastUpdate && (
+                <div className="flex items-center text-xs text-gray-500 pt-2 border-t border-gray-200">
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Dernière mise à jour : {new Date(troublesLastUpdate).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </div>
+              )}
+
+              {/* Message d'avertissement */}
+              <p className="text-xs text-gray-500 italic border-t border-gray-200 pt-3">
+                Ces résultats sont indicatifs et ne remplacent pas un diagnostic médical professionnel.
+              </p>
+            </div>
+          )}
+        </div>
+
 
       </main>
 
@@ -352,10 +649,16 @@ const Dashboard = () => {
         <BottomNav />
       </div>
 
+      <TroublesDetectionDialog
+        isOpen={showTroublesDialog}
+        onClose={() => setShowTroublesDialog(false)}
+        onComplete={handleTroublesComplete}
+      />
+
       <InformationSurveyDialog
-        isOpen={showSurveyDialog}
+        isOpen={showLearningStyleDialog || showSurveyDialog}
         onClose={handleCloseSurveyDialog}
-        onSurveyComplete={handleSurveyComplete}
+        onSurveyComplete={handleLearningStyleComplete}
         initialQuestionIndex={surveyCurrentQuestionIndex}
         initialAnswers={surveyAnswers}
         onQuestionIndexChange={setSurveyCurrentQuestionIndex}
@@ -367,6 +670,27 @@ const Dashboard = () => {
         onConfirm={handleConfirmSurvey}
         onCancel={handleCancelSurvey}
       />
+
+      {/* Dialogue de confirmation pour refaire le test des troubles */}
+      <AlertDialog open={showRetakeTestConfirmation} onOpenChange={setShowRetakeTestConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr de vouloir refaire le test ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cela écrasera vos anciennes réponses et vous devrez refaire intégralement le test de pré-détection des troubles. 
+              Tous vos résultats précédents seront définitivement supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowRetakeTestConfirmation(false)}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRetakeTest} className="bg-red-600 hover:bg-red-700">
+              Oui, refaire le test
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
