@@ -4,9 +4,19 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Question {
   id: string;
@@ -255,6 +265,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
   const [medicalDiagnosisDetails, setMedicalDiagnosisDetails] = useState('');
   const [showQCMChoice, setShowQCMChoice] = useState(false);
   const [showMedicalDiagnosisInput, setShowMedicalDiagnosisInput] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -476,6 +487,19 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
     }
   };
 
+  const handleRequestExit = () => {
+    setShowExitConfirmation(true);
+  };
+
+  const handleConfirmExit = () => {
+    setShowExitConfirmation(false);
+    onClose();
+  };
+
+  const handleCancelExit = () => {
+    setShowExitConfirmation(false);
+  };
+
   const handleSaveDiagnosis = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -556,8 +580,9 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
+    <>
+      <Dialog open={isOpen} onOpenChange={() => {}}>
+        <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" />
@@ -585,7 +610,17 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
             </Button>
           </div>
         ) : showInitialChoice ? (
-          <div className="flex flex-col items-center justify-center h-full p-8">
+          <div className="flex flex-col items-center justify-center h-full p-8 relative">
+            {/* Bouton de fermeture */}
+            <Button
+              onClick={handleRequestExit}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            
             <h2 className="text-2xl font-bold text-gray-800 mb-8">
               Avez-vous déjà été diagnostiqué(e) ?
             </h2>
@@ -605,7 +640,17 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
             </div>
           </div>
         ) : showMedicalDiagnosisInput ? (
-          <div className="flex flex-col items-center justify-center h-full p-8">
+          <div className="flex flex-col items-center justify-center h-full p-8 relative">
+            {/* Bouton de fermeture */}
+            <Button
+              onClick={handleRequestExit}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            
             <h2 className="text-2xl font-bold text-gray-800 mb-8">
               Veuillez préciser votre diagnostic
             </h2>
@@ -615,16 +660,39 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
               onChange={(e) => setMedicalDiagnosisDetails(e.target.value)}
               className="w-full max-w-xl min-h-[150px] mb-8"
             />
-            <Button
-              onClick={handleSaveDiagnosis}
-              disabled={!medicalDiagnosisDetails.trim()}
-              className="px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full"
-            >
-              Enregistrer
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Button
+                onClick={() => {
+                  setShowMedicalDiagnosisInput(false);
+                  setShowInitialChoice(true);
+                  setMedicalDiagnosisDetails('');
+                }}
+                variant="outline"
+                className="px-8 py-4 text-lg rounded-full w-full sm:w-auto"
+              >
+                Retour
+              </Button>
+              <Button
+                onClick={handleSaveDiagnosis}
+                disabled={!medicalDiagnosisDetails.trim()}
+                className="px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full w-full sm:w-auto"
+              >
+                Enregistrer
+              </Button>
+            </div>
           </div>
         ) : showQCMChoice ? (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center relative">
+            {/* Bouton de fermeture */}
+            <Button
+              onClick={handleRequestExit}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               Voulez-vous réaliser un court QCM de prédétection des troubles ?
             </h2>
@@ -732,6 +800,27 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Popup de confirmation de sortie */}
+    <AlertDialog open={showExitConfirmation} onOpenChange={setShowExitConfirmation}>
+      <AlertDialogContent className="rounded-2xl sm:rounded-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Êtes-vous sûr de vouloir quitter ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Si vous quittez maintenant, vos informations ne seront pas sauvegardées et vous devrez recommencer le processus.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={handleCancelExit}>
+            Rester
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmExit} className="bg-red-600 hover:bg-red-700">
+            Oui, quitter
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
