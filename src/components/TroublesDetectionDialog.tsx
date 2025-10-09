@@ -737,8 +737,8 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
               <X className="h-4 w-4" />
             </Button>
             
-            {/* Progress bar */}
-            <header className="flex-shrink-0 w-full px-4 pt-4">
+            {/* Progress bar - positioned below the close button */}
+            <header className="flex-shrink-0 w-full px-4 pt-16">
               <div className="w-full bg-blue-500 h-3 rounded-full overflow-hidden">
                 <div className="bg-blue-700 h-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
               </div>
