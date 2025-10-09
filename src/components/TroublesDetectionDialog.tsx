@@ -248,6 +248,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [direction, setDirection] = useState(0);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showInitialChoice, setShowInitialChoice] = useState(false);
   const [hasMedicalDiagnosis, setHasMedicalDiagnosis] = useState<boolean | null>(null);
@@ -266,23 +267,66 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
       setShowMedicalDiagnosisInput(false);
       setCurrentQuestionIndex(0);
       setAnswers({});
+      setIsNavigating(false);
     }
   }, [isOpen]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
+  // Vérification de sécurité pour éviter l'affichage de questions vides
+  useEffect(() => {
+    if (currentQuestionIndex >= questions.length) {
+      console.warn('Index de question invalide:', currentQuestionIndex, 'sur', questions.length);
+      setCurrentQuestionIndex(0);
+    }
+    if (currentQuestionIndex < 0) {
+      console.warn('Index de question négatif:', currentQuestionIndex);
+      setCurrentQuestionIndex(0);
+    }
+  }, [currentQuestionIndex]);
+
+  // Effet pour forcer le re-rendu et log quand la question change
+  useEffect(() => {
+    if (questions[currentQuestionIndex]) {
+      console.log('Question changée vers index:', currentQuestionIndex, '- Titre:', questions[currentQuestionIndex].part);
+    }
+  }, [currentQuestionIndex]);
+
+  // Protection supplémentaire pour éviter les erreurs
+  if (!currentQuestion) {
+    console.error('Question non trouvée à l\'index:', currentQuestionIndex);
+    return null;
+  }
+
   const handleAnswerChange = (questionId: string, value: string) => {
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
-    // Auto-advance for radio questions
-    if (currentQuestionIndex < questions.length - 1) {
-      handleNextAnimated();
+    
+    // Auto-advance for radio questions avec délai pour éviter les conflits
+    if (currentQuestionIndex < questions.length - 1 && !isNavigating) {
+      setIsNavigating(true);
+      setTimeout(() => {
+        handleNextAnimated();
+        setIsNavigating(false);
+      }, 150); // Petit délai pour laisser l'animation se terminer
     }
   };
 
   const handleNext = async () => {
+    // Vérifications de sécurité
+    if (currentQuestionIndex < 0 || currentQuestionIndex >= questions.length) {
+      console.error('Index de question invalide dans handleNext:', currentQuestionIndex);
+      setCurrentQuestionIndex(0);
+      return;
+    }
+
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      const nextIndex = currentQuestionIndex + 1;
+      if (nextIndex < questions.length) {
+        setCurrentQuestionIndex(nextIndex);
+      } else {
+        console.warn('Tentative de navigation vers un index invalide:', nextIndex);
+      }
     } else {
       // Calculate scores and save to database
       await saveResults();
@@ -368,17 +412,31 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
   };
 
   const handlePrevious = () => {
+    // Vérifications de sécurité
+    if (currentQuestionIndex < 0 || currentQuestionIndex >= questions.length) {
+      console.error('Index de question invalide dans handlePrevious:', currentQuestionIndex);
+      setCurrentQuestionIndex(0);
+      return;
+    }
+
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      const prevIndex = currentQuestionIndex - 1;
+      if (prevIndex >= 0) {
+        setCurrentQuestionIndex(prevIndex);
+      } else {
+        console.warn('Tentative de navigation vers un index négatif:', prevIndex);
+      }
     }
   };
 
   const handleNextAnimated = () => {
+    if (isNavigating) return; // Éviter la navigation multiple simultanée
     setDirection(1);
     handleNext();
   };
 
   const handlePreviousAnimated = () => {
+    if (isNavigating) return; // Éviter la navigation multiple simultanée
     setDirection(-1);
     handlePrevious();
   };
@@ -573,17 +631,17 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
             <p className="text-gray-600 mb-8">
               Ce test n'a pas de valeur médicale, mais il peut révéler des signaux utiles pour mieux personnaliser votre parcours.
             </p>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
               <Button
                 onClick={() => handleQCMChoice(true)}
-                className="px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+                className="px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full w-full sm:w-auto"
               >
                 Oui, je fais le test
               </Button>
               <Button
                 onClick={() => handleQCMChoice(false)}
                 variant="outline"
-                className="px-8 py-4 text-lg rounded-full"
+                className="px-8 py-4 text-lg rounded-full w-full sm:w-auto"
               >
                 Non merci
               </Button>
@@ -599,15 +657,15 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
             </header>
 
             {/* Title */}
-            <div className="flex-shrink-0 w-[90%] mx-auto text-center pt-8">
+            <div className="flex-shrink-0 w-[90%] mx-auto text-center pt-8" key={`title-${currentQuestionIndex}`}>
               <h2 className="text-2xl font-bold text-gray-800">{currentQuestion.part}</h2>
             </div>
 
             {/* Main content */}
-            <main className="flex-1 flex items-center justify-center p-4">
+            <main className="flex-1 flex items-center justify-center p-4" key={`main-${currentQuestionIndex}`}>
               <div className="w-full max-w-2xl flex flex-col items-center space-y-8">
                 {/* Question */}
-                <div className="p-6 text-center w-full mt-4">
+                <div className="p-6 text-center w-full mt-4" key={`question-${currentQuestionIndex}`}>
                   <p className="text-lg text-gray-600 mt-1">{currentQuestion.text}</p>
                 </div>
 
@@ -632,7 +690,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
                         value={answers[`q${currentQuestionIndex + 1}`] || ''}
                         className="flex flex-col space-y-2"
                       >
-                        {currentQuestion.options.map((option) => (
+                        {currentQuestion.options?.map((option) => (
                           <div
                             key={option.value}
                             className="flex items-center space-x-2 p-3 border rounded-md cursor-pointer bg-white hover:bg-gray-100"
@@ -641,7 +699,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
                             <RadioGroupItem value={option.value} id={option.value} />
                             <Label htmlFor={option.value} className="flex-grow cursor-pointer">{option.label}</Label>
                           </div>
-                        ))}
+                        )) || []}
                       </RadioGroup>
                     </motion.div>
                   </AnimatePresence>
@@ -651,7 +709,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
                 <div className="flex justify-between w-full px-6 mt-4">
                   <Button
                     onClick={handlePreviousAnimated}
-                    disabled={currentQuestionIndex === 0}
+                    disabled={currentQuestionIndex === 0 || isNavigating}
                     variant="ghost"
                     className="w-12 h-12 rounded-full flex items-center justify-center bg-white border text-gray-800 hover:bg-gray-100"
                   >
@@ -660,7 +718,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
                   {currentQuestionIndex === questions.length - 1 ? (
                     <Button
                       onClick={saveResults}
-                      disabled={!answers[`q${currentQuestionIndex + 1}`]}
+                      disabled={!answers[`q${currentQuestionIndex + 1}`] || isNavigating}
                       variant="default"
                       className="px-6 py-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 text-lg"
                     >

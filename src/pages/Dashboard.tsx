@@ -499,7 +499,7 @@ const Dashboard = () => {
                     <Card className="bg-white/60 backdrop-blur-sm border-slate-200/60 hover:bg-white hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1 cursor-pointer overflow-hidden">
                       <CardContent className="p-6">
                         <div className="flex items-start space-x-5">
-                          <div className="p-4 bg-[#3d84f6] rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300 flex items-center justify-center w-16 h-16">
+                          <div className="hidden sm:flex p-4 bg-[#3d84f6] rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300 items-center justify-center w-16 h-16">
                             <Book className="w-8 h-8 text-white" strokeWidth={2} />
                           </div>
                           
@@ -545,15 +545,15 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Pré-détection de trouble Section - EN BAS APRÈS LES COURS */}
+        {/* Pré-détection de troubles Section - EN BAS APRÈS LES COURS */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-lg p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-black">🧠 Pré-détection de trouble</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <h2 className="text-xl font-bold text-black mb-3 sm:mb-0">🧠 Pré-détection de troubles</h2>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleModifyTroublesTest}
-              className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+              className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 self-start sm:self-auto"
             >
               <Edit3 className="h-4 w-4 mr-1" />
               Modifier / Refaire le test
@@ -673,7 +673,7 @@ const Dashboard = () => {
 
       {/* Dialogue de confirmation pour refaire le test des troubles */}
       <AlertDialog open={showRetakeTestConfirmation} onOpenChange={setShowRetakeTestConfirmation}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl sm:rounded-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Êtes-vous sûr de vouloir refaire le test ?</AlertDialogTitle>
             <AlertDialogDescription>
