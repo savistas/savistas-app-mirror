@@ -126,7 +126,7 @@ export const EducationStep = ({ formData, onFormDataChange }: EducationStepProps
               placeholder="Ex: Mathématiques, Physique, Histoire, etc."
               value={formData.subjects}
               onChange={(e) => onFormDataChange('subjects', e.target.value)}
-              className="h-24 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 resize-y"
+              className="h-24 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 resize-y placeholder:text-lg"
               disabled={!formData.educationLevel}
             />
           </div>

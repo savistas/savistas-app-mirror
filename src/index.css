@@ -117,6 +117,14 @@ All colors MUST be HSL.
     @apply bg-background text-foreground font-poppins;
   }
 
+  /* Placeholders du questionnaire profil : taille 18px partout */
+  input::placeholder,
+  textarea::placeholder,
+  .select-placeholder,
+  [data-placeholder] {
+    font-size: 16px !important;
+  }
+
   /* Prevent zoom on input focus for mobile devices */
   input[type="text"],
   input[type="email"],
