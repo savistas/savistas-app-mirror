@@ -82,8 +82,8 @@ export const EducationStep = ({ formData, onFormDataChange }: EducationStepProps
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">Niveau d'enseignement *</Label>
                 <Select value={formData.educationLevel} onValueChange={(value) => onFormDataChange('educationLevel', value)}>
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez le niveau" className="text-xs" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez le niveau" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     {educationLevels.map((level) => (
@@ -101,8 +101,8 @@ export const EducationStep = ({ formData, onFormDataChange }: EducationStepProps
                   onValueChange={(value) => onFormDataChange('classes', value)}
                   disabled={!formData.educationLevel}
                 >
-                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Sélectionnez la/les classe(s)" className="text-xs" />
+                  <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
+                    <SelectValue placeholder="Sélectionnez la/les classe(s)" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl max-h-60">
                     {availableClasses.length > 0 ? (
@@ -126,7 +126,7 @@ export const EducationStep = ({ formData, onFormDataChange }: EducationStepProps
               placeholder="Ex: Mathématiques, Physique, Histoire, etc."
               value={formData.subjects}
               onChange={(e) => onFormDataChange('subjects', e.target.value)}
-              className="h-24 border-0 bg-muted/50 rounded-xl text-sm focus:bg-background transition-all duration-200 resize-y"
+              className="h-24 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 resize-y"
               disabled={!formData.educationLevel}
             />
           </div>
