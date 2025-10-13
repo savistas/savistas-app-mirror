@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -23,6 +23,7 @@ import {
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showEmailVerificationDialog, setShowEmailVerificationDialog] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -138,6 +139,40 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Vérifier si l'email existe dans la table emails_registry
+      const { data: existingEmail, error: checkError } = await supabase
+        .from('emails_registry')
+        .select('email')
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      console.log('[DEBUG SIGNUP] Vérification email dans emails_registry:', { email: formData.email, existingEmail, checkError });
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error("Erreur lors de la vérification de l'email:", checkError);
+        toast({
+          title: "Erreur",
+          description: "Impossible de vérifier l'adresse mail.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (existingEmail) {
+        console.log("[SIGNUP BLOCKED] Email déjà inscrit:", formData.email);
+        toast({
+          title: "Compte existant",
+          description: "Cette adresse mail est déjà inscrite. Veuillez vous connecter si vous avez déjà un compte.",
+          variant: "destructive",
+        });
+        setActiveTab("signin");
+        handleInputChange('email', formData.email);
+        setLoading(false);
+        return;
+      }
+
+      // Si aucun email n'existe, alors on lance l'inscription et le popup
       const userData = {
         full_name: formData.fullName,
         role: formData.role,
@@ -145,14 +180,29 @@ const Auth = () => {
       };
 
       const { user: newUser, error } = await signUp(formData.email, formData.password, userData);
-      
+
       if (error) {
         console.error("Erreur d'inscription Supabase:", error);
-        toast({
-          title: "Erreur d'inscription",
-          description: error.message,
-          variant: "destructive",
-        });
+        
+        // Vérifier si l'utilisateur existe déjà
+        if (error.message.includes("User already registered") || 
+            error.message.includes("already") ||
+            error.message.includes("duplicate") ||
+            error.status === 422) {
+          toast({
+            title: "Compte existant",
+            description: "Cette adresse mail est déjà inscrite. Veuillez vous connecter si vous avez déjà un compte.",
+            variant: "destructive",
+          });
+          setActiveTab("signin");
+          handleInputChange('email', formData.email);
+        } else {
+          toast({
+            title: "Erreur d'inscription",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         setLoading(false);
         return;
       }
@@ -160,7 +210,6 @@ const Auth = () => {
       const uid = newUser?.id;
 
       if (!uid) {
-        console.error("Erreur: UID non trouvé après l'inscription.");
         toast({
           title: "Erreur",
           description: "Impossible de récupérer l'ID utilisateur après l'inscription.",
@@ -170,7 +219,7 @@ const Auth = () => {
         return;
       }
 
-      // Envoyer les données au webhook N8N
+      // Envoyer les données au webhook N8N uniquement si l'inscription est nouvelle
       try {
         const webhookData = {
           email: formData.email,
@@ -179,7 +228,6 @@ const Auth = () => {
           full_name: formData.fullName,
           user_id: uid,
         };
-        console.log("Envoi des données au webhook N8N:", webhookData);
         await fetch("https://n8n.srv932562.hstgr.cloud/webhook/creation-compte", {
           method: "POST",
           headers: {
@@ -187,14 +235,8 @@ const Auth = () => {
           },
           body: JSON.stringify(webhookData),
         });
-        console.log("Données envoyées au webhook N8N avec succès.");
       } catch (webhookError) {
         console.error("Erreur lors de l'envoi au webhook N8N:", webhookError);
-        toast({
-          title: "Erreur",
-          description: "Une erreur est survenue lors de l'envoi des données au service externe.",
-          variant: "destructive",
-        });
       }
 
       // Afficher le dialogue de vérification email
@@ -213,17 +255,6 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-6 py-8">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/")}
-            className="mb-4 p-0 h-auto text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Retour
-          </Button>
-        </div>
-
         <Card className="border-border">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-semibold">
@@ -319,17 +350,7 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-phone">Téléphone (optionnel)</Label>
-                    <Input
-                      id="signup-phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="06 12 34 56 78"
-                      className="h-11"
-                    />
-                  </div>
+                  {/* Champ téléphone supprimé */}
 
                   <div className="space-y-2">
                     <Label htmlFor="signup-role">Sélectionnez votre rôle *</Label>
@@ -380,15 +401,30 @@ const Auth = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="confirm-password">Confirmer le mot de passe *</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      placeholder="••••••••"
-                      className="h-11"
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="confirm-password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={formData.confirmPassword}
+                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        placeholder="••••••••"
+                        className="h-11 pr-10"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-11 px-3 py-0 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
