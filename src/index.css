@@ -117,25 +117,18 @@ All colors MUST be HSL.
     @apply bg-background text-foreground font-poppins;
   }
 
-  /* Placeholders du questionnaire profil : taille 18px partout */
+  /* Force 16px everywhere to prevent mobile zoom and ensure consistency */
+  input,
+  textarea,
+  select,
+  button[role="combobox"],
+  [data-radix-select-trigger],
   input::placeholder,
   textarea::placeholder,
-  .select-placeholder,
-  [data-placeholder] {
+  button[role="combobox"] *,
+  [data-radix-select-trigger] *,
+  [data-radix-select-trigger] span {
     font-size: 16px !important;
-  }
-
-  /* Prevent zoom on input focus for mobile devices */
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="tel"],
-  input[type="number"],
-  input[type="search"],
-  input[type="url"],
-  textarea,
-  select {
-    font-size: 16px;
   }
 }
 

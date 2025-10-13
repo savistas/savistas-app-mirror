@@ -71,7 +71,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.city}
                   onChange={(e) => onFormDataChange('city', e.target.value)}
                   placeholder="Ville"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 text-base placeholder:text-base"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
                 />
               </div>
 
@@ -82,7 +82,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.postalCode}
                   onChange={(e) => onFormDataChange('postalCode', e.target.value)}
                   placeholder="Code postal"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 text-base placeholder:text-base"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
                 />
               </div>
             </div>
@@ -109,8 +109,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.linkCode}
                   onChange={(e) => onFormDataChange('linkCode', e.target.value)}
                   placeholder="Code de liaison"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 text-base placeholder:text-base"
-                    <SelectValue placeholder="Sélectionner un pays" />
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200"
                 />
               </div>
               
@@ -118,7 +117,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                 <Label className="text-sm font-medium text-foreground">Relation liaison</Label>
                 <Select value={formData.linkRelation} onValueChange={(value) => onFormDataChange('linkRelation', value)}>
                   <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Type de relation" />
                     <SelectValue placeholder="Type de relation" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
@@ -140,7 +138,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                 <Select value={formData.ent} onValueChange={(value) => onFormDataChange('ent', value)}>
                   <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
                     <SelectValue placeholder="Sélectionnez votre ENT" />
-                    <SelectValue placeholder="Sélectionnez votre ENT" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
                     <SelectItem value="pronote">Pronote</SelectItem>
@@ -156,7 +153,6 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                 <Label className="text-sm font-medium text-foreground">Niveau de l'IA</Label>
                 <Select value={formData.aiLevel} onValueChange={(value) => onFormDataChange('aiLevel', value)}>
                   <SelectTrigger className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200">
-                    <SelectValue placeholder="Niveau souhaité" />
                     <SelectValue placeholder="Niveau souhaité" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border border-border shadow-lg rounded-xl">
