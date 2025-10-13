@@ -18,6 +18,7 @@ import InformationSurvey from "./pages/InformationSurvey";
 import CourseDetail from "./pages/CourseDetail";
 import Terms from "./pages/Terms"; // Import Terms page
 import Privacy from "./pages/Privacy"; // Import Privacy page
+import ResetPassword from "./pages/ResetPassword";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProfileCompletionGuard } from "./components/ProfileCompletionGuard";
 
@@ -33,6 +34,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/informations" element={<ProtectedRoute><InformationSurvey /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/upload-course" element={<ProtectedRoute><UploadCourse /></ProtectedRoute>} />

@@ -29,6 +29,9 @@ const Auth = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [activeTab, setActiveTab] = useState("signin");
+  const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     email: "",
@@ -252,6 +255,50 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resetEmail) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer votre adresse email",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email envoyé",
+          description: "Un email de réinitialisation a été envoyé à votre adresse. Vérifiez votre boîte de réception.",
+        });
+        setShowForgotPasswordDialog(false);
+        setResetEmail("");
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'envoi de l'email",
+        variant: "destructive",
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-6 py-8">
       <div className="w-full max-w-md animate-fade-in">
@@ -309,6 +356,13 @@ const Auth = () => {
                         )}
                       </Button>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPasswordDialog(true)}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Mot de passe oublié ?
+                    </button>
                   </div>
 
                   <Button
@@ -463,6 +517,53 @@ const Auth = () => {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Dialogue mot de passe oublié */}
+        <AlertDialog 
+          open={showForgotPasswordDialog} 
+          onOpenChange={setShowForgotPasswordDialog}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Réinitialiser le mot de passe</AlertDialogTitle>
+              <AlertDialogDescription>
+                Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <form onSubmit={handleForgotPassword}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="votre@email.com"
+                    className="h-11"
+                    required
+                  />
+                </div>
+              </div>
+              <AlertDialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowForgotPasswordDialog(false);
+                    setResetEmail("");
+                  }}
+                  disabled={resetLoading}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={resetLoading}>
+                  {resetLoading ? "Envoi..." : "Envoyer le lien"}
+                </Button>
+              </AlertDialogFooter>
+            </form>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Dialogue de vérification email */}
         <AlertDialog 
