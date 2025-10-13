@@ -452,7 +452,7 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
                 onClick={() => handleAnswerChange(question.id, option.value)}
               >
                   <RadioGroupItem value={option.value} id={option.value} />
-                  <Label htmlFor={option.value} className="flex-grow cursor-pointer text-lg md:text-base">{option.label}</Label>
+                  <Label htmlFor={option.value} className="flex-grow cursor-pointer">{option.label}</Label>
               </div>
             ))}
           </RadioGroup>
@@ -556,7 +556,7 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
               <div className="w-full max-w-2xl flex flex-col items-center space-y-8">
                 {/* Question */}
                 <div className="p-6 text-center w-full mt-4" key={`question-${currentQuestionIndex}`}>
-                  <p className="text-lg md:text-xl text-gray-600 mt-1">{currentQuestion.text}</p>
+                  <p className="text-lg text-gray-600 mt-1">{currentQuestion.text}</p>
                 </div>
 
                 {/* Animated answers */}
