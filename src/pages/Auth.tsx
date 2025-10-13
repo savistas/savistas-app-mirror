@@ -523,7 +523,7 @@ const Auth = () => {
           open={showForgotPasswordDialog} 
           onOpenChange={setShowForgotPasswordDialog}
         >
-          <AlertDialogContent>
+          <AlertDialogContent className="rounded-xl">
             <AlertDialogHeader>
               <AlertDialogTitle>Réinitialiser le mot de passe</AlertDialogTitle>
               <AlertDialogDescription>
@@ -545,7 +545,7 @@ const Auth = () => {
                   />
                 </div>
               </div>
-              <AlertDialogFooter>
+              <AlertDialogFooter className="flex flex-row gap-3">
                 <Button
                   type="button"
                   variant="outline"

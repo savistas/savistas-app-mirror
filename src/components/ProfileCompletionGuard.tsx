@@ -7,7 +7,7 @@ interface ProfileCompletionGuardProps {
   children: React.ReactNode;
 }
 
-const ALLOWED_ROUTES_WHEN_INCOMPLETE = ['/auth', '/profile', '/terms', '/privacy'];
+const ALLOWED_ROUTES_WHEN_INCOMPLETE = ['/auth', '/profile', '/terms', '/privacy', '/reset-password'];
 
 export const ProfileCompletionGuard = ({ children }: ProfileCompletionGuardProps) => {
   const { isProfileComplete, loading } = useProfileCompletion();
