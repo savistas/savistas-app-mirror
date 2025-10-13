@@ -71,7 +71,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.city}
                   onChange={(e) => onFormDataChange('city', e.target.value)}
                   placeholder="Ville"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 placeholder:text-lg"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 text-base placeholder:text-base"
                 />
               </div>
 
@@ -82,7 +82,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.postalCode}
                   onChange={(e) => onFormDataChange('postalCode', e.target.value)}
                   placeholder="Code postal"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 placeholder:text-lg"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 text-base placeholder:text-base"
                 />
               </div>
             </div>
@@ -109,7 +109,7 @@ export const InformationStep = ({ formData, onFormDataChange }: InformationStepP
                   value={formData.linkCode}
                   onChange={(e) => onFormDataChange('linkCode', e.target.value)}
                   placeholder="Code de liaison"
-                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 placeholder:text-lg"
+                  className="h-12 border-0 bg-muted/50 rounded-xl focus:bg-background transition-all duration-200 text-base placeholder:text-base"
                     <SelectValue placeholder="Sélectionner un pays" />
                 />
               </div>
