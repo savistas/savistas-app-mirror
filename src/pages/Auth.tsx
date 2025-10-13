@@ -4,19 +4,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client"; // Importation de supabase
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showEmailVerificationDialog, setShowEmailVerificationDialog] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [activeTab, setActiveTab] = useState("signin");
+  
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    // Nouveaux champs pour l'inscription
+    fullName: "",
+    phone: "",
+    role: "",
   });
   
   const { signIn, signUp, user, loading: authLoading } = useAuth();
@@ -26,28 +46,29 @@ const Auth = () => {
   useEffect(() => {
     const checkUserProfileAndRedirect = async () => {
       if (!authLoading && user) {
-        // Vérifier si l'utilisateur a déjà rempli les informations de profil
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('country')
+          .select('country, education_level, classes, subjects, subscription')
           .eq('user_id', user.id)
-          .maybeSingle(); // Utiliser maybeSingle pour gérer les cas où aucun profil n'est trouvé
+          .maybeSingle();
 
         if (error) {
           console.error("Erreur lors de la récupération du profil:", error);
-          // En cas d'erreur, rediriger vers le dashboard par défaut ou gérer l'erreur
           navigate("/dashboard");
           return;
         }
 
-        console.log("Profil récupéré:", profile); // Ajout d'un log pour débogage
-        console.log("Valeur de country:", profile?.country); // Ajout d'un log pour débogage
+        // Vérifier si le profil est incomplet
+        const isIncomplete = !profile || 
+          !profile.country || 
+          !profile.education_level || 
+          !profile.classes || 
+          !profile.subjects || 
+          !profile.subscription;
 
-        if (!profile || !profile.country || profile.country === "") {
-          // Si le profil n'existe pas, ou si le pays n'est pas renseigné (null ou chaîne vide), rediriger vers l'étape 3 du formulaire d'inscription
-          navigate("/register?step=3");
+        if (isIncomplete) {
+          navigate("/profile");
         } else {
-          // Sinon, rediriger vers le dashboard
           navigate("/dashboard");
         }
       }
@@ -105,49 +126,83 @@ const Auth = () => {
       return;
     }
 
+    if (!termsAccepted || !privacyAccepted) {
+      toast({
+        title: "Erreur",
+        description: "Vous devez accepter les conditions d'utilisation et la politique de confidentialité",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error } = await signUp(formData.email, formData.password);
+      const userData = {
+        full_name: formData.fullName,
+        role: formData.role,
+        phone: formData.phone,
+      };
+
+      const { user: newUser, error } = await signUp(formData.email, formData.password, userData);
       
       if (error) {
-        if (error.message.includes('already registered')) {
-          toast({
-            title: "Compte existant",
-            description: "Un compte avec cet email existe déjà",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Erreur d'inscription",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      } else {
+        console.error("Erreur d'inscription Supabase:", error);
         toast({
-          title: "Inscription réussie",
-          description: "Votre compte a été créé avec succès",
+          title: "Erreur d'inscription",
+          description: error.message,
+          variant: "destructive",
         });
-        // Tentative de connexion automatique
-        const { error: autoSignInError } = await signIn(formData.email, formData.password);
-        if (autoSignInError) {
-          toast({
-            title: "Vérification requise",
-            description: "Confirmez votre email pour terminer l'inscription",
-          });
-        } else {
-          toast({
-            title: "Connexion automatique",
-            description: "Redirection en cours...",
-          });
-          // La redirection est maintenant gérée par le useEffect
-        }
+        setLoading(false);
+        return;
       }
+
+      const uid = newUser?.id;
+
+      if (!uid) {
+        console.error("Erreur: UID non trouvé après l'inscription.");
+        toast({
+          title: "Erreur",
+          description: "Impossible de récupérer l'ID utilisateur après l'inscription.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Envoyer les données au webhook N8N
+      try {
+        const webhookData = {
+          email: formData.email,
+          role: formData.role,
+          phone: formData.phone,
+          full_name: formData.fullName,
+          user_id: uid,
+        };
+        console.log("Envoi des données au webhook N8N:", webhookData);
+        await fetch("https://n8n.srv932562.hstgr.cloud/webhook/creation-compte", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(webhookData),
+        });
+        console.log("Données envoyées au webhook N8N avec succès.");
+      } catch (webhookError) {
+        console.error("Erreur lors de l'envoi au webhook N8N:", webhookError);
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors de l'envoi des données au service externe.",
+          variant: "destructive",
+        });
+      }
+
+      // Afficher le dialogue de vérification email
+      setShowEmailVerificationDialog(true);
     } catch (error) {
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de l'inscription",
+        description: "Une erreur est survenue lors de la création du compte",
         variant: "destructive",
       });
     } finally {
@@ -176,7 +231,7 @@ const Auth = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="signin">Se connecter</TabsTrigger>
                 <TabsTrigger value="signup">S'inscrire</TabsTrigger>
@@ -237,21 +292,66 @@ const Auth = () => {
               
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-fullname">Nom complet *</Label>
+                      <Input
+                        id="signup-fullname"
+                        value={formData.fullName}
+                        onChange={(e) => handleInputChange('fullName', e.target.value)}
+                        placeholder="Jean Dupont"
+                        className="h-11"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Adresse e-mail *</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        placeholder="jean.dupont@email.com"
+                        className="h-11"
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-phone">Téléphone (optionnel)</Label>
                     <Input
-                      id="signup-email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      placeholder="votre@email.com"
+                      id="signup-phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      placeholder="06 12 34 56 78"
                       className="h-11"
-                      required
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-role">Sélectionnez votre rôle *</Label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(value) => handleInputChange('role', value)}
+                    >
+                      <SelectTrigger className="h-11 rounded-md bg-background border border-input">
+                        <SelectValue placeholder="Choisissez votre rôle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="student">Élève</SelectItem>
+                        <SelectItem value="teacher" disabled>Enseignant (bientôt disponible)</SelectItem>
+                        <SelectItem value="parent" disabled>Parent (bientôt disponible)</SelectItem>
+                        <SelectItem value="school" disabled>Établissement scolaire (bientôt disponible)</SelectItem>
+                        <SelectItem value="company" disabled>Entreprise (bientôt disponible)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <Label htmlFor="signup-password">Mot de passe *</Label>
                     <div className="relative">
                       <Input
                         id="signup-password"
@@ -279,7 +379,7 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                    <Label htmlFor="confirm-password">Confirmer le mot de passe *</Label>
                     <Input
                       id="confirm-password"
                       type="password"
@@ -291,22 +391,64 @@ const Auth = () => {
                     />
                   </div>
 
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="terms" 
+                        checked={termsAccepted}
+                        onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                      />
+                      <Label htmlFor="terms" className="text-sm">
+                        J'accepte les <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">conditions d'utilisation</a> *
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="privacy" 
+                        checked={privacyAccepted}
+                        onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
+                      />
+                      <Label htmlFor="privacy" className="text-sm">
+                        J'accepte la <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">politique de confidentialité</a> *
+                      </Label>
+                    </div>
+                  </div>
+
                   <Button
                     type="submit"
                     className="w-full h-11"
-                    disabled={loading}
+                    disabled={loading || !formData.fullName || !formData.email || !formData.password || !formData.role || !termsAccepted || !privacyAccepted}
                   >
-                    {loading ? "Création..." : "Créer un compte"}
+                    {loading ? "Création du compte..." : "Créer mon compte"}
                   </Button>
-                  
-                  <p className="text-xs text-muted-foreground text-center mt-4">
-                    Après inscription, vous pourrez compléter votre profil
-                  </p>
                 </form>
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Dialogue de vérification email */}
+        <AlertDialog 
+          open={showEmailVerificationDialog} 
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center">Vérification requise</AlertDialogTitle>
+              <AlertDialogDescription className="text-center">
+                Un e-mail de confirmation a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception et vos spams pour confirmer votre compte. Une fois votre e-mail confirmé, vous pourrez vous connecter.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="justify-center">
+              <AlertDialogAction onClick={() => {
+                setShowEmailVerificationDialog(false);
+                setActiveTab("signin");
+              }}>
+                J'ai confirmé mon email
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

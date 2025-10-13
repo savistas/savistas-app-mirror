@@ -24,11 +24,8 @@ const Welcome = () => {
           </p>
 
           <div className="space-y-4">
-            <Link to="/register">
-              <Button 
-                size="lg" 
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg font-medium rounded-xl"
-              >
+                        <Link to="/auth">
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
                 Commencer maintenant
               </Button>
             </Link>

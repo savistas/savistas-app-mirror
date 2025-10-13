@@ -207,29 +207,67 @@ const Dashboard = () => {
   };
 
   // Handlers pour les dialogs
-  const handleTroublesComplete = async () => {
+    const handleTroublesComplete = async () => {
     setShowTroublesDialog(false);
     
-    // Vérifier si le questionnaire de styles d'apprentissage a déjà été complété
+    // Marquer comme complété
     if (user) {
+      await supabase
+        .from('profiles')
+        .update({ troubles_detection_completed: true })
+        .eq('user_id', user.id);
+      
+      // Vérifier si le questionnaire de styles d'apprentissage doit être ouvert (première fois)
       const { data: profileData } = await supabase
         .from('profiles')
         .select('learning_styles_completed, survey_completed')
         .eq('user_id', user.id)
         .single();
       
-      // N'afficher le questionnaire de styles que s'il n'a pas été complété
-      if (profileData && !profileData.learning_styles_completed && !profileData.survey_completed) {
+      // Vérifier aussi si des réponses existent déjà dans profiles_infos
+      const { data: profilesInfosData } = await supabase
+        .from('profiles_infos')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      // Ouvrir le questionnaire des styles seulement si jamais fait ET aucune donnée dans profiles_infos
+      const hasProfilesInfos = profilesInfosData && Object.values(profilesInfosData).some(value => value && value !== user.id);
+      if (profileData && !profileData.learning_styles_completed && !profileData.survey_completed && !hasProfilesInfos) {
         setShowLearningStyleDialog(true);
-      } else {
-        // Si aucun autre questionnaire à faire, recharger la page pour afficher les résultats
-        console.log('🔄 Rechargement de la page pour afficher les nouveaux résultats...');
-        window.location.reload();
       }
-    } else {
-      // Si pas d'utilisateur, recharger quand même
-      console.log('🔄 Rechargement de la page...');
-      window.location.reload();
+    }
+  };
+
+  const handleTroublesClose = async () => {
+    setShowTroublesDialog(false);
+    
+    // Marquer comme complété même si fermé sans répondre (pour ne plus le redemander)
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ troubles_detection_completed: true })
+        .eq('user_id', user.id);
+      
+      // Vérifier si le questionnaire de styles d'apprentissage doit être ouvert (première fois)
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('learning_styles_completed, survey_completed')
+        .eq('user_id', user.id)
+        .single();
+      
+      // Vérifier aussi si des réponses existent déjà dans profiles_infos
+      const { data: profilesInfosData } = await supabase
+        .from('profiles_infos')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      // Ouvrir le questionnaire des styles seulement si jamais fait ET aucune donnée dans profiles_infos
+      const hasProfilesInfos = profilesInfosData && Object.values(profilesInfosData).some(value => value && value !== user.id);
+      if (profileData && !profileData.learning_styles_completed && !profileData.survey_completed && !hasProfilesInfos) {
+        setShowLearningStyleDialog(true);
+      }
     }
   };
 
@@ -401,9 +439,17 @@ const Dashboard = () => {
     setShowSurveyDialog(true); // Reopen survey dialog
   };
 
-  const handleCancelSurvey = () => {
+  const handleCancelSurvey = async () => {
     setShowConfirmationDialog(false);
-    // User chose not to answer, do nothing further
+    setShowLearningStyleDialog(false); // Fermer aussi le dialogue principal des styles d'apprentissage
+    
+    // Marquer le questionnaire comme complété (refusé) pour ne plus le proposer
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ learning_styles_completed: true, survey_completed: true })
+        .eq('user_id', user.id);
+    }
   };
 
   return (
@@ -441,10 +487,10 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Top Learning Styles Section */}
-        {topLearningStyles.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-lg p-8 text-center">
-            <h2 className="text-xl font-bold text-black mb-4">Vos styles d'apprentissage dominants</h2>
+        {/* Learning Styles Section - Always visible */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-lg p-8 text-center">
+          <h2 className="text-xl font-bold text-black mb-4">Vos styles d'apprentissage dominants</h2>
+          {topLearningStyles.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-2">
               {topLearningStyles.map((style, index) => {
                 const pastelColors = [
@@ -463,8 +509,20 @@ const Dashboard = () => {
                 );
               })}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="space-y-4">
+              <p className="text-gray-600 mb-4">
+                Remplissez le questionnaire de styles d'apprentissage pour découvrir vos méthodes d'apprentissage préférées et personnaliser votre expérience.
+              </p>
+              <Button
+                onClick={() => setShowLearningStyleDialog(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg whitespace-normal text-center w-full max-w-xs mx-auto"
+              >
+                Remplir le questionnaire de styles d'apprentissage
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* My Courses Section */}
         <div className="space-y-6">
@@ -651,7 +709,7 @@ const Dashboard = () => {
 
       <TroublesDetectionDialog
         isOpen={showTroublesDialog}
-        onClose={() => setShowTroublesDialog(false)}
+        onClose={handleTroublesClose}
         onComplete={handleTroublesComplete}
       />
 

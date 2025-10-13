@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -251,6 +251,12 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
   const setAnswers = (newAnswers: Record<string, string | string[]>) => {
     setAnswersInternal(newAnswers);
     onAnswersChange(newAnswers);
+  };
+
+  const handleCloseClick = () => {
+    // Directement fermer le dialogue sans confirmation supplémentaire
+    // car le SurveyConfirmationDialog est géré par le Dashboard
+    onClose();
   };
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -499,8 +505,20 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={() => {}}> {/* Empêche la fermeture pendant la réponse */}
       <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
+        {!showWelcome && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCloseClick}
+            className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100 z-10"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+        
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" /> {/* Ajout du logo */}
@@ -522,27 +540,27 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
         ) : (
           <>
             {/* Progress bar - fixe */}
-            <header className="flex-shrink-0 w-full px-4 pt-4">
+            <header className="flex-shrink-0 w-full px-4 pt-16">
               <div className="w-full bg-blue-500 h-3 rounded-full overflow-hidden">
                 <div className="bg-blue-700 h-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
               </div>
             </header>
 
-            {/* Title - fixe */}
-            <div className="flex-shrink-0 w-[90%] mx-auto text-center pt-8">
+            {/* Title */}
+            <div className="flex-shrink-0 w-[90%] mx-auto text-center pt-8" key={`title-${currentQuestionIndex}`}>
               <h2 className="text-2xl font-bold text-gray-800">{currentQuestion.part}</h2>
             </div>
 
-            {/* Main content - centré vertical */}
-            <main className="flex-1 flex items-center justify-center p-4">
+            {/* Main content */}
+            <main className="flex-1 flex items-center justify-center p-4" key={`main-${currentQuestionIndex}`}>
               <div className="w-full max-w-2xl flex flex-col items-center space-y-8">
                 {/* Question */}
-                <div className="p-6 text-center w-full mt-4">
+                <div className="p-6 text-center w-full mt-4" key={`question-${currentQuestionIndex}`}>
                   <p className="text-lg text-gray-600 mt-1">{currentQuestion.text}</p>
                 </div>
 
                 {/* Animated answers */}
-                <div className="relative overflow-hidden w-full px-6 pb-4 min-h-[250px] flex items-center justify-center">
+                <div className="relative overflow-visible w-full px-6 pb-4 pt-2 min-h-[250px] flex items-center justify-center">
                   <AnimatePresence initial={false} custom={direction}>
                     <motion.div
                       key={currentQuestionIndex}
@@ -598,6 +616,7 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 };
 

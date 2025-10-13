@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, userData?: any) => {
-    const redirectUrl = `${window.location.origin}/register?step=continue`; // Rediriger vers la page d'inscription pour continuer
+    const redirectUrl = `${window.location.origin}/profile`; // Rediriger vers la page de profil après confirmation
     
     const { data, error } = await supabase.auth.signUp({
       email,

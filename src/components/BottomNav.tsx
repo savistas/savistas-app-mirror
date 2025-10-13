@@ -9,14 +9,30 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfileCompletion } from "@/hooks/useProfileCompletion";
+import { useToast } from "@/hooks/use-toast";
 const BottomNav = () => {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { isProfileComplete } = useProfileCompletion();
+  const { toast } = useToast();
 
   const isActive = (path: string) => currentPath === path;
   const { user } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string>("");
+
+  const handleNavClick = (path: string, e: React.MouseEvent) => {
+    if (!isProfileComplete && path !== '/profile') {
+      e.preventDefault();
+      toast({
+        title: "Profil incomplet",
+        description: "Complétez votre profil pour accéder à cette section.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -46,7 +62,11 @@ const BottomNav = () => {
         <div className="flex items-center justify-between w-full max-w-md">
           {/* Left side - Accueil & Agenda */}
           <div className="flex items-center space-x-8">
-            <Link to="/dashboard" className="flex flex-col items-center space-y-1">
+            <Link 
+              to="/dashboard" 
+              className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => handleNavClick('/dashboard', e)}
+            >
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
                 isActive('/dashboard') ? 'bg-primary' : ''
               }`}>
@@ -56,7 +76,11 @@ const BottomNav = () => {
               </div>
             </Link>
             
-            <Link to="/calendar" className="flex flex-col items-center space-y-1">
+            <Link 
+              to="/calendar" 
+              className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => handleNavClick('/calendar', e)}
+            >
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
                 isActive('/calendar') ? 'bg-primary' : ''
               }`}>
@@ -69,7 +93,11 @@ const BottomNav = () => {
 
           {/* Right side - Chat & Profil */}
           <div className="flex items-center space-x-8">
-            <Link to="/messaging" className="flex flex-col items-center space-y-1">
+            <Link 
+              to="/messaging" 
+              className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => handleNavClick('/messaging', e)}
+            >
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
                 isActive('/messaging') ? 'bg-primary' : ''
               }`}>
@@ -96,7 +124,18 @@ const BottomNav = () => {
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Link 
             to="/upload-course" 
-            className="flex flex-col items-center"
+            className={`flex flex-col items-center ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={e => {
+              if (!isProfileComplete) {
+                e.preventDefault();
+                toast({
+                  title: "Profil incomplet",
+                  description: "Complétez votre profil pour accéder à cette section.",
+                  variant: "destructive",
+                  duration: 3000,
+                });
+              }
+            }}
           >
             <div className="w-16 h-16 rounded-full bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center shadow-lg border-4 border-background">
               <Plus className="w-6 h-6 text-primary-foreground" strokeWidth={1.5} />

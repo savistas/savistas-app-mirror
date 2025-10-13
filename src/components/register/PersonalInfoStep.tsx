@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface PersonalInfoStepProps {
   formData: {
@@ -8,13 +9,14 @@ interface PersonalInfoStepProps {
     email: string;
     phone: string;
     password: string;
+    role: string;
   };
   onFormDataChange: (field: string, value: string) => void;
   termsAccepted: boolean;
   privacyAccepted: boolean;
   onTermsChange: (checked: boolean) => void;
   onPrivacyChange: (checked: boolean) => void;
-  loading: boolean; // Nouvelle prop
+  loading: boolean;
 }
 
 export const PersonalInfoStep = ({ 
@@ -46,6 +48,7 @@ export const PersonalInfoStep = ({
               onChange={(e) => onFormDataChange('fullName', e.target.value)}
               placeholder="Jean Dupont"
               required
+              className="h-11"
             />
           </div>
           
@@ -58,6 +61,7 @@ export const PersonalInfoStep = ({
               onChange={(e) => onFormDataChange('email', e.target.value)}
               placeholder="jean.dupont@email.com"
               required
+              className="h-11"
             />
           </div>
         </div>
@@ -71,10 +75,33 @@ export const PersonalInfoStep = ({
               value={formData.phone}
               onChange={(e) => onFormDataChange('phone', e.target.value)}
               placeholder="06 12 34 56 78"
+              className="h-11"
             />
           </div>
-          
-          <div className="space-y-2">
+        </div>
+
+        {/* Dropdown pour le rôle */}
+        <div className="space-y-2">
+          <Label htmlFor="role">Sélectionnez votre rôle *</Label>
+          <Select
+            value={formData.role}
+            onValueChange={(value) => onFormDataChange('role', value)}
+          >
+            <SelectTrigger className="h-11 rounded-md bg-background border border-input">
+              <SelectValue placeholder="Choisissez votre rôle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="student">Élève</SelectItem>
+              <SelectItem value="teacher" disabled>Enseignant (bientôt disponible)</SelectItem>
+              <SelectItem value="parent" disabled>Parent (bientôt disponible)</SelectItem>
+              <SelectItem value="school" disabled>Établissement scolaire (bientôt disponible)</SelectItem>
+              <SelectItem value="company" disabled>Entreprise (bientôt disponible)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2 md:col-span-2">
             <Label htmlFor="password">Mot de passe *</Label>
             <Input
               id="password"
@@ -83,6 +110,7 @@ export const PersonalInfoStep = ({
               onChange={(e) => onFormDataChange('password', e.target.value)}
               placeholder="••••••••"
               required
+              className="h-11"
             />
           </div>
         </div>
