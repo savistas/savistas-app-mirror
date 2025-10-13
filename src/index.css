@@ -116,6 +116,19 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground font-poppins;
   }
+
+  /* Prevent zoom on input focus for mobile devices */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="search"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 /* Mobile: hide scrollbars on touch devices (no layout shift) */
