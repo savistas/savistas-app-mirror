@@ -150,10 +150,8 @@ const Messaging = () => {
         toast({ title: "Erreur", description: "Impossible de charger l'historique.", variant: "destructive" });
       } else if (mounted) {
         setConversations(data as Conversation[]);
-        // Auto-select the most recent conversation
-        if (!activeConversationId && data && data.length > 0) {
-          setActiveConversationId(data[0].id);
-        }
+        // Don't auto-select any conversation - start with a blank conversation
+        // User can select from history if they want to continue a previous conversation
       }
       setLoadingConversations(false);
     };

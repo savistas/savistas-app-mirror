@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import BottomNav from "@/components/BottomNav";
+import BurgerMenu from "@/components/BurgerMenu";
+import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, FileText, ArrowRight, CheckCircle, Trash2, Download } from "lucide-react";
 import {
   Accordion,
@@ -91,11 +93,13 @@ function isExerciseResponseMetadata(obj: any): obj is ExerciseResponseMetadata {
 
 const CourseDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoadingRevision, setIsLoadingRevision] = useState(false); // New state for loading
   const [hasRevisionSheet, setHasRevisionSheet] = useState(false); // New state to track if revision sheet is available
+  const [displayName, setDisplayName] = useState<string>("");
 
   const handleGenerateRevisionSheet = async () => {
     if (!id) {
@@ -301,6 +305,19 @@ const CourseDetail = () => {
       }
 
       try {
+        // Fetch user profile for display name
+        if (user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('user_id', user.id)
+            .single();
+
+          if (profileData) {
+            setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
+          }
+        }
+
         // Fetch course details
         const { data: courseData, error: courseError } = await supabase
           .from("courses")
@@ -313,7 +330,7 @@ const CourseDetail = () => {
         }
         setCourse(courseData);
         setHasRevisionSheet(!!courseData.fiche_revision_url);
-        
+
         // Set loading state based on database status
         if (courseData.fiche_revision_status === 'generating') {
           setIsLoadingRevision(true);
@@ -379,7 +396,7 @@ const CourseDetail = () => {
     };
 
     fetchCourseAndExercises();
-  }, [id]);
+  }, [id, user]);
 
   if (loading) {
     return (
@@ -413,22 +430,38 @@ const CourseDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="p-4 border-b border-border flex items-center justify-between">
-        <div className="flex items-center">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="icon" className="mr-2">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold text-foreground">{course.title}</h1>
+      {/* Header with logo, user name, and burger menu */}
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+          <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">{displayName || 'Mon profil'}</span>
         </div>
-        <Button variant="destructive" size="sm" onClick={handleDeleteCourse}>
-          <Trash2 className="h-4 w-4 mr-2" />
-          Supprimer
-        </Button>
+        <BurgerMenu />
       </header>
 
-      <main className="p-6 space-y-6 pb-24 lg:w-[70%] lg:mx-auto">
+      <main className="p-6 space-y-6 pb-24 pt-24 md:pt-28 lg:w-[70%] lg:mx-auto">
+        {/* Back button and title */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Link to="/dashboard">
+              <Button variant="ghost" size="icon" className="mr-2">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-bold text-foreground">{course.title}</h1>
+          </div>
+          {/* Delete button - icon only on mobile, with text on desktop */}
+          {isMobile ? (
+            <Button variant="destructive" size="icon" onClick={handleDeleteCourse}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button variant="destructive" size="sm" onClick={handleDeleteCourse}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer
+            </Button>
+          )}
+        </div>
         {/* Matière en étiquette */}
         {course.subject && (
           <div className="text-center mb-4"> {/* Added div for centering */}
@@ -566,15 +599,16 @@ const CourseDetail = () => {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between mt-4">
-                      {exercise.statut !== "Terminé" && (
-                        <Link to={`/daily-quiz/${exercise.id}`} className="w-full">
-                          <Button className="w-full">
-                            Commencer <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
+                    {/* Button "Afficher le résultat" for completed exercises (mobile only) */}
+                    {exercise.statut === "Terminé" && (
+                      <Link to={`/result/${exercise.id}`} className="w-full block mb-4">
+                        <Button variant="outline" className="w-full">
+                          Afficher le résultat
+                        </Button>
+                      </Link>
+                    )}
+
+                    {/* Score badge */}
                     {(() => {
                       let resultText = "N/A";
                       let resultColorClass = "";
@@ -602,12 +636,21 @@ const CourseDetail = () => {
                       }
                       return (
                         resultText !== "N/A" && (
-                          <Badge className={`${resultColorClass} text-white h-10 flex items-center justify-center w-full mt-4`}>
+                          <Badge className={`${resultColorClass} text-white h-10 flex items-center justify-center w-full`}>
                             {resultText}
                           </Badge>
                         )
                       );
                     })()}
+
+                    {/* Button "Commencer" for non-completed exercises */}
+                    {exercise.statut !== "Terminé" && (
+                      <Link to={`/daily-quiz/${exercise.id}`} className="w-full block mt-4">
+                        <Button className="w-full">
+                          Commencer <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    )}
                   </CardContent>
                 </Card>
               ))}
