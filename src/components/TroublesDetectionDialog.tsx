@@ -413,11 +413,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
         .insert(scoresData);
     }
 
-    // Update profile to mark troubles detection as completed
-    await supabase
-      .from('profiles')
-      .update({ troubles_detection_completed: true })
-      .eq('user_id', user.id);
+    // Note: troubles_detection_completed flag is automatically updated by database trigger
 
     onComplete();
   };
@@ -475,14 +471,8 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
       setShowQCMChoice(false);
       // Start the questionnaire
     } else {
-      // Skip QCM and save that troubles detection is completed without data
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ troubles_detection_completed: true })
-          .eq('user_id', user.id);
-      }
+      // Skip QCM - user doesn't want to do the test
+      // Note: flag remains false since no data is saved
       onComplete();
     }
   };
@@ -553,11 +543,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
         .insert(scoresData);
     }
 
-    // Update profile to mark troubles detection as completed
-    await supabase
-      .from('profiles')
-      .update({ troubles_detection_completed: true })
-      .eq('user_id', user.id);
+    // Note: troubles_detection_completed flag is automatically updated by database trigger
 
     onComplete();
   };

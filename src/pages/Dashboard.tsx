@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import InformationSurveyDialog from "@/components/InformationSurveyDialog";
 import SurveyConfirmationDialog from "@/components/SurveyConfirmationDialog";
 import TroublesDetectionDialog from "@/components/TroublesDetectionDialog";
+import BurgerMenu from "@/components/BurgerMenu";
 
 interface Course {
   id: string;
@@ -55,6 +56,7 @@ const Dashboard = () => {
   const [troublesData, setTroublesData] = useState<any>(null);
   const [troublesLastUpdate, setTroublesLastUpdate] = useState<string | null>(null);
   const [showRetakeTestConfirmation, setShowRetakeTestConfirmation] = useState(false);
+  const [isModifyingLearningStyle, setIsModifyingLearningStyle] = useState(false);
 
   const learningStyleNames: Record<string, string> = {
     score_visuel: 'Visuel',
@@ -277,8 +279,9 @@ const Dashboard = () => {
         .from('profiles')
         .update({ learning_styles_completed: true, survey_completed: true })
         .eq('user_id', user.id);
-      
+
       setShowLearningStyleDialog(false);
+      setIsModifyingLearningStyle(false);
       window.location.reload(); // Refresh pour voir les nouveaux badges
     }
   };
@@ -420,6 +423,7 @@ const Dashboard = () => {
 
   const handleCloseSurveyDialog = async () => {
     setShowSurveyDialog(false);
+    setShowLearningStyleDialog(false);
     // Check if the survey was completed before showing confirmation dialog
     if (user) {
       const { data, error } = await supabase
@@ -434,22 +438,64 @@ const Dashboard = () => {
     }
   };
 
+  const handleCloseLearningStyleDialog = async () => {
+    console.log('🔴 handleCloseLearningStyleDialog called');
+    console.log('🔴 isModifyingLearningStyle:', isModifyingLearningStyle);
+
+    // Si l'utilisateur est en train de modifier le questionnaire, toujours afficher la confirmation
+    if (isModifyingLearningStyle) {
+      console.log('🔴 Showing confirmation dialog (modifying mode)');
+      setShowConfirmationDialog(true);
+      return;
+    }
+
+    // Check if the survey was completed before showing confirmation dialog
+    if (user) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('learning_styles_completed, survey_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      console.log('🔴 Profile data:', data);
+      console.log('🔴 learning_styles_completed:', data?.learning_styles_completed);
+      console.log('🔴 survey_completed:', data?.survey_completed);
+
+      if (!error && data && (!data.learning_styles_completed || !data.survey_completed)) {
+        // Show confirmation dialog WITHOUT closing the main dialog
+        console.log('🔴 Showing confirmation dialog');
+        setShowConfirmationDialog(true);
+        // Ne PAS fermer les dialogs ici, ils seront fermés dans handleCancelSurvey
+      } else {
+        // Just close if already completed
+        console.log('🔴 Closing dialog (already completed)');
+        setShowLearningStyleDialog(false);
+        setShowSurveyDialog(false);
+        setIsModifyingLearningStyle(false);
+      }
+    } else {
+      // No user, just close
+      console.log('🔴 No user, closing dialog');
+      setShowLearningStyleDialog(false);
+      setShowSurveyDialog(false);
+      setIsModifyingLearningStyle(false);
+    }
+  };
+
   const handleConfirmSurvey = () => {
     setShowConfirmationDialog(false);
-    setShowSurveyDialog(true); // Reopen survey dialog
+    // Rouvrir le dialog des styles d'apprentissage
+    setShowLearningStyleDialog(true);
   };
 
   const handleCancelSurvey = async () => {
     setShowConfirmationDialog(false);
     setShowLearningStyleDialog(false); // Fermer aussi le dialogue principal des styles d'apprentissage
-    
-    // Marquer le questionnaire comme complété (refusé) pour ne plus le proposer
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ learning_styles_completed: true, survey_completed: true })
-        .eq('user_id', user.id);
-    }
+    setIsModifyingLearningStyle(false);
+
+    // NE PAS marquer comme complété quand l'utilisateur annule
+    // Les flags restent à leur état actuel (false si jamais fait, true si déjà fait)
+    // L'utilisateur peut revenir plus tard pour remplir le questionnaire
   };
 
   return (
@@ -468,18 +514,16 @@ const Dashboard = () => {
       />
       
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-6 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
-        <div className="flex items-center space-x-4">
-          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-10 h-10 object-contain" />
-          <span className="font-semibold text-slate-800 text-lg tracking-tight">{displayName || 'Mon profil'}</span>
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+          <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">{displayName || 'Mon profil'}</span>
         </div>
-        <Button variant="ghost" size="sm" className="hover:bg-slate-100/80 transition-colors duration-200">
-          <Menu className="w-5 h-5 text-slate-600" strokeWidth={1.5} />
-        </Button>
+        <BurgerMenu />
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 p-8 space-y-8 animate-fade-in pb-32 pt-32">
+      <main className="relative z-10 p-8 space-y-8 animate-fade-in pb-32 pt-24 md:pt-28">
         {/* Slogan au-dessus du container des cours */}
         <div className="text-center py-4">
           <p className="text-sm text-slate-600 font-medium">
@@ -515,7 +559,10 @@ const Dashboard = () => {
                 Remplissez le questionnaire de styles d'apprentissage pour découvrir vos méthodes d'apprentissage préférées et personnaliser votre expérience.
               </p>
               <Button
-                onClick={() => setShowLearningStyleDialog(true)}
+                onClick={() => {
+                  setIsModifyingLearningStyle(true);
+                  setShowLearningStyleDialog(true);
+                }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg whitespace-normal text-center w-full max-w-xs mx-auto"
               >
                 Remplir le questionnaire de styles d'apprentissage
@@ -715,7 +762,7 @@ const Dashboard = () => {
 
       <InformationSurveyDialog
         isOpen={showLearningStyleDialog || showSurveyDialog}
-        onClose={handleCloseSurveyDialog}
+        onClose={handleCloseLearningStyleDialog}
         onSurveyComplete={handleLearningStyleComplete}
         initialQuestionIndex={surveyCurrentQuestionIndex}
         initialAnswers={surveyAnswers}

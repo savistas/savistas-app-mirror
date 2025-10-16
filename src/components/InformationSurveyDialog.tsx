@@ -254,8 +254,7 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
   };
 
   const handleCloseClick = () => {
-    // Directement fermer le dialogue sans confirmation supplémentaire
-    // car le SurveyConfirmationDialog est géré par le Dashboard
+    console.log('🟢 handleCloseClick called in InformationSurveyDialog');
     onClose();
   };
 
@@ -506,7 +505,7 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={() => {}}> {/* Empêche la fermeture pendant la réponse */}
+    <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
         {!showWelcome && (
           <Button

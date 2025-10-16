@@ -13,6 +13,8 @@ import DailyQuiz from "./pages/DailyQuiz";
 import Result from "./pages/Result";
 import Messaging from "./pages/Messaging";
 import Profile from "./pages/Profile";
+import Progression from "./pages/Progression";
+import CahierErreurs from "./pages/CahierErreurs";
 import NotFound from "./pages/NotFound";
 import InformationSurvey from "./pages/InformationSurvey";
 import CourseDetail from "./pages/CourseDetail";
@@ -44,6 +46,8 @@ const App = () => (
             <Route path="/result/:id" element={<ProtectedRoute><Result /></ProtectedRoute>} />
             <Route path="/messaging" element={<ProtectedRoute><Messaging /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/progression" element={<ProtectedRoute><Progression /></ProtectedRoute>} />
+            <Route path="/cahier-erreurs" element={<ProtectedRoute><CahierErreurs /></ProtectedRoute>} />
             <Route path="/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
             <Route path="/terms" element={<Terms />} /> {/* Add Terms route */}
             <Route path="/privacy" element={<Privacy />} /> {/* Add Privacy route */}

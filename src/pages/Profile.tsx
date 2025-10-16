@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
+import BurgerMenu from "@/components/BurgerMenu";
 import ProfileQuestionEditModal from "@/components/ProfileQuestionEditModal";
 import InformationSurveyDialog from "@/components/InformationSurveyDialog";
 import { useNavigate } from "react-router-dom";
@@ -460,35 +461,63 @@ const Profile = () => {
   const handleRetakeQuestionnaires = async () => {
     if (!user) return;
     try {
-      // Reset les flags pour permettre de refaire les tests
+      // Delete questionnaire data - triggers will automatically set flags to false
+
+      // Delete troubles detection data
       await supabase
-        .from('profiles')
-        .update({ 
-          troubles_detection_completed: false,
-          learning_styles_completed: false,
-          survey_completed: false
-        })
+        .from('troubles_questionnaire_reponses')
+        .delete()
         .eq('user_id', user.id);
-      
-      toast({ 
-        title: "Questionnaires réinitialisés", 
+
+      await supabase
+        .from('troubles_detection_scores')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Delete learning styles data
+      await supabase
+        .from('styles_apprentissage')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Delete survey data
+      await supabase
+        .from('profiles_infos')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Note: flags are automatically reset to false by database triggers
+
+      toast({
+        title: "Questionnaires réinitialisés",
         description: "Vous pouvez maintenant refaire les questionnaires sur le tableau de bord."
       });
-      
+
       navigate('/dashboard');
     } catch (e: any) {
-      toast({ 
-        title: "Erreur", 
-        description: e.message ?? "Impossible de réinitialiser les questionnaires", 
-        variant: "destructive" 
+      toast({
+        title: "Erreur",
+        description: e.message ?? "Impossible de réinitialiser les questionnaires",
+        variant: "destructive"
       });
     }
   };
 
   // Rendu de la page Profil
   return (
-    <div className="min-h-screen bg-background px-6 py-8 pb-28">
-      <div className="max-w-2xl mx-auto animate-fade-in">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+          <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">{form.full_name || 'Mon profil'}</span>
+        </div>
+        <BurgerMenu />
+      </header>
+
+      {/* Main Content */}
+      <div className="px-6 py-8 pt-24 md:pt-28 pb-32">
+        <div className="max-w-2xl mx-auto animate-fade-in">
         
         {/* Section de complétion du profil (si profil incomplet) */}
         {isProfileIncomplete && (
@@ -1462,9 +1491,13 @@ const Profile = () => {
         />
         </div>
         {/* Fin de la section profil normal */}
-        
+        </div>
       </div>
-      <BottomNav />
+
+      {/* Bottom Navigation */}
+      <div className="relative z-50">
+        <BottomNav />
+      </div>
     </div>
   );
 };

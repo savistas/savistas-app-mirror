@@ -535,10 +535,10 @@ const CourseDetail = () => {
                   <Line
                     type="monotone"
                     dataKey="score"
-                    stroke="#3b82f6"
+                    stroke="#93c5fd"
                     strokeWidth={2}
-                    dot={{ r: 4, fill: "#3b82f6" }}
-                    activeDot={{ r: 6, fill: "#1d4ed8" }}
+                    dot={{ r: 4, fill: "#93c5fd" }}
+                    activeDot={{ r: 6, fill: "#60a5fa" }}
                   />
                 </LineChart>
               </ChartContainer>

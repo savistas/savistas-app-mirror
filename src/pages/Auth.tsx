@@ -303,10 +303,22 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex items-center justify-center px-6 py-8">
       <div className="w-full max-w-md animate-fade-in">
         <Card className="border-border">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-semibold">
-              Bienvenue
-            </CardTitle>
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <img
+                src="/logo-savistas.png"
+                alt="Savistas Logo"
+                className="h-16 w-auto"
+              />
+            </div>
+            <div className="space-y-2">
+              <CardTitle className="text-2xl font-semibold">
+                Bienvenue sur Savistas
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Votre plateforme d'apprentissage personnalisé
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

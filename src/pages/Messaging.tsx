@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import BottomNav from "@/components/BottomNav";
+import BurgerMenu from "@/components/BurgerMenu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -287,11 +288,17 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background z-10">
-        <div className="flex items-center space-x-3">
-          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-6 h-6 object-contain" />
-          <span className="font-medium text-foreground">AI Assistant</span>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+          <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">AI Assistant</span>
         </div>
+        <BurgerMenu />
+      </header>
+
+      {/* Toolbar with conversation controls */}
+      <div className="fixed top-16 md:top-[4.5rem] left-0 right-0 z-40 flex items-center justify-end p-4 border-b border-border bg-background">
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={startNewConversation}>
             <Plus className="w-4 h-4" />
@@ -345,10 +352,10 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
             </AlertDialog>
           )}
         </div>
-      </header>
+      </div>
 
       {/* Chat area */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col pt-32 md:pt-40">
         {/* Messages container - full height with padding for fixed input */}
         <div className="flex-1 p-4 space-y-4 overflow-y-auto animate-fade-in pb-[240px] md:pb-[200px] md:w-[70%] md:mx-auto">
           {loadingMessages ? (
@@ -426,8 +433,8 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
 
       {/* Fixed Input Bar - Centered horizontally, positioned towards bottom */}
       <div className="fixed bottom-32 md:bottom-24 left-1/2 transform -translate-x-1/2 w-full md:w-[70%] max-w-none md:max-w-none px-[26px] z-50">
-        <div className="bg-background/60 backdrop-blur-sm rounded-lg shadow-lg p-4">
-          <div className="flex gap-2">
+        <div className="flex items-end gap-2">
+          <div className="flex-1 border border-border rounded-2xl bg-background shadow-sm hover:shadow-md transition-shadow duration-200 px-4 py-3 flex items-center">
             <Textarea
               ref={textareaRef}
               value={message}
@@ -439,18 +446,26 @@ const botMsg: Omit<MessageRow, "id" | "created_at"> = {
                   handleSendMessage();
                 }
               }}
-              className="flex-1 resize-none min-h-[40px] max-h-[400px] overflow-y-auto"
+              rows={1}
+              className="w-full resize-none max-h-[400px] overflow-y-auto border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent p-0 leading-normal"
               aria-label="Message"
             />
-            <Button onClick={handleSendMessage} size="icon" disabled={sending} className="bg-primary hover:bg-primary/90">
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" strokeWidth={1.5} />}
-            </Button>
           </div>
+          <Button
+            onClick={handleSendMessage}
+            size="icon"
+            disabled={sending}
+            className="bg-primary hover:bg-primary/90 rounded-xl h-10 w-10 flex-shrink-0"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" strokeWidth={1.5} />}
+          </Button>
         </div>
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNav />
+      <div className="relative z-50">
+        <BottomNav />
+      </div>
     </div>
   );
 };

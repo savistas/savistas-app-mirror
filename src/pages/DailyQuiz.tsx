@@ -4,9 +4,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { Progress } from "@/components/ui/progress";
-import { 
-  User, 
-  Power, 
+import { QuizTimer } from "@/components/QuizTimer";
+import {
+  User,
+  Power,
   Menu,
   Bot,
   Zap
@@ -16,6 +17,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Json } from "@/integrations/supabase/types";
+import { sendQuizErrorsToWebhook } from "@/lib/errorCategorizationService";
+import { useQuizTimer } from "@/hooks/useQuizTimer";
 
 interface Question {
   type: string;
@@ -38,6 +41,7 @@ interface UserResponseDetail {
   question_index: string;
   user_answer: string;
   is_correct_sub_question?: boolean;
+  time_spent_seconds?: number;
 }
 
 interface ExerciseResponseMetadata {
@@ -55,6 +59,18 @@ const DailyQuiz = () => {
   const [userResponsesDetails, setUserResponsesDetails] = useState<UserResponseDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Initialize quiz timer
+  const {
+    totalSeconds,
+    currentQuestionSeconds,
+    formattedTotalTime,
+    formattedQuestionTime,
+    questionTimings,
+    startTimer,
+    recordQuestionTime,
+    isRunning
+  } = useQuizTimer();
 
   useEffect(() => {
     const fetchExercise = async () => {
@@ -93,6 +109,13 @@ const DailyQuiz = () => {
     fetchExercise();
   }, [id]);
 
+  // Start timer when exercise is loaded
+  useEffect(() => {
+    if (exerciseMetadata && !loading && !error) {
+      startTimer();
+    }
+  }, [exerciseMetadata, loading, error, startTimer]);
+
   const handleNext = async () => {
     if (!exerciseMetadata || !user) return;
 
@@ -101,10 +124,17 @@ const DailyQuiz = () => {
       selectedAnswer ===
       currentQuestion.reponses.find((rep) => rep.correcte === "true")?.lettre;
 
+    // Record time spent on this question before creating response
+    recordQuestionTime(currentQuestion.question_index);
+
+    // Get the timing for this question (it's the last one recorded)
+    const currentQuestionTiming = currentQuestionSeconds;
+
     const newUserResponseDetail: UserResponseDetail = {
       question_index: currentQuestion.question_index,
       user_answer: selectedAnswer,
       is_correct_sub_question: isCorrectSubQuestion,
+      time_spent_seconds: currentQuestionTiming,
     };
 
     // Créer un tableau temporaire qui inclut la réponse de la question actuelle
@@ -126,17 +156,41 @@ const DailyQuiz = () => {
       const overallScore = totalCorrectQuestions; // Score is number of correct sub-questions
       const overallIsCorrect = totalCorrectQuestions === exerciseMetadata.questions.length; // All correct for overall true
 
-      const { error: insertError } = await supabase.from("exercise_responses").insert({
-        exercise_id: id,
-        course_id: exerciseMetadata.course_id,
-        user_id: user.id,
-        metadata: { user_responses: finalUserResponsesDetails } as unknown as Json, // Store detailed responses in metadata
-      });
+      // Insert exercise response with timing data
+      const { data: insertedResponse, error: insertError } = await supabase
+        .from("exercise_responses")
+        .insert({
+          exercise_id: id,
+          course_id: exerciseMetadata.course_id,
+          user_id: user.id,
+          metadata: { user_responses: finalUserResponsesDetails } as unknown as Json,
+          total_time_seconds: totalSeconds,
+        })
+        .select()
+        .single();
 
-      if (insertError) {
+      if (insertError || !insertedResponse) {
         console.error("Error saving exercise responses:", insertError);
         setError("Failed to save exercise responses.");
         return;
+      }
+
+      // Insert individual question timings
+      if (questionTimings.length > 0) {
+        const timingsToInsert = questionTimings.map((timing) => ({
+          exercise_response_id: insertedResponse.id,
+          question_index: timing.question_index,
+          time_spent_seconds: timing.time_spent_seconds,
+        }));
+
+        const { error: timingsError } = await supabase
+          .from("question_timings")
+          .insert(timingsToInsert);
+
+        if (timingsError) {
+          console.error("Error saving question timings:", timingsError);
+          // Don't block the flow if timing save fails
+        }
       }
 
       const { error: updateError } = await supabase
@@ -149,6 +203,26 @@ const DailyQuiz = () => {
         console.error("Error updating exercise status:", updateError);
         setError("Failed to update exercise status.");
         return;
+      }
+
+      // Récupérer la matière du cours pour l'envoi au webhook
+      const { data: courseData } = await supabase
+        .from("courses")
+        .select("subject")
+        .eq("id", exerciseMetadata.course_id)
+        .single();
+
+      // Envoyer les erreurs au webhook N8N pour catégorisation avec les données de timing
+      if (courseData) {
+        await sendQuizErrorsToWebhook(
+          id,
+          exerciseMetadata.course_id,
+          user.id,
+          courseData.subject || exerciseMetadata.matiere,
+          exerciseMetadata.questions,
+          finalUserResponsesDetails,
+          totalSeconds
+        );
       }
 
       navigate(`/result/${id}`);
@@ -211,6 +285,14 @@ const DailyQuiz = () => {
 
       {/* Main Content */}
       <main className="p-6 space-y-6 animate-fade-in pb-24">
+        {/* Timer Display */}
+        <QuizTimer
+          formattedTime={formattedTotalTime}
+          isRunning={isRunning}
+          showQuestionTime={true}
+          formattedQuestionTime={formattedQuestionTime}
+        />
+
         {/* Question Header */}
         <div className="text-center space-y-2">
           <h1 className="text-xl font-semibold text-primary">

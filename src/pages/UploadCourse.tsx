@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import BottomNav from "@/components/BottomNav";
+import BurgerMenu from "@/components/BurgerMenu";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
@@ -176,16 +178,18 @@ const UploadCourse = () => {
     <>
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="flex items-center p-4 border-b border-border">
-          <Link to="/dashboard">
-            <ArrowLeft className="w-6 h-6 text-foreground" strokeWidth={1.5} />
-          </Link>
-          <h1 className="ml-4 text-xl font-semibold text-foreground">
-            Nouveau cours
-          </h1>
+        <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <Link to="/dashboard">
+              <ArrowLeft className="w-6 h-6 text-foreground" strokeWidth={1.5} />
+            </Link>
+            <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+            <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">Nouveau cours</span>
+          </div>
+          <BurgerMenu />
         </header>
 
-        <div className="p-6 max-w-2xl mx-auto animate-fade-in">
+        <div className="p-6 pt-24 md:pt-28 pb-32 max-w-2xl mx-auto animate-fade-in">
           {/* Hidden file inputs for initial selection */}
           <input
             ref={photoInputRef}
@@ -336,7 +340,7 @@ const UploadCourse = () => {
             </Card>
           )}
         </div>
-      </div>
+
     <Dialog open={showLoader}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -353,6 +357,12 @@ const UploadCourse = () => {
         </div>
       </DialogContent>
     </Dialog>
+
+      {/* Bottom Navigation */}
+      <div className="relative z-50">
+        <BottomNav />
+      </div>
+    </div>
     </>
   );
 };

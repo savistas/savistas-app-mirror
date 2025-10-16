@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
+import BurgerMenu from "@/components/BurgerMenu";
 import {
   User,
   Power,
@@ -223,23 +224,16 @@ const Calendar = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-border">
-        <div className="flex items-center space-x-3">
-          <User className="w-8 h-8 text-primary" strokeWidth={1.5} />
-          <span className="font-medium text-foreground">{displayName || 'Mon profil'}</span>
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+          <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">{displayName || 'Mon profil'}</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm">
-            <Power className="w-5 h-5" strokeWidth={1.5} />
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Menu className="w-5 h-5" strokeWidth={1.5} />
-          </Button>
-        </div>
+        <BurgerMenu />
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 animate-fade-in pb-24">
+      <main className="p-6 pt-24 md:pt-28 space-y-6 animate-fade-in pb-32">
         {/* Title and Month */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-foreground">Agenda</h1>
@@ -350,7 +344,9 @@ const Calendar = () => {
       </Dialog>
 
       {/* Bottom Navigation */}
-      <BottomNav />
+      <div className="relative z-50">
+        <BottomNav />
+      </div>
     </div>
   );
 };
