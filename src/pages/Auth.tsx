@@ -316,7 +316,7 @@ const Auth = () => {
                 Bienvenue sur Savistas
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Votre plateforme d'apprentissage personnalisé
+                Votre professeur particulier vous attend
               </p>
             </div>
           </CardHeader>
