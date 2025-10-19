@@ -507,17 +507,15 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
     <>
     <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent className="!w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden mx-auto rounded-lg">
-        {!showWelcome && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCloseClick}
-            className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100 z-10"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCloseClick}
+          className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100 z-10"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" /> {/* Ajout du logo */}
