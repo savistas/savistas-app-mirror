@@ -493,9 +493,13 @@ const Dashboard = () => {
     setShowLearningStyleDialog(false); // Fermer aussi le dialogue principal des styles d'apprentissage
     setIsModifyingLearningStyle(false);
 
-    // NE PAS marquer comme complété quand l'utilisateur annule
-    // Les flags restent à leur état actuel (false si jamais fait, true si déjà fait)
-    // L'utilisateur peut revenir plus tard pour remplir le questionnaire
+    // Marquer comme complété même si l'utilisateur refuse, pour ne plus redemander
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ learning_styles_completed: true, survey_completed: true })
+        .eq('user_id', user.id);
+    }
   };
 
   return (
