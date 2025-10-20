@@ -53,20 +53,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, userData?: any) => {
+    const redirectUrl = `${window.location.origin}/profile`; // Rediriger vers la page de profil après confirmation
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: userData,
+        emailRedirectTo: redirectUrl,
+        data: userData
       }
     });
-
-    // Si l'erreur est uniquement liée à l'envoi d'email mais que l'utilisateur est créé, on ignore l'erreur
-    if (error && error.message.includes("Error sending confirmation email") && data.user) {
-      console.warn("Email non envoyé mais utilisateur créé:", data.user.id);
-      return { user: data.user, error: null }; // Retourner sans erreur
-    }
-
     return { user: data.user, error };
   };
 

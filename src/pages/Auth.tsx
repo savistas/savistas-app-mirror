@@ -210,15 +210,8 @@ const Auth = () => {
         console.error("Erreur lors de l'envoi au webhook N8N:", webhookError);
       }
 
-      // Afficher un message de succès sans dialogue de vérification
-      toast({
-        title: "Compte créé avec succès",
-        description: "Vous pouvez maintenant vous connecter avec vos identifiants.",
-      });
-
-      // Rediriger vers l'onglet de connexion
-      setActiveTab("signin");
-      handleInputChange('email', formData.email);
+      // Afficher le dialogue de vérification email
+      setShowEmailVerificationDialog(true);
     } catch (error) {
       toast({
         title: "Erreur",
