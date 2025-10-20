@@ -327,27 +327,51 @@ const Profile = () => {
   const handleCompletionSubmit = async () => {
     if (!user) return;
     setLoading(true);
-    
+
     try {
+      console.log('Starting profile completion...', { user_id: user.id, completionData });
+
       // Upload photo de profil si existe
       let profilePhotoUrl: string | null = null;
       if (completionData.profilePhoto) {
+        console.log('Uploading profile photo...');
         const fileExt = completionData.profilePhoto.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('profile-photos')
           .upload(filePath, completionData.profilePhoto, { upsert: true });
-        if (!uploadError) {
+
+        if (uploadError) {
+          console.error('Photo upload error:', uploadError);
+        } else if (uploadData) {
           const { data: urlData } = supabase.storage
             .from('profile-photos')
             .getPublicUrl(uploadData.path);
           profilePhotoUrl = urlData.publicUrl;
+          console.log('Photo uploaded successfully:', profilePhotoUrl);
         }
       }
 
-      // Mise à jour du profil
+      // Vérifier si le profil existe déjà
+      console.log('Checking if profile exists...');
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, user_id, email, full_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking profile:', checkError);
+        throw checkError;
+      }
+
+      console.log('Existing profile:', existingProfile);
+
+      // Préparer les données de mise à jour
       const profileUpdate = {
+        user_id: user.id,
+        email: user.email,
         country: completionData.country,
         city: completionData.city,
         postal_code: completionData.postalCode,
@@ -355,30 +379,44 @@ const Profile = () => {
         classes: completionData.classes,
         subjects: completionData.subjects,
         subscription: completionData.subscription,
-        link_code: completionData.linkCode,
-        link_relation: completionData.linkRelation,
-        ent: completionData.ent,
-        ai_level: completionData.aiLevel,
-        ...(profilePhotoUrl ? { profile_photo_url: profilePhotoUrl } : {})
+        link_code: completionData.linkCode || null,
+        link_relation: completionData.linkRelation || null,
+        ent: completionData.ent || null,
+        ai_level: completionData.aiLevel || null,
+        updated_at: new Date().toISOString(),
+        ...(profilePhotoUrl ? { profile_photo_url: profilePhotoUrl } : {}),
+        ...(existingProfile?.full_name ? { full_name: existingProfile.full_name } : {})
       };
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(profileUpdate)
-        .eq('user_id', user.id);
+      console.log('Profile update data:', profileUpdate);
 
-      if (profileError) throw profileError;
+      // Utiliser upsert pour créer ou mettre à jour
+      const { data: upsertData, error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileUpdate, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        })
+        .select();
+
+      if (profileError) {
+        console.error('Profile upsert error:', profileError);
+        throw profileError;
+      }
+
+      console.log('Profile updated successfully:', upsertData);
 
       toast({
         title: "Profil complété !",
-        description: "Actualisation de la page...",
+        description: "Vos informations ont été enregistrées avec succès.",
       });
-      
+
       // Reload automatique de la page pour actualiser l'état du profil
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error: any) {
+      console.error('Profile completion error:', error);
       toast({
         title: "Erreur",
         description: error.message || "Impossible de compléter le profil",
