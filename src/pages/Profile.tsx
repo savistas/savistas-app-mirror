@@ -8,14 +8,15 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check } from "lucide-react";
+import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import ProfileQuestionEditModal from "@/components/ProfileQuestionEditModal";
 import InformationSurveyDialog from "@/components/InformationSurveyDialog";
+import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import { useNavigate } from "react-router-dom";
 import { InformationStep } from "@/components/register/InformationStep";
 import { EducationStep } from "@/components/register/EducationStep";
@@ -77,6 +78,9 @@ const Profile = () => {
 
   // État pour les styles d'apprentissage
   const [showSurveyDialog, setShowSurveyDialog] = useState(false);
+
+  // État pour le dialogue de suppression de compte
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const [profilesInfos, setProfilesInfos] = useState<{
     pref_apprendre_idee?: string;
@@ -499,6 +503,70 @@ const Profile = () => {
         title: "Erreur",
         description: e.message ?? "Impossible de réinitialiser les questionnaires",
         variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+
+    try {
+      // Step 1: Delete all user data from database using RPC function
+      console.log('Step 1: Deleting user data from database...');
+      const { data: deleteResult, error: rpcError } = await supabase.rpc('delete_user_account');
+
+      if (rpcError) {
+        console.error('RPC Error:', rpcError);
+        throw new Error(`Failed to delete user data: ${rpcError.message}`);
+      }
+
+      console.log('User data deleted:', deleteResult);
+
+      // Step 2: Delete auth user and storage files using Edge Function
+      console.log('Step 2: Deleting auth account...');
+      const { data, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !data?.session) {
+        throw new Error('No active session');
+      }
+
+      const session = data.session;
+
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to delete auth account');
+      }
+
+      console.log('Auth account deleted successfully');
+
+      // Sign out (account is deleted, but let's clean up the local session)
+      await supabase.auth.signOut();
+
+      toast({
+        title: "Compte supprimé",
+        description: "Votre compte a été supprimé avec succès. Au revoir !",
+      });
+
+      // Redirect to auth page
+      navigate('/auth');
+    } catch (e: any) {
+      console.error('Error deleting account:', e);
+      toast({
+        title: "Erreur",
+        description: e.message ?? "Impossible de supprimer le compte",
+        variant: "destructive",
       });
     }
   };
@@ -1454,7 +1522,7 @@ const Profile = () => {
                 Vous serez redirigé vers la page de connexion après déconnexion.
               </p>
               <div className="flex justify-end">
-                <Button 
+                <Button
                   onClick={handleLogout}
                   variant="destructive"
                   className="flex items-center gap-2"
@@ -1462,6 +1530,39 @@ const Profile = () => {
                   <LogOut className="h-4 w-4" />
                   Se déconnecter
                 </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section pour supprimer le compte */}
+        <Card className="border-red-500 bg-red-100/50 mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl text-red-900 flex items-center gap-2">
+              <Trash2 className="h-6 w-6" />
+              Zone dangereuse
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="p-4 bg-white rounded-lg border border-red-300">
+                <h3 className="font-semibold text-red-900 mb-2">
+                  Supprimer définitivement mon compte
+                </h3>
+                <p className="text-sm text-red-700 mb-4">
+                  Cette action est irréversible. Toutes vos données seront définitivement supprimées,
+                  incluant votre profil, vos cours, vos résultats, vos conversations et votre compte d'authentification.
+                </p>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => setShowDeleteDialog(true)}
+                    variant="destructive"
+                    className="flex items-center gap-2 bg-red-700 hover:bg-red-800"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer mon compte
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -1488,6 +1589,14 @@ const Profile = () => {
           initialAnswers={{}}
           onQuestionIndexChange={() => {}}
           onAnswersChange={() => {}}
+        />
+
+        {/* Dialogue de suppression de compte */}
+        <DeleteAccountDialog
+          isOpen={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onConfirm={handleDeleteAccount}
+          userEmail={form.email}
         />
         </div>
         {/* Fin de la section profil normal */}
