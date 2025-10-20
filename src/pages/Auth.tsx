@@ -142,46 +142,14 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Vérifier si l'email existe dans la table emails_registry
-      const { data: existingEmail, error: checkError } = await supabase
-        .from('emails_registry')
-        .select('email')
-        .eq('email', formData.email)
-        .maybeSingle();
-
-      console.log('[DEBUG SIGNUP] Vérification email dans emails_registry:', { email: formData.email, existingEmail, checkError });
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error("Erreur lors de la vérification de l'email:", checkError);
-        toast({
-          title: "Erreur",
-          description: "Impossible de vérifier l'adresse mail.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (existingEmail) {
-        console.log("[SIGNUP BLOCKED] Email déjà inscrit:", formData.email);
-        toast({
-          title: "Compte existant",
-          description: "Cette adresse mail est déjà inscrite. Veuillez vous connecter si vous avez déjà un compte.",
-          variant: "destructive",
-        });
-        setActiveTab("signin");
-        handleInputChange('email', formData.email);
-        setLoading(false);
-        return;
-      }
-
-      // Si aucun email n'existe, alors on lance l'inscription et le popup
+      // Préparer les données utilisateur pour l'inscription
       const userData = {
         full_name: formData.fullName,
         role: formData.role,
         phone: formData.phone,
       };
 
+      // Créer le compte (Supabase Auth gère automatiquement les emails existants)
       const { user: newUser, error } = await signUp(formData.email, formData.password, userData);
 
       if (error) {
@@ -242,8 +210,15 @@ const Auth = () => {
         console.error("Erreur lors de l'envoi au webhook N8N:", webhookError);
       }
 
-      // Afficher le dialogue de vérification email
-      setShowEmailVerificationDialog(true);
+      // Afficher un message de succès sans dialogue de vérification
+      toast({
+        title: "Compte créé avec succès",
+        description: "Vous pouvez maintenant vous connecter avec vos identifiants.",
+      });
+
+      // Rediriger vers l'onglet de connexion
+      setActiveTab("signin");
+      handleInputChange('email', formData.email);
     } catch (error) {
       toast({
         title: "Erreur",
