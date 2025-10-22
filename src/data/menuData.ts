@@ -28,12 +28,13 @@ export const menuData: MenuCategory[] = [
       { label: "Audio", href: "#", disabled: true },
       { label: "Replay", href: "#", disabled: true },
       { label: "Generate de cours", href: "#", disabled: true },
+      { label: "Documents", href: "/documents", disabled: false },
     ],
   },
   {
     title: "Révision",
     items: [
-      { label: "Fiche de révision", href: "#", disabled: true },
+      { label: "Fiche de révision", href: "/revision-sheets", disabled: false },
       { label: "Quiz", href: "/upload-course", disabled: false },
       { label: "Professeur particulier", href: "/professeur-particulier-virtuel", disabled: false },
     ],

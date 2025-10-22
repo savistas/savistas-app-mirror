@@ -21,6 +21,8 @@ import CourseDetail from "./pages/CourseDetail";
 import VirtualTeacher from "./pages/VirtualTeacher";
 import ProfesseurParticulierVirtuel from "./pages/ProfesseurParticulierVirtuel";
 import DashboardOrganization from "./pages/DashboardOrganization";
+import StudentDocuments from "./pages/StudentDocuments";
+import StudentRevisionSheets from "./pages/StudentRevisionSheets";
 import Terms from "./pages/Terms"; // Import Terms page
 import Privacy from "./pages/Privacy"; // Import Privacy page
 import ResetPassword from "./pages/ResetPassword";
@@ -57,6 +59,8 @@ const App = () => (
             <Route path="/:role/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
             <Route path="/:role/professeur-virtuel" element={<ProtectedRoute><VirtualTeacher /></ProtectedRoute>} />
             <Route path="/:role/professeur-particulier-virtuel" element={<ProtectedRoute><ProfesseurParticulierVirtuel /></ProtectedRoute>} />
+            <Route path="/:role/documents" element={<ProtectedRoute><StudentDocuments /></ProtectedRoute>} />
+            <Route path="/:role/revision-sheets" element={<ProtectedRoute><StudentRevisionSheets /></ProtectedRoute>} />
 
             {/* Routes legacy (sans rôle) pour rétrocompatibilité */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -72,6 +76,8 @@ const App = () => (
             <Route path="/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
             <Route path="/professeur-virtuel" element={<ProtectedRoute><VirtualTeacher /></ProtectedRoute>} />
             <Route path="/professeur-particulier-virtuel" element={<ProtectedRoute><ProfesseurParticulierVirtuel /></ProtectedRoute>} />
+            <Route path="/documents" element={<ProtectedRoute><StudentDocuments /></ProtectedRoute>} />
+            <Route path="/revision-sheets" element={<ProtectedRoute><StudentRevisionSheets /></ProtectedRoute>} />
             <Route path="/terms" element={<Terms />} /> {/* Add Terms route */}
             <Route path="/privacy" element={<Privacy />} /> {/* Add Privacy route */}
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
