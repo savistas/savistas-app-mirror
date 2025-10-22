@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { ConversationType, Course, Exercise, ErrorResponse } from './types';
+import type { ConversationType, Course, Exercise } from './types';
+import type { ErrorWithDetails } from '@/hooks/useAllErrors';
 
 interface ContentReferenceSelectorProps {
   conversationType: ConversationType;
@@ -16,7 +17,7 @@ interface ContentReferenceSelectorProps {
   onChange: (id: string) => void;
   courses?: Course[];
   exercises?: Exercise[];
-  errors?: ErrorResponse[];
+  errors?: ErrorWithDetails[];
   isLoading?: boolean;
   error?: Error | null;
   disabled?: boolean;

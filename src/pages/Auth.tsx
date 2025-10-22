@@ -42,7 +42,7 @@ const Auth = () => {
     // Nouveaux champs pour l'inscription
     fullName: "",
     phone: "",
-    role: "",
+    role: "student", // Valeur par défaut
   });
   
   const { signIn, signUp, user, loading: authLoading } = useAuth();
@@ -448,9 +448,8 @@ const Auth = () => {
                     <Select
                       value={formData.role}
                       onValueChange={(value) => handleInputChange('role', value)}
-                      required
                     >
-                      <SelectTrigger className="h-11 rounded-md bg-background border border-input">
+                      <SelectTrigger id="signup-role" className="h-11 rounded-md bg-background border border-input">
                         <SelectValue placeholder="Choisissez votre rôle" />
                       </SelectTrigger>
                       <SelectContent>

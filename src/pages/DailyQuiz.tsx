@@ -3,16 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
+import BurgerMenu from "@/components/BurgerMenu";
 import { Progress } from "@/components/ui/progress";
 import { QuizTimer } from "@/components/QuizTimer";
-import {
-  User,
-  Power,
-  Menu,
-  Bot,
-  Zap
-} from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,6 +53,7 @@ const DailyQuiz = () => {
   const [userResponsesDetails, setUserResponsesDetails] = useState<UserResponseDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string>("");
 
   // Initialize quiz timer
   const {
@@ -108,6 +103,25 @@ const DailyQuiz = () => {
 
     fetchExercise();
   }, [id]);
+
+  // Fetch user display name
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setDisplayName(data.full_name || "");
+      }
+    };
+
+    fetchUserName();
+  }, [user]);
 
   // Start timer when exercise is loaded
   useEffect(() => {
@@ -260,31 +274,24 @@ const DailyQuiz = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Progress Bar */}
-      <div className="w-full bg-muted h-1">
-        <div 
+      <div className="fixed top-0 left-0 right-0 w-full bg-muted h-1 z-40">
+        <div
           className="h-full bg-primary transition-all duration-300"
           style={{ width: `${progress}%` }}
         ></div>
       </div>
 
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-border">
-        <div className="flex items-center space-x-3">
-          <User className="w-8 h-8 text-primary" strokeWidth={1.5} />
-          <span className="font-medium text-foreground">Sarah Martin</span> {/* TODO: Replace with actual user name */}
+      <header className="fixed top-1 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+          <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">{displayName || 'Quiz en cours'}</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm">
-            <Power className="w-5 h-5" strokeWidth={1.5} />
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Menu className="w-5 h-5" strokeWidth={1.5} />
-          </Button>
-        </div>
+        <BurgerMenu />
       </header>
 
       {/* Main Content */}
-      <main className="p-6 space-y-6 animate-fade-in pb-24">
+      <main className="p-6 space-y-6 animate-fade-in pb-24 pt-20 md:pt-24">
         {/* Timer Display */}
         <QuizTimer
           formattedTime={formattedTotalTime}

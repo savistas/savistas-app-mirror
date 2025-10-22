@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Mic, Phone, MessageSquare, History, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,18 +36,19 @@ import { ContentReferenceSelector } from '@/components/virtual-teacher/ContentRe
 import { ConversationHistoryList } from '@/components/virtual-teacher/ConversationHistoryList';
 import { useUserCourses } from '@/hooks/useUserCourses';
 import { useUserExercises } from '@/hooks/useUserExercises';
-import { useUserErrors } from '@/hooks/useUserErrors';
+import { useAllErrors } from '@/hooks/useAllErrors';
 import { useConversationTimeLimit, formatTime } from '@/hooks/useConversationTimeLimit';
 import type { ConversationType } from '@/components/virtual-teacher/types';
 
 export default function ProfesseurParticulierVirtuel() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   // Fetch des données
   const { data: courses = [], isLoading: isLoadingCourses, error: coursesError } = useUserCourses(user?.id);
   const { data: exercises = [], isLoading: isLoadingExercises, error: exercisesError } = useUserExercises(user?.id);
-  const { data: errors = [], isLoading: isLoadingErrors, error: errorsError } = useUserErrors(user?.id);
+  const { data: errors = [], isLoading: isLoadingErrors, error: errorsError } = useAllErrors();
 
   // Limitation de temps pour les utilisateurs gratuits (plan "basic")
   const { timeRemainingSeconds, isLimitReached, subscription, isLoading: isLoadingTimeLimit } = useConversationTimeLimit(user?.id);
@@ -59,19 +61,89 @@ export default function ProfesseurParticulierVirtuel() {
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionData, setSessionData] = useState<CreateSessionResponse | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
+  const [preventReset, setPreventReset] = useState(false);
+  const [pendingReferenceId, setPendingReferenceId] = useState<string | null>(null);
 
-  // Réinitialiser la sélection quand le type change
+  // Traiter les paramètres URL au chargement
   useEffect(() => {
-    setSelectedReferenceId(undefined);
-    setSelectedCourseIdForExercise(undefined);
-  }, [conversationType]);
+    if (!urlParamsProcessed && !isLoadingErrors && !isLoadingCourses && !isLoadingExercises) {
+      const typeParam = searchParams.get('type');
+      const errorIdParam = searchParams.get('errorId');
+      const courseIdParam = searchParams.get('courseId');
+      const exerciseIdParam = searchParams.get('exerciseId');
+
+      // ÉTAPE 1 : Pré-sélectionner le TYPE de conversation depuis l'URL (sans encore sélectionner l'élément)
+      if (typeParam === 'error' && errorIdParam && errors.length > 0) {
+        // Vérifier que l'erreur existe dans la liste
+        const errorExists = errors.some(e => e.id === errorIdParam);
+        if (errorExists) {
+          console.log('🔗 Paramètres URL détectés - Type: error, ID en attente:', errorIdParam);
+          setPreventReset(true); // Empêcher la réinitialisation automatique
+          setConversationType('error'); // D'ABORD changer le type pour que le dropdown apparaisse
+          setPendingReferenceId(errorIdParam); // Stocker l'ID pour sélection ultérieure
+          setUrlParamsProcessed(true);
+        } else {
+          console.warn('⚠️ Erreur non trouvée dans la liste:', errorIdParam);
+          setUrlParamsProcessed(true);
+        }
+      } else if (typeParam === 'course' && courseIdParam && courses.length > 0) {
+        const courseExists = courses.some(c => c.id === courseIdParam);
+        if (courseExists) {
+          console.log('🔗 Paramètres URL détectés - Type: course, ID en attente:', courseIdParam);
+          setPreventReset(true);
+          setConversationType('course');
+          setPendingReferenceId(courseIdParam);
+          setUrlParamsProcessed(true);
+        }
+      } else if (typeParam === 'exercise' && exerciseIdParam && exercises.length > 0) {
+        const exerciseExists = exercises.some(e => e.id === exerciseIdParam);
+        if (exerciseExists) {
+          console.log('🔗 Paramètres URL détectés - Type: exercise, ID en attente:', exerciseIdParam);
+          setPreventReset(true);
+          setConversationType('exercise');
+          setPendingReferenceId(exerciseIdParam);
+          setUrlParamsProcessed(true);
+        }
+      } else if (!typeParam && !errorIdParam && !courseIdParam && !exerciseIdParam) {
+        // Aucun paramètre URL, marquer comme traité
+        setUrlParamsProcessed(true);
+      }
+    }
+  }, [searchParams, urlParamsProcessed, isLoadingErrors, isLoadingCourses, isLoadingExercises, errors, courses, exercises, toast]);
+
+  // ÉTAPE 2 : Appliquer la sélection de l'élément APRÈS que le dropdown soit rendu
+  useEffect(() => {
+    if (pendingReferenceId && conversationType !== 'general' && urlParamsProcessed) {
+      console.log('✅ Application de la sélection en attente:', pendingReferenceId);
+      setSelectedReferenceId(pendingReferenceId);
+      setPendingReferenceId(null); // Nettoyer l'ID en attente
+
+      // Toast pour confirmer la pré-sélection
+      toast({
+        title: `${conversationType === 'error' ? 'Erreur' : conversationType === 'course' ? 'Cours' : 'Exercice'} sélectionné(e)`,
+        description: 'L\'élément a été automatiquement sélectionné pour vous',
+      });
+
+      // Réactiver la réinitialisation après un délai
+      setTimeout(() => setPreventReset(false), 200);
+    }
+  }, [conversationType, pendingReferenceId, urlParamsProcessed, toast]);
+
+  // Réinitialiser la sélection quand le type change (sauf si changé par URL)
+  useEffect(() => {
+    if (urlParamsProcessed && !preventReset && !pendingReferenceId) {
+      setSelectedReferenceId(undefined);
+      setSelectedCourseIdForExercise(undefined);
+    }
+  }, [conversationType, urlParamsProcessed, preventReset, pendingReferenceId]);
 
   // Réinitialiser l'exercice sélectionné quand le cours change
   useEffect(() => {
-    if (conversationType === 'exercise') {
+    if (conversationType === 'exercise' && urlParamsProcessed && !preventReset && !pendingReferenceId) {
       setSelectedReferenceId(undefined);
     }
-  }, [selectedCourseIdForExercise, conversationType]);
+  }, [selectedCourseIdForExercise, conversationType, urlParamsProcessed, preventReset, pendingReferenceId]);
 
   /**
    * Démarrer la conversation avec Equos
@@ -217,8 +289,60 @@ export default function ProfesseurParticulierVirtuel() {
       } else if (conversationType === 'error' && selectedReferenceId) {
         const selectedError = errors.find(e => e.id === selectedReferenceId);
         if (selectedError) {
+          // Construire une description détaillée de l'erreur
+          let errorDescription = `Matière: ${selectedError.matiere}\n`;
+          errorDescription += `Catégorie: ${selectedError.categorie}\n`;
+          errorDescription += `Message: ${selectedError.message}\n`;
+          if (selectedError.justification) {
+            errorDescription += `Justification: ${selectedError.justification}\n`;
+          }
+
+          // Ajouter le contexte du cours et de l'exercice
+          if (selectedError.course_title) {
+            errorDescription += `\nCours: ${selectedError.course_title}\n`;
+          }
+          if (selectedError.exercice_title) {
+            errorDescription += `Exercice: ${selectedError.exercice_title}\n`;
+          }
+
+          // Ajouter les questions et réponses si disponibles
+          if (selectedError.questions && selectedError.questions.length > 0) {
+            errorDescription += `\n--- QUESTION(S) CONCERNÉE(S) ---\n`;
+
+            selectedError.questions.forEach((question, index) => {
+              errorDescription += `\nQuestion ${index + 1}: ${question.question_titre}\n`;
+
+              // Ajouter les options de réponse
+              if (question.reponses && question.reponses.length > 0) {
+                errorDescription += `Options:\n`;
+                question.reponses.forEach(reponse => {
+                  const isCorrect = reponse.correcte === 'true' || reponse.correcte === true;
+                  errorDescription += `  ${reponse.lettre}. ${reponse.texte}${isCorrect ? ' ✓ (correcte)' : ''}\n`;
+                });
+              }
+
+              // Ajouter la réponse de l'utilisateur si disponible
+              if (selectedError.user_responses && selectedError.user_responses.length > 0) {
+                const userResponse = selectedError.user_responses.find(
+                  r => r.question_index === question.question_index
+                );
+                if (userResponse) {
+                  const userAnswerText = question.reponses?.find(
+                    r => r.lettre === userResponse.user_answer
+                  )?.texte || userResponse.user_answer;
+                  errorDescription += `Réponse de l'élève: ${userResponse.user_answer}. ${userAnswerText} ✗\n`;
+                }
+              }
+
+              // Ajouter l'explication si disponible
+              if (question.explication_reponse_correcte) {
+                errorDescription += `Explication: ${question.explication_reponse_correcte}\n`;
+              }
+            });
+          }
+
           conversationContext.errorCategory = selectedError.categorie;
-          conversationContext.errorDescription = `Matière: ${selectedError.matiere}\nMessage: ${selectedError.message}\nJustification: ${selectedError.justification || 'Non renseignée'}`;
+          conversationContext.errorDescription = errorDescription;
         }
       }
 
@@ -285,7 +409,13 @@ export default function ProfesseurParticulierVirtuel() {
       // ========================================
       // ÉTAPE 8 : SAUVEGARDER EN BASE DE DONNÉES
       // ========================================
-      const { data: newConversation } = await supabase
+      console.log('💾 Sauvegarde de la conversation:', {
+        conversation_type: conversationType,
+        context_id: selectedReferenceId,
+        has_context: !!conversationContext
+      });
+
+      const { data: newConversation, error: insertError } = await supabase
         .from('ai_teacher_conversations')
         .insert({
           user_id: user.id,
@@ -307,9 +437,21 @@ export default function ProfesseurParticulierVirtuel() {
         .select()
         .single();
 
+      if (insertError) {
+        console.error('❌ Erreur lors de la sauvegarde de la conversation:', insertError);
+        throw insertError;
+      }
+
       if (newConversation) {
         setConversationId(newConversation.id);
-        console.log('💾 Conversation sauvegardée:', newConversation.id);
+        console.log('✅ Conversation sauvegardée avec succès:', newConversation.id);
+        console.log('📊 Détails:', {
+          type: newConversation.conversation_type,
+          context_id: newConversation.context_id,
+          status: newConversation.status
+        });
+      } else {
+        console.warn('⚠️ Conversation sauvegardée mais pas de données retournées');
       }
 
       toast({

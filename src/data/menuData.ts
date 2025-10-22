@@ -34,7 +34,7 @@ export const menuData: MenuCategory[] = [
     title: "Révision",
     items: [
       { label: "Fiche de révision", href: "#", disabled: true },
-      { label: "Quiz", href: "#", disabled: true },
+      { label: "Quiz", href: "/upload-course", disabled: false },
       { label: "Professeur particulier", href: "/professeur-particulier-virtuel", disabled: false },
     ],
   },

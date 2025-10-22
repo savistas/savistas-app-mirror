@@ -122,8 +122,8 @@ export default function CahierErreurs() {
   };
 
   const handleReviser = (error: ErrorWithDetails) => {
-    // TODO: Implement revision functionality
-    console.log('Réviser clicked for error:', error.id);
+    // Rediriger vers le professeur particulier virtuel avec le type "error" et l'ID de l'erreur
+    navigate(`/student/professeur-particulier-virtuel?type=error&errorId=${error.id}`);
   };
 
   // Helper to get answer text from letter
