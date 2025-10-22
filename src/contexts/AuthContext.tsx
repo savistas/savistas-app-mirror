@@ -60,7 +60,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: userData
+        data: userData,
+        // Note: Email confirmation doit être activée dans Dashboard Supabase
+        // Authentication > Settings > Email Auth > "Enable email confirmations"
       }
     });
     return { user: data.user, error };

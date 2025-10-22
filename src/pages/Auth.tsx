@@ -32,6 +32,8 @@ const Auth = () => {
   const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     email: "",
@@ -52,7 +54,7 @@ const Auth = () => {
       if (!authLoading && user) {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('country, education_level, classes, subjects, subscription')
+          .select('country, education_level, classes, subjects, subscription, role')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -62,18 +64,26 @@ const Auth = () => {
           return;
         }
 
+        const userRole = profile?.role || 'student';
+
         // Vérifier si le profil est incomplet
-        const isIncomplete = !profile || 
-          !profile.country || 
-          !profile.education_level || 
-          !profile.classes || 
-          !profile.subjects || 
+        const isIncomplete = !profile ||
+          !profile.country ||
+          !profile.education_level ||
+          !profile.classes ||
+          !profile.subjects ||
           !profile.subscription;
 
         if (isIncomplete) {
-          navigate("/profile");
+          navigate(`/${userRole}/profile`);
         } else {
-          navigate("/dashboard");
+          // Rediriger selon le rôle
+          if (userRole === 'student') {
+            navigate(`/${userRole}/dashboard`);
+          } else {
+            // school, company, parent, professor -> dashboard-organization
+            navigate(`/${userRole}/dashboard-organization`);
+          }
         }
       }
     };
@@ -210,6 +220,9 @@ const Auth = () => {
         console.error("Erreur lors de l'envoi au webhook N8N:", webhookError);
       }
 
+      // Stocker l'email pour permettre le renvoi
+      setResendEmail(formData.email);
+
       // Afficher le dialogue de vérification email
       setShowEmailVerificationDialog(true);
     } catch (error) {
@@ -220,6 +233,50 @@ const Auth = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!resendEmail) {
+      toast({
+        title: "Erreur",
+        description: "Adresse email non disponible",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResendLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: resendEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/profile`,
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email renvoyé !",
+          description: "Un nouvel email de confirmation a été envoyé. Vérifiez votre boîte de réception et vos spams.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de renvoyer l'email de confirmation",
+        variant: "destructive",
+      });
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -391,16 +448,17 @@ const Auth = () => {
                     <Select
                       value={formData.role}
                       onValueChange={(value) => handleInputChange('role', value)}
+                      required
                     >
                       <SelectTrigger className="h-11 rounded-md bg-background border border-input">
                         <SelectValue placeholder="Choisissez votre rôle" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Élève</SelectItem>
-                        <SelectItem value="teacher" disabled>Enseignant (bientôt disponible)</SelectItem>
-                        <SelectItem value="parent" disabled>Parent (bientôt disponible)</SelectItem>
-                        <SelectItem value="school" disabled>Établissement scolaire (bientôt disponible)</SelectItem>
-                        <SelectItem value="company" disabled>Entreprise (bientôt disponible)</SelectItem>
+                        <SelectItem value="professor" disabled>Enseignant</SelectItem>
+                        <SelectItem value="parent" disabled>Parent</SelectItem>
+                        <SelectItem value="school" disabled>Établissement scolaire</SelectItem>
+                        <SelectItem value="company" disabled>Entreprise</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -546,21 +604,36 @@ const Auth = () => {
         </AlertDialog>
 
         {/* Dialogue de vérification email */}
-        <AlertDialog 
-          open={showEmailVerificationDialog} 
+        <AlertDialog
+          open={showEmailVerificationDialog}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="text-center">Vérification requise</AlertDialogTitle>
-              <AlertDialogDescription className="text-center">
-                Un e-mail de confirmation a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception et vos spams pour confirmer votre compte. Une fois votre e-mail confirmé, vous pourrez vous connecter.
+              <AlertDialogDescription className="text-center space-y-4">
+                <p>Un e-mail de confirmation a été envoyé à <strong>{resendEmail}</strong>.</p>
+                <p>Veuillez vérifier votre boîte de réception et vos spams pour confirmer votre compte.</p>
+                <p className="text-sm text-muted-foreground">
+                  Vous n'avez pas reçu l'email ?
+                </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="justify-center">
-              <AlertDialogAction onClick={() => {
-                setShowEmailVerificationDialog(false);
-                setActiveTab("signin");
-              }}>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={handleResendConfirmation}
+                disabled={resendLoading}
+                className="w-full sm:w-auto"
+              >
+                {resendLoading ? "Envoi..." : "Renvoyer l'email"}
+              </Button>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowEmailVerificationDialog(false);
+                  setActiveTab("signin");
+                }}
+                className="w-full sm:w-auto"
+              >
                 J'ai confirmé mon email
               </AlertDialogAction>
             </AlertDialogFooter>

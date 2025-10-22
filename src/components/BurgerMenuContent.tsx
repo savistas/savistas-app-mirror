@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { menuData, MenuCategory } from '@/data/menuData';
+import { useUserRole } from '@/hooks/useUserRole';
 
 /**
  * Animations variants pour Framer Motion
@@ -34,8 +35,16 @@ const itemVariant = {
  * Affiche les 3 catégories avec leurs items respectifs
  */
 const BurgerMenuContent: React.FC = () => {
+  const { role } = useUserRole();
+
   const handleDisabledClick = (e: React.MouseEvent) => {
     e.preventDefault();
+  };
+
+  // Helper pour transformer les hrefs avec le rôle
+  const getRoleHref = (href: string) => {
+    if (href === '#' || href.startsWith('http')) return href;
+    return `/${role}${href}`;
   };
 
   return (
@@ -58,7 +67,7 @@ const BurgerMenuContent: React.FC = () => {
             {category.items.map((item, itemIndex: number) => (
               <motion.a
                 key={itemIndex}
-                href={item.href}
+                href={getRoleHref(item.href)}
                 onClick={item.disabled ? handleDisabledClick : undefined}
                 className={`block px-6 py-2 text-sm rounded-lg mx-2 transition-opacity ${
                   item.disabled

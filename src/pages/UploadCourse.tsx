@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useIsMobile } from "@/hooks/use-mobile";
 import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
+import { SubjectCombobox } from "@/components/SubjectCombobox";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
@@ -283,11 +284,9 @@ const UploadCourse = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="subject">Matière</Label>
-                  <Input
-                    id="subject"
-                    placeholder="Ex: Mathématiques, Histoire, etc."
+                  <SubjectCombobox
                     value={formData.subject}
-                    onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                    onChange={(value) => setFormData({...formData, subject: value})}
                   />
                 </div>
 
@@ -312,15 +311,15 @@ const UploadCourse = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="qcm-days">Nombre de jours d’exercices (1 à 30)</Label>
+                  <Label htmlFor="qcm-days">Nombre de jours d'exercices (1 à 10)</Label>
                   <div className="flex items-center gap-4">
                     <Slider
                       value={[formData.days]}
                       onValueChange={(v) => setFormData({ ...formData, days: v[0] })}
                       min={1}
-                      max={30}
+                      max={10}
                       step={1}
-                      aria-label="Nombre de jours d’exercices"
+                      aria-label="Nombre de jours d'exercices"
                       className="w-full"
                     />
                     <span className="text-sm text-muted-foreground whitespace-nowrap">

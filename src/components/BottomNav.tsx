@@ -10,17 +10,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfileCompletion } from "@/hooks/useProfileCompletion";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
+
 const BottomNav = () => {
   const location = useLocation();
   const currentPath = location.pathname;
   const { isProfileComplete } = useProfileCompletion();
   const { toast } = useToast();
+  const { role } = useUserRole();
 
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => currentPath === path || currentPath === `/${role}${path}`;
   const { user } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string>("");
+
+  // Helper pour générer les liens avec rôle
+  const getRolePath = (path: string) => `/${role}${path}`;
 
   const handleNavClick = (path: string, e: React.MouseEvent) => {
     if (!isProfileComplete && path !== '/profile') {
@@ -62,8 +68,8 @@ const BottomNav = () => {
         <div className="flex items-center justify-between w-full max-w-md">
           {/* Left side - Accueil & Agenda */}
           <div className="flex items-center space-x-8">
-            <Link 
-              to="/dashboard" 
+            <Link
+              to={getRolePath('/dashboard')}
               className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={(e) => handleNavClick('/dashboard', e)}
             >
@@ -75,9 +81,9 @@ const BottomNav = () => {
                 }`} strokeWidth={1.5} />
               </div>
             </Link>
-            
-            <Link 
-              to="/calendar" 
+
+            <Link
+              to={getRolePath('/calendar')}
               className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={(e) => handleNavClick('/calendar', e)}
             >
@@ -93,8 +99,8 @@ const BottomNav = () => {
 
           {/* Right side - Chat & Profil */}
           <div className="flex items-center space-x-8">
-            <Link 
-              to="/messaging" 
+            <Link
+              to={getRolePath('/messaging')}
               className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={(e) => handleNavClick('/messaging', e)}
             >
@@ -106,8 +112,8 @@ const BottomNav = () => {
                 }`} strokeWidth={1.5} />
               </div>
             </Link>
-            
-            <Link to="/profile" className="flex flex-col items-center space-y-1">
+
+            <Link to={getRolePath('/profile')} className="flex flex-col items-center space-y-1">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
                 isActive('/profile') ? 'bg-sky-100 ring-2 ring-sky-500' : 'bg-gradient-to-br from-sky-400 to-sky-600'
               }`}>
@@ -122,8 +128,8 @@ const BottomNav = () => {
 
         {/* Center - Add Button (positioned to overlap border) */}
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <Link 
-            to="/upload-course" 
+          <Link
+            to={getRolePath('/upload-course')}
             className={`flex flex-col items-center ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={e => {
               if (!isProfileComplete) {

@@ -17,7 +17,7 @@ export const useProfileCompletion = () => {
 
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('country, education_level, classes, subjects, subscription')
+        .select('role, country, education_level, classes, subjects, subscription')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -28,11 +28,23 @@ export const useProfileCompletion = () => {
         return;
       }
 
-      const isComplete = profile && 
-        !!profile.country && 
-        !!profile.education_level && 
-        !!profile.classes && 
-        !!profile.subjects && 
+      // Pour les organisations (school/company), seuls country et subscription sont requis
+      if (profile?.role === 'school' || profile?.role === 'company') {
+        const isComplete = profile &&
+          !!profile.country &&
+          !!profile.subscription;
+
+        setIsProfileComplete(isComplete);
+        setLoading(false);
+        return;
+      }
+
+      // Pour les étudiants, tous les champs sont requis
+      const isComplete = profile &&
+        !!profile.country &&
+        !!profile.education_level &&
+        !!profile.classes &&
+        !!profile.subjects &&
         !!profile.subscription;
 
       setIsProfileComplete(isComplete);

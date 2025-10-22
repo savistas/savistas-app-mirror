@@ -35,7 +35,7 @@ export const menuData: MenuCategory[] = [
     items: [
       { label: "Fiche de révision", href: "#", disabled: true },
       { label: "Quiz", href: "#", disabled: true },
-      { label: "Professeur particulier", href: "#", disabled: true },
+      { label: "Professeur particulier", href: "/professeur-particulier-virtuel", disabled: false },
     ],
   },
   {

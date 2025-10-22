@@ -19,6 +19,8 @@ import NotFound from "./pages/NotFound";
 import InformationSurvey from "./pages/InformationSurvey";
 import CourseDetail from "./pages/CourseDetail";
 import VirtualTeacher from "./pages/VirtualTeacher";
+import ProfesseurParticulierVirtuel from "./pages/ProfesseurParticulierVirtuel";
+import DashboardOrganization from "./pages/DashboardOrganization";
 import Terms from "./pages/Terms"; // Import Terms page
 import Privacy from "./pages/Privacy"; // Import Privacy page
 import ResetPassword from "./pages/ResetPassword";
@@ -39,6 +41,24 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/informations" element={<ProtectedRoute><InformationSurvey /></ProtectedRoute>} />
+
+            {/* Routes B2B avec rôle dynamique */}
+            <Route path="/:role/dashboard-organization" element={<ProtectedRoute><DashboardOrganization /></ProtectedRoute>} />
+            <Route path="/:role/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/:role/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/:role/upload-course" element={<ProtectedRoute><UploadCourse /></ProtectedRoute>} />
+            <Route path="/:role/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+            <Route path="/:role/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
+            <Route path="/:role/daily-quiz/:id" element={<ProtectedRoute><DailyQuiz /></ProtectedRoute>} />
+            <Route path="/:role/result/:id" element={<ProtectedRoute><Result /></ProtectedRoute>} />
+            <Route path="/:role/messaging" element={<ProtectedRoute><Messaging /></ProtectedRoute>} />
+            <Route path="/:role/progression" element={<ProtectedRoute><Progression /></ProtectedRoute>} />
+            <Route path="/:role/cahier-erreurs" element={<ProtectedRoute><CahierErreurs /></ProtectedRoute>} />
+            <Route path="/:role/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
+            <Route path="/:role/professeur-virtuel" element={<ProtectedRoute><VirtualTeacher /></ProtectedRoute>} />
+            <Route path="/:role/professeur-particulier-virtuel" element={<ProtectedRoute><ProfesseurParticulierVirtuel /></ProtectedRoute>} />
+
+            {/* Routes legacy (sans rôle) pour rétrocompatibilité */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/upload-course" element={<ProtectedRoute><UploadCourse /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
@@ -51,6 +71,7 @@ const App = () => (
             <Route path="/cahier-erreurs" element={<ProtectedRoute><CahierErreurs /></ProtectedRoute>} />
             <Route path="/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
             <Route path="/professeur-virtuel" element={<ProtectedRoute><VirtualTeacher /></ProtectedRoute>} />
+            <Route path="/professeur-particulier-virtuel" element={<ProtectedRoute><ProfesseurParticulierVirtuel /></ProtectedRoute>} />
             <Route path="/terms" element={<Terms />} /> {/* Add Terms route */}
             <Route path="/privacy" element={<Privacy />} /> {/* Add Privacy route */}
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

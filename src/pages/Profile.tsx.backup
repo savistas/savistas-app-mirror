@@ -667,28 +667,393 @@ const Profile = () => {
 
       {/* Main Content */}
       <div className="px-6 py-8 pt-24 md:pt-28 pb-32">
-        <div className="w-full md:w-[70%] mx-auto animate-fade-in">
+        <div className="max-w-2xl mx-auto animate-fade-in">
         
         {/* Section de complétion du profil (si profil incomplet) */}
-        {isProfileIncomplete && !roleLoading && (
-          <Card className="mb-8">
-            <CardContent className="p-8">
-              {role === 'student' ? (
-                <StudentProfileForm onComplete={handleProfileCompletion} />
-              ) : (role === 'school' || role === 'company') ? (
-                <OrganizationProfileForm
-                  onComplete={handleProfileCompletion}
-                  organizationType={role as 'school' | 'company'}
-                />
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    Chargement du formulaire...
+        {isProfileIncomplete && (
+          <div className="mb-8">
+            {/* Message d'alerte */}
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+                <div>
+                  <h3 className="font-semibold text-amber-900">
+                    Profil incomplet
+                  </h3>
+                  <p className="text-sm text-amber-700">
+                    Veuillez remplir toutes les informations obligatoires ci-dessous pour accéder à votre espace d'apprentissage personnalisé.
                   </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            </div>
+
+            {/* Titre */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-semibold text-foreground mb-2">
+                Complétez votre profil
+              </h1>
+              <p className="text-muted-foreground">
+                Quelques informations supplémentaires pour personnaliser votre expérience
+              </p>
+            </div>
+
+          {/* Accordéons avec les informations obligatoires */}
+          <div className="space-y-6">
+            {/* Accordéon Informations générales */}
+            <Card className="border-border">
+              <CardContent className="p-6">
+                <Accordion type="single" collapsible defaultValue="info" className="w-full">
+                  <AccordionItem value="info">
+                    <AccordionTrigger className="flex items-center justify-between hover:no-underline">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          completionData.country ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {completionData.country ? <Check className="w-4 h-4" /> : <span>1</span>}
+                        </div>
+                        <span className="text-lg font-medium">Informations générales</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="country">Pays <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="country"
+                            value={completionData.country}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, country: e.target.value }))}
+                            placeholder="Votre pays"
+                            required
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="city">Ville</Label>
+                          <Input
+                            id="city"
+                            value={completionData.city}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, city: e.target.value }))}
+                            placeholder="Votre ville"
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="postalCode">Code postal</Label>
+                          <Input
+                            id="postalCode"
+                            value={completionData.postalCode}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, postalCode: e.target.value }))}
+                            placeholder="Votre code postal"
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="organizationCode">Code d'organisation (optionnel)</Label>
+                          <OrganizationCodeInput
+                            value={completionData.organizationCode}
+                            onChange={(value) => setCompletionData(prev => ({ ...prev, organizationCode: value }))}
+                            onValidationChange={(isValid, orgId, orgName) => {
+                              setOrganizationValidated(isValid);
+                              setValidatedOrgId(orgId);
+                              setValidatedOrgName(orgName);
+                            }}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Si vous avez reçu un code d'organisation de votre école ou entreprise, entrez-le ici pour rejoindre leur espace.
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="aiLevel">Niveau IA</Label>
+                          <Select value={completionData.aiLevel} onValueChange={(value) => setCompletionData(prev => ({ ...prev, aiLevel: value }))}>
+                            <SelectTrigger className="text-xs">
+                              <SelectValue placeholder="Niveau IA" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="debutant">Débutant</SelectItem>
+                              <SelectItem value="intermediaire">Intermédiaire</SelectItem>
+                              <SelectItem value="avance">Avancé</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Bouton photo de profil en dessous */}
+                      <div className="mt-6">
+                        <Label>Photo de profil</Label>
+                        <div className="mt-2">
+                          <input
+                            id="profilePhoto"
+                            type="file"
+                            accept=".png,.jpeg,.jpg"
+                            className="hidden"
+                            onChange={(e) => e.target.files?.[0] && setCompletionData(prev => ({ ...prev, profilePhoto: e.target.files![0] }))}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => document.getElementById('profilePhoto')?.click()}
+                            className="w-32 h-32 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors flex flex-col items-center justify-center overflow-hidden p-0"
+                          >
+                            {completionData.profilePhoto ? (
+                              <img
+                                src={URL.createObjectURL(completionData.profilePhoto)}
+                                alt="Photo de profil"
+                                className="object-cover w-full h-full"
+                              />
+                            ) : avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt="Photo de profil"
+                                className="object-cover w-full h-full"
+                              />
+                            ) : (
+                              <>
+                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                  <span className="text-gray-500 text-xl">+</span>
+                                </div>
+                                <span className="text-sm text-gray-600">Ajouter une photo</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+
+            {/* Accordéon Parcours scolaire */}
+            <Card className="border-border">
+              <CardContent className="p-6">
+                <Accordion type="single" collapsible defaultValue="education" className="w-full">
+                  <AccordionItem value="education">
+                    <AccordionTrigger className="flex items-center justify-between hover:no-underline">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          completionData.educationLevel && completionData.classes && completionData.subjects ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {completionData.educationLevel && completionData.classes && completionData.subjects ? <Check className="w-4 h-4" /> : <span>2</span>}
+                        </div>
+                        <span className="text-lg font-medium">Parcours scolaire</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="educationLevel">Niveau d'enseignement <span className="text-red-500">*</span></Label>
+                          <Select value={completionData.educationLevel} onValueChange={(value) => setCompletionData(prev => ({ ...prev, educationLevel: value }))}>
+                            <SelectTrigger className="text-xs">
+                              <SelectValue placeholder="Sélectionnez votre niveau" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="primaire">Primaire</SelectItem>
+                              <SelectItem value="college">Collège</SelectItem>
+                              <SelectItem value="lycee">Lycée</SelectItem>
+                              <SelectItem value="superieur">Supérieur</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="classes">Classes <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="classes"
+                            value={completionData.classes}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, classes: e.target.value }))}
+                            placeholder="Ex: 2nde, 1ère, Terminale"
+                            required
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="subjects">Matières <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="subjects"
+                            value={completionData.subjects}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, subjects: e.target.value }))}
+                            placeholder="Ex: Mathématiques, Physique, Histoire"
+                            required
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+
+            {/* Accordéon Abonnement */}
+            <Card className="border-border">
+              <CardContent className="p-6">
+                <Accordion type="single" collapsible defaultValue="subscription" className="w-full">
+                  <AccordionItem value="subscription">
+                    <AccordionTrigger className="flex items-center justify-between hover:no-underline">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          completionData.subscription ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {completionData.subscription ? <Check className="w-4 h-4" /> : <span>3</span>}
+                        </div>
+                        <span className="text-lg font-medium">Abonnement</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Type d'abonnement *</Label>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Abonnement Basique */}
+                            <Card
+                              className={`cursor-pointer border-2 transition-all duration-300 hover:shadow-lg ${
+                                completionData.subscription === 'basic' ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                              onClick={() => setCompletionData(prev => ({ ...prev, subscription: 'basic' }))}
+                            >
+                              <CardContent className="p-4">
+                                <div className="text-center mb-4">
+                                  <h3 className="text-xl font-semibold">Basique</h3>
+                                  <div className="text-2xl font-bold text-primary">
+                                    Gratuit
+                                  </div>
+                                </div>
+                                <ul className="space-y-2 text-sm">
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Modèle IA: basique</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Stockage: limité</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Tokens: faible</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Rapidité: standard</span>
+                                  </li>
+                                </ul>
+                                <Button
+                                  variant={completionData.subscription === 'basic' ? "default" : "outline"}
+                                  className="w-full mt-4"
+                                  onClick={() => setCompletionData(prev => ({ ...prev, subscription: 'basic' }))}
+                                >
+                                  {completionData.subscription === 'basic' ? "Sélectionné" : "Choisir"}
+                                </Button>
+                              </CardContent>
+                            </Card>
+
+                            {/* Abonnement Premium */}
+                            <Card
+                              className={`cursor-not-allowed border-2 transition-all duration-300 opacity-50 relative ${
+                                completionData.subscription === 'premium' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                              }`}
+                            >
+                              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+                                  Populaire
+                                </span>
+                              </div>
+                              <CardContent className="p-4">
+                                <div className="text-center mb-4">
+                                  <h3 className="text-xl font-semibold">Premium</h3>
+                                  <div className="text-2xl font-bold text-muted-foreground">
+                                    9,99€
+                                    <span className="text-sm font-normal">/mois</span>
+                                  </div>
+                                </div>
+                                <ul className="space-y-2 text-sm">
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Modèle IA: avancé</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Stockage: modéré</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Tokens: moyen</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Rapidité: prioritaire</span>
+                                  </li>
+                                </ul>
+                                <Button
+                                  variant="outline"
+                                  className="w-full mt-4"
+                                  disabled
+                                >
+                                  Bientôt disponible
+                                </Button>
+                              </CardContent>
+                            </Card>
+
+                            {/* Abonnement Pro */}
+                            <Card
+                              className={`cursor-not-allowed border-2 transition-all duration-300 opacity-50 ${
+                                completionData.subscription === 'pro' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                              }`}
+                            >
+                              <CardContent className="p-4">
+                                <div className="text-center mb-4">
+                                  <h3 className="text-xl font-semibold">Pro</h3>
+                                  <div className="text-2xl font-bold text-muted-foreground">
+                                    19,99€
+                                    <span className="text-sm font-normal">/mois</span>
+                                  </div>
+                                </div>
+                                <ul className="space-y-2 text-sm">
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Modèle IA: pro</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Stockage: illimité</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Tokens: illimité</span>
+                                  </li>
+                                  <li className="flex items-center space-x-2">
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    <span>Rapidité: ultra prioritaire</span>
+                                  </li>
+                                </ul>
+                                <Button
+                                  variant="outline"
+                                  className="w-full mt-4"
+                                  disabled
+                                >
+                                  Bientôt disponible
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Bouton de finalisation en dehors des containers */}
+          <div className="flex justify-center pt-8">
+            <Button
+              onClick={handleCompletionSubmit}
+              disabled={!canProceedCompletion() || loading}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+            >
+              {loading ? "Finalisation..." : "✨ Finaliser mon profil"}
+            </Button>
+          </div>
+        </div>
         )}
 
         {/* Section profil normal (grisée si profil incomplet) */}
