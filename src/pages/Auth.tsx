@@ -52,6 +52,12 @@ const Auth = () => {
   useEffect(() => {
     const checkUserProfileAndRedirect = async () => {
       if (!authLoading && user) {
+        // Vérifier si c'est l'admin Savistas
+        if (user.email === 'contact.savistas@gmail.com') {
+          navigate('/admin');
+          return;
+        }
+
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('country, education_level, classes, subjects, subscription, role')
@@ -65,6 +71,21 @@ const Auth = () => {
         }
 
         const userRole = profile?.role || 'student';
+
+        // Pour les organisations (school ou company), vérifier s'il y a une demande en attente
+        if (userRole === 'school' || userRole === 'company') {
+          const { data: pendingRequest } = await supabase
+            .from('organization_requests')
+            .select('id, status')
+            .eq('created_by', user.id)
+            .eq('status', 'pending')
+            .maybeSingle();
+
+          if (pendingRequest) {
+            navigate(`/${userRole}/creation-request`);
+            return;
+          }
+        }
 
         // Vérifier si le profil est incomplet
         const isIncomplete = !profile ||
@@ -325,19 +346,24 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6 py-8">
-      <div className="w-full max-w-md animate-fade-in">
-        <Card className="border-border">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center px-6 py-8 relative overflow-hidden">
+      {/* Effets de fond flous décoratifs */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+
+      <div className="w-full max-w-md animate-fade-in relative z-10">
+        <Card className="border-border backdrop-blur-sm bg-white/90 shadow-2xl">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
               <img
                 src="/logo-savistas.png"
                 alt="Savistas Logo"
-                className="h-16 w-auto"
+                className="h-16 w-auto animate-in fade-in zoom-in duration-500"
               />
             </div>
-            <div className="space-y-2">
-              <CardTitle className="text-2xl font-semibold">
+            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <CardTitle className="text-2xl font-semibold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                 Bienvenue sur Savistas
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -347,28 +373,38 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="signin">Se connecter</TabsTrigger>
-                <TabsTrigger value="signup">S'inscrire</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-blue-50/50 backdrop-blur-sm">
+                <TabsTrigger
+                  value="signin"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white transition-all duration-300"
+                >
+                  Se connecter
+                </TabsTrigger>
+                <TabsTrigger
+                  value="signup"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white transition-all duration-300"
+                >
+                  S'inscrire
+                </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="signin">
+              <TabsContent value="signin" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email" className="text-sm font-medium">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       placeholder="votre@email.com"
-                      className="h-11"
+                      className="h-11 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Mot de passe</Label>
+                    <Label htmlFor="signin-password" className="text-sm font-medium">Mot de passe</Label>
                     <div className="relative">
                       <Input
                         id="signin-password"
@@ -376,7 +412,7 @@ const Auth = () => {
                         value={formData.password}
                         onChange={(e) => handleInputChange('password', e.target.value)}
                         placeholder="••••••••"
-                        className="h-11 pr-10"
+                        className="h-11 pr-10 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                         required
                       />
                       <Button
@@ -396,7 +432,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => setShowForgotPasswordDialog(true)}
-                      className="text-sm text-primary hover:underline"
+                      className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-all duration-200"
                     >
                       Mot de passe oublié ?
                     </button>
@@ -404,7 +440,7 @@ const Auth = () => {
 
                   <Button
                     type="submit"
-                    className="w-full h-11"
+                    className="w-full h-11 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                     disabled={loading}
                   >
                     {loading ? "Connexion..." : "Se connecter"}
@@ -412,30 +448,30 @@ const Auth = () => {
                 </form>
               </TabsContent>
               
-              <TabsContent value="signup">
+              <TabsContent value="signup" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signup-fullname">Nom complet *</Label>
+                      <Label htmlFor="signup-fullname" className="text-sm font-medium">Nom complet *</Label>
                       <Input
                         id="signup-fullname"
                         value={formData.fullName}
                         onChange={(e) => handleInputChange('fullName', e.target.value)}
                         placeholder="Jean Dupont"
-                        className="h-11"
+                        className="h-11 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                         required
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="signup-email">Adresse e-mail *</Label>
+                      <Label htmlFor="signup-email" className="text-sm font-medium">Adresse e-mail *</Label>
                       <Input
                         id="signup-email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder="jean.dupont@email.com"
-                        className="h-11"
+                        className="h-11 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                         required
                       />
                     </div>
@@ -444,26 +480,24 @@ const Auth = () => {
                   {/* Champ téléphone supprimé */}
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-role">Sélectionnez votre rôle *</Label>
+                    <Label htmlFor="signup-role" className="text-sm font-medium">Sélectionnez votre rôle *</Label>
                     <Select
                       value={formData.role}
                       onValueChange={(value) => handleInputChange('role', value)}
                     >
-                      <SelectTrigger id="signup-role" className="h-11 rounded-md bg-background border border-input">
+                      <SelectTrigger id="signup-role" className="h-11 rounded-md bg-background border border-input transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300">
                         <SelectValue placeholder="Choisissez votre rôle" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Élève</SelectItem>
-                        <SelectItem value="professor" disabled>Enseignant</SelectItem>
-                        <SelectItem value="parent" disabled>Parent</SelectItem>
-                        <SelectItem value="school" disabled>Établissement scolaire</SelectItem>
-                        <SelectItem value="company" disabled>Entreprise</SelectItem>
+                        <SelectItem value="school">Établissement scolaire</SelectItem>
+                        <SelectItem value="company">Entreprise</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe *</Label>
+                    <Label htmlFor="signup-password" className="text-sm font-medium">Mot de passe *</Label>
                     <div className="relative">
                       <Input
                         id="signup-password"
@@ -471,7 +505,7 @@ const Auth = () => {
                         value={formData.password}
                         onChange={(e) => handleInputChange('password', e.target.value)}
                         placeholder="••••••••"
-                        className="h-11 pr-10"
+                        className="h-11 pr-10 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                         required
                       />
                       <Button
@@ -491,7 +525,7 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirmer le mot de passe *</Label>
+                    <Label htmlFor="confirm-password" className="text-sm font-medium">Confirmer le mot de passe *</Label>
                     <div className="relative">
                       <Input
                         id="confirm-password"
@@ -499,7 +533,7 @@ const Auth = () => {
                         value={formData.confirmPassword}
                         onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                         placeholder="••••••••"
-                        className="h-11 pr-10"
+                        className="h-11 pr-10 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                         required
                       />
                       <Button
@@ -544,7 +578,7 @@ const Auth = () => {
 
                   <Button
                     type="submit"
-                    className="w-full h-11"
+                    className="w-full h-11 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     disabled={loading || !formData.fullName || !formData.email || !formData.password || !formData.role || !termsAccepted || !privacyAccepted}
                   >
                     {loading ? "Création du compte..." : "Créer mon compte"}
@@ -594,7 +628,11 @@ const Auth = () => {
                 >
                   Annuler
                 </Button>
-                <Button type="submit" disabled={resetLoading}>
+                <Button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                >
                   {resetLoading ? "Envoi..." : "Envoyer le lien"}
                 </Button>
               </AlertDialogFooter>
@@ -631,7 +669,7 @@ const Auth = () => {
                   setShowEmailVerificationDialog(false);
                   setActiveTab("signin");
                 }}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
               >
                 J'ai confirmé mon email
               </AlertDialogAction>

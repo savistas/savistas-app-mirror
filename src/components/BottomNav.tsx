@@ -18,7 +18,7 @@ const BottomNav = () => {
   const currentPath = location.pathname;
   const { isProfileComplete } = useProfileCompletion();
   const { toast } = useToast();
-  const { role } = useUserRole();
+  const { role, loading: roleLoading } = useUserRole();
 
   const isActive = (path: string) => currentPath === path || currentPath === `/${role}${path}`;
   const { user } = useAuth();
@@ -27,6 +27,15 @@ const BottomNav = () => {
 
   // Helper pour générer les liens avec rôle
   const getRolePath = (path: string) => `/${role}${path}`;
+
+  // Détermine le dashboard approprié selon le rôle
+  const getDashboardPath = () => {
+    if (role === 'student') {
+      return getRolePath('/dashboard');
+    }
+    // Pour school, company, parent, professor -> dashboard-organization
+    return getRolePath('/dashboard-organization');
+  };
 
   const handleNavClick = (path: string, e: React.MouseEvent) => {
     if (!isProfileComplete && path !== '/profile') {
@@ -62,22 +71,64 @@ const BottomNav = () => {
     return () => { active = false; };
   }, [user?.id]);
 
+  // Version simplifiée pour les organisations (school, company)
+  const isOrganization = role === 'school' || role === 'company';
+
+  if (isOrganization) {
+    return (
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border transition-opacity duration-200 ${
+        roleLoading ? 'opacity-0' : 'opacity-100'
+      }`}>
+        <div className="flex items-center justify-between py-4 px-6 max-w-md mx-auto">
+          {/* Accueil */}
+          <Link
+            to={getDashboardPath()}
+            className="flex flex-col items-center space-y-1"
+          >
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+              isActive('/dashboard-organization') ? 'bg-primary' : ''
+            }`}>
+              <Home className={`w-5 h-5 ${
+                isActive('/dashboard-organization') ? 'text-primary-foreground' : 'text-muted-foreground'
+              }`} strokeWidth={1.5} />
+            </div>
+          </Link>
+
+          {/* Profil */}
+          <Link to={getRolePath('/profile')} className="flex flex-col items-center space-y-1">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+              isActive('/profile') ? 'bg-sky-100 ring-2 ring-sky-500' : 'bg-gradient-to-br from-sky-400 to-sky-600'
+            }`}>
+              <Avatar className="w-9 h-9">
+                <AvatarImage src={avatarUrl ?? undefined} alt={fullName || 'Avatar'} />
+                <AvatarFallback className="bg-sky-500 text-white">{(fullName || 'P').slice(0,1).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </div>
+          </Link>
+        </div>
+      </nav>
+    );
+  }
+
+  // Version complète pour les étudiants
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border">
+    <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border transition-opacity duration-200 ${
+      roleLoading ? 'opacity-0' : 'opacity-100'
+    }`}>
       <div className="relative flex items-center justify-center py-4 px-6">
         <div className="flex items-center justify-between w-full max-w-md">
           {/* Left side - Accueil & Agenda */}
           <div className="flex items-center space-x-8">
             <Link
-              to={getRolePath('/dashboard')}
+              to={getDashboardPath()}
               className={`flex flex-col items-center space-y-1 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={(e) => handleNavClick('/dashboard', e)}
             >
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                isActive('/dashboard') ? 'bg-primary' : ''
+                isActive('/dashboard') || isActive('/dashboard-organization') ? 'bg-primary' : ''
               }`}>
                 <Home className={`w-5 h-5 ${
-                  isActive('/dashboard') ? 'text-primary-foreground' : 'text-muted-foreground'
+                  isActive('/dashboard') || isActive('/dashboard-organization') ? 'text-primary-foreground' : 'text-muted-foreground'
                 }`} strokeWidth={1.5} />
               </div>
             </Link>

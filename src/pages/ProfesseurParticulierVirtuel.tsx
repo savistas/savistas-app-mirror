@@ -34,6 +34,7 @@ import type { CreateSessionResponse } from '@/services/equosAgentService';
 import { ConversationTypeSelector } from '@/components/virtual-teacher/ConversationTypeSelector';
 import { ContentReferenceSelector } from '@/components/virtual-teacher/ContentReferenceSelector';
 import { ConversationHistoryList } from '@/components/virtual-teacher/ConversationHistoryList';
+import { TimeUpDialog } from '@/components/virtual-teacher/TimeUpDialog';
 import { useUserCourses } from '@/hooks/useUserCourses';
 import { useUserExercises } from '@/hooks/useUserExercises';
 import { useAllErrors } from '@/hooks/useAllErrors';
@@ -64,6 +65,7 @@ export default function ProfesseurParticulierVirtuel() {
   const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
   const [preventReset, setPreventReset] = useState(false);
   const [pendingReferenceId, setPendingReferenceId] = useState<string | null>(null);
+  const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
 
   // Traiter les paramètres URL au chargement
   useEffect(() => {
@@ -670,6 +672,7 @@ export default function ProfesseurParticulierVirtuel() {
                 token={sessionData.consumerAccessToken}
                 avatarIdentity={sessionData.session.avatar.id}
                 avatarName={sessionData.session.avatar.name}
+                maxDurationSeconds={subscription === 'basic' ? timeRemainingSeconds : undefined}
                 onConnected={() => toast({ title: '✅ Connecté au professeur virtuel' })}
                 onDisconnected={() => stopConversation()}
                 onError={(error) => toast({
@@ -677,6 +680,13 @@ export default function ProfesseurParticulierVirtuel() {
                   description: error.message,
                   variant: 'destructive'
                 })}
+                onTimeLimit={() => {
+                  console.log('⏱️ [TIME LIMIT] Limite de temps atteinte - Affichage du dialog');
+                  // Afficher le dialog après un court délai (pour que la déconnexion soit bien visible)
+                  setTimeout(() => {
+                    setShowTimeUpDialog(true);
+                  }, 500);
+                }}
               />
             </div>
           )}
@@ -689,6 +699,12 @@ export default function ProfesseurParticulierVirtuel() {
           </Tabs>
         </div>
       </div>
+
+      {/* Dialog de limite de temps atteinte */}
+      <TimeUpDialog
+        open={showTimeUpDialog}
+        onClose={() => setShowTimeUpDialog(false)}
+      />
 
       <BottomNav />
     </>

@@ -20,7 +20,7 @@ import {
   Calendar,
   Edit3
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ import InformationSurveyDialog from "@/components/InformationSurveyDialog";
 import SurveyConfirmationDialog from "@/components/SurveyConfirmationDialog";
 import TroublesDetectionDialog from "@/components/TroublesDetectionDialog";
 import BurgerMenu from "@/components/BurgerMenu";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Course {
   id: string;
@@ -41,6 +42,8 @@ interface Course {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { role, loading: roleLoading } = useUserRole();
   const [displayName, setDisplayName] = useState<string>("");
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
@@ -57,6 +60,16 @@ const Dashboard = () => {
   const [troublesLastUpdate, setTroublesLastUpdate] = useState<string | null>(null);
   const [showRetakeTestConfirmation, setShowRetakeTestConfirmation] = useState(false);
   const [isModifyingLearningStyle, setIsModifyingLearningStyle] = useState(false);
+
+  // Protection : Rediriger les organisations vers leur dashboard
+  useEffect(() => {
+    if (!roleLoading && role) {
+      if (role !== 'student') {
+        // Rediriger les school, company, parent, professor vers dashboard-organization
+        navigate(`/${role}/dashboard-organization`);
+      }
+    }
+  }, [role, roleLoading, navigate]);
 
   const learningStyleNames: Record<string, string> = {
     score_visuel: 'Visuel',

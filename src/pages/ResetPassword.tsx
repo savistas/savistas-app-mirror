@@ -87,18 +87,35 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6 py-8">
-      <div className="w-full max-w-md animate-fade-in">
-        <Card className="border-border">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-semibold">
-              Réinitialiser le mot de passe
-            </CardTitle>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center px-6 py-8 relative overflow-hidden">
+      {/* Effets de fond flous décoratifs */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+
+      <div className="w-full max-w-md animate-fade-in relative z-10">
+        <Card className="border-border backdrop-blur-sm bg-white/90 shadow-2xl">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <img
+                src="/logo-savistas.png"
+                alt="Savistas Logo"
+                className="h-16 w-auto animate-in fade-in zoom-in duration-500"
+              />
+            </div>
+            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <CardTitle className="text-2xl font-semibold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                Réinitialiser le mot de passe
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Entrez votre nouveau mot de passe
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                <Label htmlFor="new-password" className="text-sm font-medium">Nouveau mot de passe</Label>
                 <div className="relative">
                   <Input
                     id="new-password"
@@ -106,7 +123,7 @@ const ResetPassword = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-11 pr-10"
+                    className="h-11 pr-10 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                     required
                     minLength={6}
                   />
@@ -124,10 +141,11 @@ const ResetPassword = () => {
                     )}
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">Minimum 6 caractères</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm-new-password">Confirmer le nouveau mot de passe</Label>
+                <Label htmlFor="confirm-new-password" className="text-sm font-medium">Confirmer le nouveau mot de passe</Label>
                 <div className="relative">
                   <Input
                     id="confirm-new-password"
@@ -135,7 +153,7 @@ const ResetPassword = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-11 pr-10"
+                    className="h-11 pr-10 transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300"
                     required
                     minLength={6}
                   />
@@ -157,11 +175,21 @@ const ResetPassword = () => {
 
               <Button
                 type="submit"
-                className="w-full h-11"
+                className="w-full h-11 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                 disabled={loading}
               >
                 {loading ? "Réinitialisation..." : "Réinitialiser le mot de passe"}
               </Button>
+
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/auth")}
+                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-all duration-200"
+                >
+                  Retour à la connexion
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>

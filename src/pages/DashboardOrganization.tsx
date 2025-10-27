@@ -10,7 +10,6 @@ import { MembersTable } from '@/components/MembersTable';
 import { OrganizationSettings } from '@/components/OrganizationSettings';
 import { OnboardingOrganizationDialog } from '@/components/OnboardingOrganizationDialog';
 import BottomNav from '@/components/BottomNav';
-import BurgerMenu from '@/components/BurgerMenu';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
 
@@ -96,7 +95,7 @@ const DashboardOrganization = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center p-3 md:p-4 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">
         <div className="flex items-center space-x-2 md:space-x-4">
           <img
             src="/logo-savistas.png"
@@ -110,7 +109,6 @@ const DashboardOrganization = () => {
             <p className="text-xs text-slate-500">Espace organisation</p>
           </div>
         </div>
-        <BurgerMenu />
       </header>
 
       {/* Main Content */}

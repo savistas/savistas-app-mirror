@@ -9,8 +9,9 @@ import { useEffect, useState } from 'react';
 import { LiveKitRoom } from '@livekit/components-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Clock } from 'lucide-react';
 import { RoomRenderer } from './RoomRenderer';
+import { formatTime } from '@/hooks/useConversationTimeLimit';
 import '@livekit/components-styles';
 
 export interface EquosLiveKitContainerProps {
@@ -18,9 +19,11 @@ export interface EquosLiveKitContainerProps {
   token: string; // Consumer access token
   avatarIdentity: string; // Identité de l'avatar
   avatarName: string; // Nom de l'avatar
+  maxDurationSeconds?: number; // Durée maximale de la session en secondes (pour users "basic")
   onConnected?: () => void;
   onDisconnected?: () => void;
   onError?: (error: Error) => void;
+  onTimeLimit?: () => void; // Callback quand la limite de temps est atteinte
 }
 
 /**
@@ -32,19 +35,25 @@ export function EquosLiveKitContainer({
   token,
   avatarIdentity,
   avatarName,
+  maxDurationSeconds,
   onConnected,
   onDisconnected,
-  onError
+  onError,
+  onTimeLimit
 }: EquosLiveKitContainerProps) {
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     console.log('🔗 [LIVEKIT] Initialisation...');
     console.log('🌐 [LIVEKIT] Server URL:', serverUrl);
     console.log('🎟️ [LIVEKIT] Token:', token ? 'Présent' : 'Manquant');
-  }, [serverUrl, token]);
+    if (maxDurationSeconds) {
+      console.log('⏱️ [LIVEKIT] Durée maximale:', maxDurationSeconds, 'secondes');
+    }
+  }, [serverUrl, token, maxDurationSeconds]);
 
   /**
    * Gestion de la connexion
@@ -75,6 +84,52 @@ export function EquosLiveKitContainer({
     setConnectionError(error.message);
     onError?.(error);
   };
+
+  /**
+   * Timer pour limiter la durée de la conversation (users "basic")
+   * Se déclenche uniquement si maxDurationSeconds est défini
+   */
+  useEffect(() => {
+    if (!isConnected || !maxDurationSeconds) {
+      return;
+    }
+
+    console.log('⏱️ [LIVEKIT] Timer de limitation démarré');
+
+    // Compteur de secondes écoulées
+    const intervalId = setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const newElapsed = prev + 1;
+
+        // Log tous les 10 secondes
+        if (newElapsed % 10 === 0) {
+          console.log(`⏱️ [LIVEKIT] Temps écoulé: ${newElapsed}s / ${maxDurationSeconds}s`);
+        }
+
+        // Si la limite est atteinte, déclencher la coupure
+        if (newElapsed >= maxDurationSeconds) {
+          console.warn('⏱️ [LIVEKIT] LIMITE DE TEMPS ATTEINTE - Déconnexion automatique');
+          clearInterval(intervalId);
+
+          // Notifier le parent
+          onTimeLimit?.();
+
+          // Forcer la déconnexion
+          setTimeout(() => {
+            handleDisconnected();
+          }, 100);
+        }
+
+        return newElapsed;
+      });
+    }, 1000);
+
+    // Cleanup : arrêter le timer si déconnecté
+    return () => {
+      console.log('⏱️ [LIVEKIT] Timer arrêté');
+      clearInterval(intervalId);
+    };
+  }, [isConnected, maxDurationSeconds, onTimeLimit]);
 
   /**
    * État : Erreur de connexion
@@ -120,32 +175,51 @@ export function EquosLiveKitContainer({
             </CardDescription>
           </div>
 
-          {/* Badge de statut */}
-          <Badge
-            variant={
-              isConnected ? 'default' :
-              isConnecting ? 'secondary' :
-              'outline'
-            }
-            className="gap-2"
-          >
-            {isConnecting && (
-              <>
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Connexion...
-              </>
+          <div className="flex items-center gap-2">
+            {/* Timer de temps restant (pour users "basic" uniquement) */}
+            {isConnected && maxDurationSeconds && (
+              <Badge
+                variant="outline"
+                className={`gap-2 ${
+                  (maxDurationSeconds - elapsedSeconds) <= 10
+                    ? 'border-red-500 bg-red-50 text-red-700 animate-pulse'
+                    : (maxDurationSeconds - elapsedSeconds) <= 30
+                    ? 'border-orange-500 bg-orange-50 text-orange-700'
+                    : 'border-blue-500 bg-blue-50 text-blue-700'
+                }`}
+              >
+                <Clock className="h-3 w-3" />
+                {formatTime(Math.max(0, maxDurationSeconds - elapsedSeconds))}
+              </Badge>
             )}
-            {isConnected && (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                Connecté
-              </>
-            )}
-            {!isConnecting && !isConnected && '❌ Déconnecté'}
-          </Badge>
+
+            {/* Badge de statut */}
+            <Badge
+              variant={
+                isConnected ? 'default' :
+                isConnecting ? 'secondary' :
+                'outline'
+              }
+              className="gap-2"
+            >
+              {isConnecting && (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Connexion...
+                </>
+              )}
+              {isConnected && (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Connecté
+                </>
+              )}
+              {!isConnecting && !isConnected && '❌ Déconnecté'}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
 

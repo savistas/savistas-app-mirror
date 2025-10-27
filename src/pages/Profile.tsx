@@ -18,6 +18,9 @@ import ProfileQuestionEditModal from "@/components/ProfileQuestionEditModal";
 import InformationSurveyDialog from "@/components/InformationSurveyDialog";
 import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import { OrganizationCodeInput } from "@/components/OrganizationCodeInput";
+import { OrganizationCodeDialog } from "@/components/OrganizationCodeDialog";
+import { OrganizationPendingApproval } from "@/components/OrganizationPendingApproval";
+import { ActiveOrganizationInfo } from "@/components/ActiveOrganizationInfo";
 import { useNavigate } from "react-router-dom";
 import { InformationStep } from "@/components/register/InformationStep";
 import { EducationStep } from "@/components/register/EducationStep";
@@ -56,6 +59,14 @@ const Profile = () => {
   const [organizationValidated, setOrganizationValidated] = useState<boolean>(false);
   const [validatedOrgId, setValidatedOrgId] = useState<string | null>(null);
   const [validatedOrgName, setValidatedOrgName] = useState<string | null>(null);
+  const [validatedOrgCode, setValidatedOrgCode] = useState<string | null>(null);
+
+  // État pour le dialog du code d'organisation (étudiants uniquement)
+  const [showOrgCodeDialog, setShowOrgCodeDialog] = useState<boolean>(false);
+  const [orgDialogDismissed, setOrgDialogDismissed] = useState<boolean>(false);
+  const [pendingOrgApproval, setPendingOrgApproval] = useState<{ organizationName: string } | null>(null);
+  const [activeOrganization, setActiveOrganization] = useState<{ organizationName: string; adminEmail: string; membershipId: string } | null>(null);
+  const [isLeavingOrg, setIsLeavingOrg] = useState(false);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -114,7 +125,114 @@ const Profile = () => {
   useEffect(() => {
     let active = true;
     const loadProfile = async () => {
-      if (!user) return;
+      if (!user || roleLoading) return;
+
+      // Charger les données du localStorage si disponibles (pour les étudiants)
+      if (role === 'student') {
+        // Vérifier si l'étudiant a une demande en attente
+        const { data: pendingMembership } = await supabase
+          .from('organization_members')
+          .select('id, status, organization_id, organizations(name)')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (pendingMembership && pendingMembership.organizations) {
+          // L'utilisateur a une demande en attente
+          setPendingOrgApproval({ organizationName: pendingMembership.organizations.name });
+          // Nettoyer le localStorage
+          localStorage.removeItem('validated_org_id');
+          localStorage.removeItem('validated_org_name');
+          localStorage.removeItem('validated_org_code');
+        } else {
+          // Vérifier si l'étudiant a une adhésion active
+          const { data: activeMembership, error: membershipError } = await supabase
+            .from('organization_members')
+            .select(`
+              id,
+              status,
+              organization_id,
+              approved_by,
+              organizations(name, created_by)
+            `)
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle();
+
+          console.log('Active membership query result:', { activeMembership, membershipError });
+
+          if (activeMembership && activeMembership.organizations) {
+            // Récupérer l'email de l'admin qui a approuvé (ou du créateur de l'organisation)
+            const adminId = activeMembership.approved_by || (activeMembership.organizations as any).created_by;
+
+            console.log('Admin ID to fetch:', adminId);
+
+            if (adminId) {
+              const { data: adminProfile, error: profileError } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('user_id', adminId)
+                .maybeSingle();
+
+              console.log('Admin profile result:', { adminProfile, profileError });
+
+              if (adminProfile?.email) {
+                const orgData = {
+                  organizationName: (activeMembership.organizations as any).name,
+                  adminEmail: adminProfile.email,
+                  membershipId: activeMembership.id
+                };
+                console.log('Setting active organization:', orgData);
+                setActiveOrganization(orgData);
+              } else {
+                console.error('Failed to fetch admin profile, error:', profileError);
+                // Fallback: set organization info without admin email
+                const orgData = {
+                  organizationName: (activeMembership.organizations as any).name,
+                  adminEmail: 'Non disponible',
+                  membershipId: activeMembership.id
+                };
+                console.log('Setting active organization (no admin email):', orgData);
+                setActiveOrganization(orgData);
+              }
+            }
+          } else {
+            // Charger depuis localStorage pour pré-remplir le formulaire
+            const storedOrgId = localStorage.getItem('validated_org_id');
+            const storedOrgName = localStorage.getItem('validated_org_name');
+            const storedOrgCode = localStorage.getItem('validated_org_code');
+
+            if (storedOrgId && storedOrgName && storedOrgCode) {
+              setValidatedOrgId(storedOrgId);
+              setValidatedOrgName(storedOrgName);
+              setValidatedOrgCode(storedOrgCode);
+              setOrganizationValidated(true);
+            }
+          }
+        }
+      }
+
+      // IMPORTANT : Vérifier d'abord si l'organisation a une demande en attente ou rejetée
+      if (role === 'school' || role === 'company') {
+        const { data: requests } = await supabase
+          .from('organization_requests')
+          .select('id, status')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false });
+
+        if (requests && requests.length > 0) {
+          const latestRequest = requests[0];
+
+          // Si pending ou rejected, rediriger vers creation-request
+          if (latestRequest.status === 'pending' || latestRequest.status === 'rejected') {
+            navigate(`/${role}/creation-request`);
+            return;
+          }
+
+          // Si approved, continuer normalement et permettre l'accès au profil
+        }
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('full_name,email,phone,country,city,postal_code,education_level,classes,subjects,subscription,profile_photo_url')
@@ -148,10 +266,10 @@ const Profile = () => {
         setAvatarUrl(data.profile_photo_url ?? null);
 
         // Vérifier si le profil est incomplet
-        const isIncomplete = !data.country || 
-          !data.education_level || 
-          !data.classes || 
-          !data.subjects || 
+        const isIncomplete = !data.country ||
+          !data.education_level ||
+          !data.classes ||
+          !data.subjects ||
           !data.subscription;
 
         if (isIncomplete) {
@@ -178,7 +296,7 @@ const Profile = () => {
     };
     loadProfile();
     return () => { active = false; };
-  }, [user]);
+  }, [user, role, roleLoading, navigate]);
 
   useEffect(() => {
     let active = true;
@@ -201,6 +319,36 @@ const Profile = () => {
     loadProfilesInfos();
     return () => { active = false; };
   }, [user]);
+
+  // Effet pour afficher le dialog du code d'organisation pour les étudiants avec profil incomplet
+  useEffect(() => {
+    const checkOrganizationDialog = async () => {
+      if (!user || roleLoading || !isProfileIncomplete) return;
+      if (role !== 'student') return;
+      if (orgDialogDismissed) return;
+
+      // Vérifier si un code a déjà été validé (dans localStorage)
+      const storedOrgCode = localStorage.getItem('validated_org_code');
+      if (storedOrgCode) {
+        // Code déjà validé, ne pas afficher le dialog
+        return;
+      }
+
+      // Vérifier si l'étudiant est déjà membre d'une organisation
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('id, status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // Si pas encore membre et pas de code validé, afficher le dialog
+      if (!membership) {
+        setShowOrgCodeDialog(true);
+      }
+    };
+
+    checkOrganizationDialog();
+  }, [user, role, roleLoading, isProfileIncomplete, orgDialogDismissed]);
 
   const onChange = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -530,11 +678,46 @@ const Profile = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       toast({ title: "Déconnexion réussie", description: "Vous avez été déconnecté avec succès." });
       navigate("/auth");
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message ?? "Impossible de se déconnecter", variant: "destructive" });
+    }
+  };
+
+  const handleLeaveOrganization = async () => {
+    if (!user || !activeOrganization) return;
+
+    try {
+      setIsLeavingOrg(true);
+
+      // Supprimer l'adhésion à l'organisation
+      const { error } = await supabase
+        .from('organization_members')
+        .delete()
+        .eq('id', activeOrganization.membershipId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Organisation quittée",
+        description: `Vous avez quitté ${activeOrganization.organizationName} avec succès.`,
+      });
+
+      // Réinitialiser l'état
+      setActiveOrganization(null);
+
+      // Recharger les données du profil
+      window.location.reload();
+    } catch (e: any) {
+      toast({
+        title: "Erreur",
+        description: e.message ?? "Impossible de quitter l'organisation",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLeavingOrg(false);
     }
   };
 
@@ -570,10 +753,19 @@ const Profile = () => {
 
       toast({
         title: "Questionnaires réinitialisés",
-        description: "Vous pouvez maintenant refaire les questionnaires sur le tableau de bord."
+        description: pendingOrgApproval
+          ? "Rechargez la page pour refaire les questionnaires."
+          : "Vous pouvez maintenant refaire les questionnaires sur le tableau de bord."
       });
 
-      navigate('/dashboard');
+      // Si en attente d'approbation, recharger la page au lieu de naviguer vers dashboard
+      if (pendingOrgApproval) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (e: any) {
       toast({
         title: "Erreur",
@@ -584,9 +776,41 @@ const Profile = () => {
   };
 
   const handleProfileCompletion = () => {
+    // Nettoyer le localStorage après complétion
+    localStorage.removeItem('validated_org_id');
+    localStorage.removeItem('validated_org_name');
+    localStorage.removeItem('validated_org_code');
+
     // Recharger le profil après complétion
     setIsProfileIncomplete(false);
     window.location.reload();
+  };
+
+  // Gestionnaires pour le dialog du code d'organisation
+  const handleOrgCodeSuccess = async (organizationId: string, organizationName: string, code: string) => {
+    if (!user) return;
+
+    // Stocker dans le localStorage pour persister entre les renders
+    // L'ajout à organization_members se fera lors de la soumission du formulaire
+    localStorage.setItem('validated_org_id', organizationId);
+    localStorage.setItem('validated_org_name', organizationName);
+    localStorage.setItem('validated_org_code', code);
+
+    setValidatedOrgId(organizationId);
+    setValidatedOrgName(organizationName);
+    setValidatedOrgCode(code);
+    setOrganizationValidated(true);
+    setShowOrgCodeDialog(false);
+
+    toast({
+      title: "Code validé !",
+      description: `Complétez votre profil pour rejoindre ${organizationName}.`,
+    });
+  };
+
+  const handleOrgCodeSkip = () => {
+    setShowOrgCodeDialog(false);
+    setOrgDialogDismissed(true);
   };
 
   const handleDeleteAccount = async () => {
@@ -662,19 +886,52 @@ const Profile = () => {
           <img src="/logo-savistas.png" alt="Savistas Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
           <span className="font-semibold text-slate-800 text-base md:text-lg tracking-tight">{form.full_name || 'Mon profil'}</span>
         </div>
-        <BurgerMenu />
+        <div className="w-10 h-10">
+          {!roleLoading && role !== 'school' && role !== 'company' && <BurgerMenu />}
+        </div>
       </header>
 
       {/* Main Content */}
       <div className="px-6 py-8 pt-24 md:pt-28 pb-32">
         <div className="w-full md:w-[70%] mx-auto animate-fade-in">
         
-        {/* Section de complétion du profil (si profil incomplet) */}
-        {isProfileIncomplete && !roleLoading && (
+        {/* Dialog du code d'organisation pour les étudiants */}
+        {role === 'student' && (
+          <OrganizationCodeDialog
+            open={showOrgCodeDialog}
+            onOpenChange={setShowOrgCodeDialog}
+            onSuccess={handleOrgCodeSuccess}
+            onSkip={handleOrgCodeSkip}
+          />
+        )}
+
+        {/* Message de blocage si en attente d'approbation */}
+        {pendingOrgApproval && (
+          <OrganizationPendingApproval organizationName={pendingOrgApproval.organizationName} />
+        )}
+
+        {/* Affichage des informations de l'organisation active */}
+        {!pendingOrgApproval && activeOrganization && (
+          <ActiveOrganizationInfo
+            organizationName={activeOrganization.organizationName}
+            adminEmail={activeOrganization.adminEmail}
+            onLeaveOrganization={handleLeaveOrganization}
+            isLeaving={isLeavingOrg}
+          />
+        )}
+
+        {/* Section de complétion du profil (si profil incomplet et pas en attente) */}
+        {isProfileIncomplete && !roleLoading && !pendingOrgApproval && (
           <Card className="mb-8">
             <CardContent className="p-8">
               {role === 'student' ? (
-                <StudentProfileForm onComplete={handleProfileCompletion} />
+                <StudentProfileForm
+                  onComplete={handleProfileCompletion}
+                  joinedViaCode={organizationValidated}
+                  organizationId={validatedOrgId}
+                  organizationName={validatedOrgName}
+                  organizationCode={validatedOrgCode}
+                />
               ) : (role === 'school' || role === 'company') ? (
                 <OrganizationProfileForm
                   onComplete={handleProfileCompletion}
@@ -691,7 +948,7 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Section profil normal (grisée si profil incomplet) */}
+        {/* Section profil normal (grisée uniquement si profil incomplet, pas si en attente) */}
         <div className={isProfileIncomplete ? "opacity-50 pointer-events-none" : ""}>
         <Card className="border-border">
           <CardHeader>
@@ -715,9 +972,11 @@ const Profile = () => {
             </div>
 
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto sm:h-10">
+              <TabsList className={`grid w-full ${role === 'school' || role === 'company' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'} h-auto sm:h-10`}>
                 <TabsTrigger value="general" className="text-sm sm:text-sm py-3 sm:py-2">Informations générales</TabsTrigger>
-                <TabsTrigger value="education" className="text-sm sm:text-sm py-3 sm:py-2">Informations scolaires</TabsTrigger>
+                {role !== 'school' && role !== 'company' && (
+                  <TabsTrigger value="education" className="text-sm sm:text-sm py-3 sm:py-2">Informations scolaires</TabsTrigger>
+                )}
                 <TabsTrigger value="subscription" className="text-sm sm:text-sm py-3 sm:py-2">Abonnement</TabsTrigger>
               </TabsList>
 
@@ -779,50 +1038,72 @@ const Profile = () => {
                 </form>
               </TabsContent>
 
-              {/* Onglet Informations scolaires */}
-              <TabsContent value="education" className="space-y-6 mt-6">
-                <form onSubmit={handleSave} className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Niveau d'enseignement</Label>
-                      <Input value={form.education_level} onChange={(e) => onChange('education_level', e.target.value)} placeholder="Ex: Collège, Lycée" />
+              {/* Onglet Informations scolaires - Masqué pour les organisations */}
+              {role !== 'school' && role !== 'company' && (
+                <TabsContent value="education" className="space-y-6 mt-6">
+                  <form onSubmit={handleSave} className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label>Niveau d'enseignement</Label>
+                        <Input value={form.education_level} onChange={(e) => onChange('education_level', e.target.value)} placeholder="Ex: Collège, Lycée" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Classes</Label>
+                        <Input value={form.classes} onChange={(e) => onChange('classes', e.target.value)} placeholder="Ex: 2nde, 1ère" />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Matières</Label>
+                        <Input value={form.subjects} onChange={(e) => onChange('subjects', e.target.value)} placeholder="Ex: Mathématiques, Physique" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Code de liaison</Label>
+                        <Input value={form.link_code} onChange={(e) => onChange('link_code', e.target.value)} placeholder="Code de liaison" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Relation de liaison</Label>
+                        <Input value={form.link_relation} onChange={(e) => onChange('link_relation', e.target.value)} placeholder="Type de relation" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>ENT</Label>
+                        <Input value={form.ent} onChange={(e) => onChange('ent', e.target.value)} placeholder="Votre ENT" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Niveau IA</Label>
+                        <Input value={form.ai_level} onChange={(e) => onChange('ai_level', e.target.value)} placeholder="Votre niveau IA" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Classes</Label>
-                      <Input value={form.classes} onChange={(e) => onChange('classes', e.target.value)} placeholder="Ex: 2nde, 1ère" />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Matières</Label>
-                      <Input value={form.subjects} onChange={(e) => onChange('subjects', e.target.value)} placeholder="Ex: Mathématiques, Physique" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Code de liaison</Label>
-                      <Input value={form.link_code} onChange={(e) => onChange('link_code', e.target.value)} placeholder="Code de liaison" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Relation de liaison</Label>
-                      <Input value={form.link_relation} onChange={(e) => onChange('link_relation', e.target.value)} placeholder="Type de relation" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>ENT</Label>
-                      <Input value={form.ent} onChange={(e) => onChange('ent', e.target.value)} placeholder="Votre ENT" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Niveau IA</Label>
-                      <Input value={form.ai_level} onChange={(e) => onChange('ai_level', e.target.value)} placeholder="Votre niveau IA" />
-                    </div>
-                  </div>
 
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={loading}>
-                      {loading ? 'Enregistrement...' : 'Enregistrer'}
-                    </Button>
-                  </div>
-                </form>
-              </TabsContent>
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={loading}>
+                        {loading ? 'Enregistrement...' : 'Enregistrer'}
+                      </Button>
+                    </div>
+                  </form>
+                </TabsContent>
+              )}
 
               {/* Onglet Abonnement */}
               <TabsContent value="subscription" className="space-y-6 mt-6">
+                {/* Message pour les membres d'organisation */}
+                {activeOrganization ? (
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardContent className="p-6">
+                      <div className="space-y-3 text-center">
+                        <div className="flex items-center justify-center gap-2 text-blue-900">
+                          <AlertCircle className="w-5 h-5" />
+                          <h3 className="text-lg font-semibold">Abonnement géré par votre organisation</h3>
+                        </div>
+                        <p className="text-blue-800">
+                          Votre abonnement est pris en charge par <strong>{activeOrganization.organizationName}</strong>.
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          Vous bénéficiez des avantages fournis par votre organisation.
+                          Pour toute question concernant votre abonnement, veuillez contacter l'administrateur de votre organisation.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Abonnement Basique */}
                   <Card className={`border-2 transition-all duration-300 ${
@@ -956,13 +1237,14 @@ const Profile = () => {
                     </CardContent>
                   </Card>
                 </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
 
-        {/* Section Styles d'apprentissage - affichée uniquement si pas complété et pas d'infos */}
-        {!form.learning_styles_completed && (!profilesInfos || !Object.values(profilesInfos).some(value => value)) && (
+        {/* Section Styles d'apprentissage - affichée uniquement si pas complété et pas d'infos ET pas une organisation ET pas en attente d'approbation */}
+        {!roleLoading && role !== 'school' && role !== 'company' && !pendingOrgApproval && !form.learning_styles_completed && (!profilesInfos || !Object.values(profilesInfos).some(value => value)) && (
           <Card className="border-border mt-8">
             <CardHeader>
               <CardTitle className="text-2xl">Styles d'apprentissage</CardTitle>
@@ -984,7 +1266,8 @@ const Profile = () => {
 
 
 
-        {profilesInfos && Object.values(profilesInfos).some(value => value) && (
+        {/* Section Infos d'apprentissage - cachée pour les organisations */}
+        {!roleLoading && role !== 'school' && role !== 'company' && profilesInfos && Object.values(profilesInfos).some(value => value) && (
           <Card className="border-border mt-8">
             <CardHeader>
               <CardTitle className="text-2xl">Infos d'apprentissage</CardTitle>
@@ -1126,24 +1409,26 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Section pour refaire les questionnaires */}
-        <Card className="border-border mt-8">
-          <CardHeader>
-            <CardTitle className="text-2xl">Questionnaires de personnalisation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Refaites les questionnaires de prédétection de troubles et de styles d'apprentissage pour mettre à jour votre profil.
-            </p>
-            <Button
-              onClick={handleRetakeQuestionnaires}
-              variant="outline"
-              className="w-full"
-            >
-              Refaire les questionnaires de prédétection
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Section pour refaire les questionnaires - cachée pour les organisations et en attente d'approbation */}
+        {!roleLoading && role !== 'school' && role !== 'company' && !pendingOrgApproval && (
+          <Card className="border-border mt-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Questionnaires de personnalisation</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Refaites les questionnaires de prédétection de troubles et de styles d'apprentissage pour mettre à jour votre profil.
+              </p>
+              <Button
+                onClick={handleRetakeQuestionnaires}
+                variant="outline"
+                className="w-full"
+              >
+                Refaire les questionnaires de prédétection
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Section pour changer le mot de passe */}
         <Card className="border-border mt-8">

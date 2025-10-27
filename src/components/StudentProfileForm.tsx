@@ -14,6 +14,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface StudentProfileFormProps {
   onComplete: () => void;
+  joinedViaCode?: boolean;
+  organizationId?: string | null;
+  organizationName?: string | null;
+  organizationCode?: string | null;
 }
 
 const subscriptions = [
@@ -52,7 +56,13 @@ const subscriptions = [
   }
 ];
 
-export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
+export const StudentProfileForm = ({
+  onComplete,
+  joinedViaCode = false,
+  organizationId = null,
+  organizationName = null,
+  organizationCode = null,
+}: StudentProfileFormProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -62,7 +72,7 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [invitationCode, setInvitationCode] = useState('');
-  const [organizationCode, setOrganizationCode] = useState('');
+  const [orgCode, setOrgCode] = useState(organizationCode || '');
   const [ent, setEnt] = useState('');
   const [aiLevel, setAiLevel] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
@@ -127,8 +137,19 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
     loadExistingData();
   }, [user]);
 
+  // Mettre à jour le code d'organisation quand il est validé
+  useEffect(() => {
+    if (organizationCode) {
+      setOrgCode(organizationCode);
+    }
+  }, [organizationCode]);
+
   // Validation des champs obligatoires
   const isFormValid = () => {
+    // Si l'étudiant a rejoint via code, l'abonnement n'est pas requis
+    if (joinedViaCode) {
+      return country && educationLevel && classes && subjects;
+    }
     return country && educationLevel && classes && subjects && subscription;
   };
 
@@ -179,7 +200,8 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
         education_level: educationLevel,
         classes,
         subjects,
-        subscription,
+        // Si rejoint via code, utiliser 'basic' par défaut (géré par l'organisation)
+        subscription: joinedViaCode ? 'basic' : subscription,
         ai_level: aiLevel || null,
         ent: ent || null,
         profile_completed: true,
@@ -203,8 +225,8 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
         throw profileError;
       }
 
-      // Si un code d'organisation valide a été entré, créer la demande d'adhésion
-      if (organizationValidated && validatedOrgId) {
+      // Si rejoint via code : ajouter le membre à l'organisation avec statut 'pending'
+      if (joinedViaCode && organizationId) {
         const { data: existingMembership } = await supabase
           .from('organization_members')
           .select('id')
@@ -215,18 +237,27 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
           const { error: memberError } = await supabase
             .from('organization_members')
             .insert({
-              organization_id: validatedOrgId,
+              organization_id: organizationId,
               user_id: user.id,
-              status: 'pending',
               role: 'student',
+              status: 'pending',
               requested_at: new Date().toISOString(),
             });
 
-          if (memberError && !memberError.message.includes('duplicate')) {
-            console.error('Organization membership error:', memberError);
+          if (memberError) {
+            console.error('Error adding member:', memberError);
+            throw new Error('Erreur lors de l\'ajout à l\'organisation');
           }
         }
+      }
 
+      // Message de succès
+      if (joinedViaCode && organizationName) {
+        toast({
+          title: 'Demande envoyée !',
+          description: `Votre demande d'adhésion à ${organizationName} a été envoyée. Vous recevrez une notification une fois approuvée.`,
+        });
+      } else if (organizationValidated && validatedOrgName) {
         toast({
           title: 'Profil complété !',
           description: `Votre demande d'adhésion à ${validatedOrgName} a été envoyée.`,
@@ -333,15 +364,34 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
                 {/* Code d'invitation (Organisation) */}
                 <div className="space-y-3 border-t pt-6">
                   <Label>Code d'invitation (optionnel)</Label>
-                  <p className="text-sm text-slate-600">
-                    Si vous faites partie d'une école ou d'une entreprise utilisant Savistas,
-                    entrez le code d'invitation fourni par votre établissement.
-                  </p>
-                  <OrganizationCodeInput
-                    value={organizationCode}
-                    onChange={setOrganizationCode}
-                    onValidationChange={handleOrganizationValidation}
-                  />
+
+                  {joinedViaCode && organizationName ? (
+                    // Si rejoint via dialog : afficher le code validé en vert
+                    <div className="space-y-2">
+                      <Input
+                        value={orgCode}
+                        disabled
+                        className="border-green-500 bg-green-50 text-green-900 font-medium"
+                      />
+                      <p className="text-sm text-green-700 flex items-center gap-2">
+                        <Check className="w-4 h-4" />
+                        Vous allez rejoindre : <strong>{organizationName}</strong>
+                      </p>
+                    </div>
+                  ) : (
+                    // Sinon : afficher le champ normal
+                    <>
+                      <p className="text-sm text-slate-600">
+                        Si vous faites partie d'une école ou d'une entreprise utilisant Savistas,
+                        entrez le code d'invitation fourni par votre établissement.
+                      </p>
+                      <OrganizationCodeInput
+                        value={orgCode}
+                        onChange={setOrgCode}
+                        onValidationChange={handleOrganizationValidation}
+                      />
+                    </>
+                  )}
                 </div>
 
                 {/* ENT et Niveau IA */}
@@ -475,24 +525,25 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
             </div>
           </div>
 
-        {/* Section 3: Abonnement */}
-        <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b bg-slate-50">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-semibold">3</span>
-              <span className="text-lg font-semibold text-slate-900">Abonnement</span>
+        {/* Section 3: Abonnement (masquée si rejoint via code) */}
+        {!joinedViaCode && (
+          <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b bg-slate-50">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-semibold">3</span>
+                <span className="text-lg font-semibold text-slate-900">Abonnement</span>
+              </div>
             </div>
-          </div>
-          <div className="px-6 py-6">
-            <div className="space-y-4">
-                <div className="mb-4">
-                  <Label>
-                    Type d'abonnement <span className="text-red-500">*</span>
-                  </Label>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {subscriptions.map((sub) => (
-                    <Card
+            <div className="px-6 py-6">
+              <div className="space-y-4">
+                  <div className="mb-4">
+                    <Label>
+                      Type d'abonnement <span className="text-red-500">*</span>
+                    </Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {subscriptions.map((sub) => (
+                      <Card
                       key={sub.id}
                       className={cn(
                         "rounded-lg hover:shadow-lg transition-all duration-300 border-2 relative cursor-pointer",
@@ -555,11 +606,24 @@ export const StudentProfileForm = ({ onComplete }: StudentProfileFormProps) => {
                         </Button>
                       </CardContent>
                     </Card>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+        )}
+
+        {/* Message d'information si rejoint via code */}
+        {joinedViaCode && organizationName && (
+          <Alert className="border-green-200 bg-green-50">
+            <Check className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              <strong>Organisation rejointe</strong>
+              <br />
+              Vous êtes membre de <strong>{organizationName}</strong>. L'abonnement est géré par votre organisation.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Bouton de soumission */}
         <div className="mt-8 flex justify-center">
