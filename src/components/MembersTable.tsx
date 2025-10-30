@@ -91,9 +91,6 @@ export const MembersTable = ({
       </TableCell>
       <TableCell>{member.email}</TableCell>
       <TableCell>
-        <span className="capitalize">{member.role}</span>
-      </TableCell>
-      <TableCell>
         {format(new Date(member.requested_at), 'dd/MM/yyyy', { locale: fr })}
       </TableCell>
       <TableCell>
@@ -166,7 +163,6 @@ export const MembersTable = ({
               <TableRow>
                 <TableHead>Nom</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
                 <TableHead>Date d'inscription</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Actions</TableHead>
@@ -175,7 +171,7 @@ export const MembersTable = ({
             <TableBody>
               {members.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500">
+                  <TableCell colSpan={5} className="text-center text-gray-500">
                     Aucun membre
                   </TableCell>
                 </TableRow>
@@ -196,7 +192,6 @@ export const MembersTable = ({
               <TableRow>
                 <TableHead>Nom</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
                 <TableHead>Date d'inscription</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Actions</TableHead>
@@ -205,7 +200,7 @@ export const MembersTable = ({
             <TableBody>
               {activeMembers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500">
+                  <TableCell colSpan={5} className="text-center text-gray-500">
                     Aucun membre actif
                   </TableCell>
                 </TableRow>
@@ -226,7 +221,6 @@ export const MembersTable = ({
               <TableRow>
                 <TableHead>Nom</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
                 <TableHead>Date d'inscription</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Actions</TableHead>
@@ -235,7 +229,7 @@ export const MembersTable = ({
             <TableBody>
               {pendingMembers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500">
+                  <TableCell colSpan={5} className="text-center text-gray-500">
                     Aucune demande en attente
                   </TableCell>
                 </TableRow>

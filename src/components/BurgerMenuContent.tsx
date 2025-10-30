@@ -37,10 +37,6 @@ const itemVariant = {
 const BurgerMenuContent: React.FC = () => {
   const { role } = useUserRole();
 
-  const handleDisabledClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-  };
-
   // Helper pour transformer les hrefs avec le rôle
   const getRoleHref = (href: string) => {
     if (href === '#' || href.startsWith('http')) return href;
@@ -64,22 +60,19 @@ const BurgerMenuContent: React.FC = () => {
 
           {/* Items de la catégorie */}
           <div className="space-y-0.5">
-            {category.items.map((item, itemIndex: number) => (
-              <motion.a
-                key={itemIndex}
-                href={getRoleHref(item.href)}
-                onClick={item.disabled ? handleDisabledClick : undefined}
-                className={`block px-6 py-2 text-sm rounded-lg mx-2 transition-opacity ${
-                  item.disabled
-                    ? 'text-gray-400 cursor-not-allowed pointer-events-none'
-                    : 'text-slate-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer'
-                }`}
-                variants={itemVariant}
-                tabIndex={item.disabled ? -1 : 0}
-              >
-                {item.label}
-              </motion.a>
-            ))}
+            {category.items
+              .filter((item) => !item.disabled)
+              .map((item, itemIndex: number) => (
+                <motion.a
+                  key={itemIndex}
+                  href={getRoleHref(item.href)}
+                  className="block px-6 py-2 text-sm rounded-lg mx-2 transition-opacity text-slate-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer"
+                  variants={itemVariant}
+                  tabIndex={0}
+                >
+                  {item.label}
+                </motion.a>
+              ))}
           </div>
         </motion.div>
       ))}

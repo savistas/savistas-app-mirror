@@ -66,6 +66,7 @@ export default function ProfesseurParticulierVirtuel() {
   const [preventReset, setPreventReset] = useState(false);
   const [pendingReferenceId, setPendingReferenceId] = useState<string | null>(null);
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
+  const [isPrefilledFromUrl, setIsPrefilledFromUrl] = useState(false);
 
   // Traiter les paramètres URL au chargement
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function ProfesseurParticulierVirtuel() {
           setPreventReset(true);
           setConversationType('course');
           setPendingReferenceId(courseIdParam);
+          setIsPrefilledFromUrl(true); // Mark as prefilled from URL
           setUrlParamsProcessed(true);
         }
       } else if (typeParam === 'exercise' && exerciseIdParam && exercises.length > 0) {
@@ -561,27 +563,48 @@ export default function ProfesseurParticulierVirtuel() {
             <CardContent className="space-y-4">
               {!sessionData && (
                 <>
-                  {/* Type de conversation */}
-                  <ConversationTypeSelector
-                    value={conversationType}
-                    onChange={setConversationType}
-                    disabled={isCreatingSession}
-                  />
+                  {/* Type de conversation - Hidden if prefilled from URL */}
+                  {!isPrefilledFromUrl && (
+                    <ConversationTypeSelector
+                      value={conversationType}
+                      onChange={setConversationType}
+                      disabled={isCreatingSession}
+                    />
+                  )}
 
-                  {/* Sélection de contenu (cours/exercice/erreur) */}
-                  <ContentReferenceSelector
-                    conversationType={conversationType}
-                    value={selectedReferenceId}
-                    onChange={setSelectedReferenceId}
-                    courses={courses}
-                    exercises={exercises}
-                    errors={errors}
-                    isLoading={isLoadingCourses || isLoadingExercises || isLoadingErrors}
-                    error={coursesError || exercisesError || errorsError}
-                    disabled={isCreatingSession}
-                    selectedCourseId={selectedCourseIdForExercise}
-                    onCourseChange={setSelectedCourseIdForExercise}
-                  />
+                  {/* Sélection de contenu (cours/exercice/erreur) - Hidden if prefilled from URL */}
+                  {!isPrefilledFromUrl && (
+                    <ContentReferenceSelector
+                      conversationType={conversationType}
+                      value={selectedReferenceId}
+                      onChange={setSelectedReferenceId}
+                      courses={courses}
+                      exercises={exercises}
+                      errors={errors}
+                      isLoading={isLoadingCourses || isLoadingExercises || isLoadingErrors}
+                      error={coursesError || exercisesError || errorsError}
+                      disabled={isCreatingSession}
+                      selectedCourseId={selectedCourseIdForExercise}
+                      onCourseChange={setSelectedCourseIdForExercise}
+                    />
+                  )}
+
+                  {/* Display selected course info when prefilled from URL */}
+                  {isPrefilledFromUrl && selectedReferenceId && (
+                    <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="text-sm">
+                          📚 Cours sélectionné
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-medium text-primary">
+                        {courses.find(c => c.id === selectedReferenceId)?.title || 'Chargement...'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Le cours a été automatiquement sélectionné depuis vos documents
+                      </p>
+                    </div>
+                  )}
 
                   {/* Instructions supplémentaires */}
                   <div className="space-y-2">

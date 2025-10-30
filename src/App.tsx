@@ -26,6 +26,8 @@ import AdminOrganizationRequests from "./pages/AdminOrganizationRequests";
 import OrganizationRequestStatus from "./pages/OrganizationRequestStatus";
 import StudentDocuments from "./pages/StudentDocuments";
 import StudentRevisionSheets from "./pages/StudentRevisionSheets";
+import RevisionSheets from "./pages/student/RevisionSheets";
+import AIRevisionSession from "./pages/student/AIRevisionSession";
 import Terms from "./pages/Terms"; // Import Terms page
 import Privacy from "./pages/Privacy"; // Import Privacy page
 import ResetPassword from "./pages/ResetPassword";
@@ -69,6 +71,10 @@ const App = () => (
             <Route path="/:role/professeur-particulier-virtuel" element={<ProtectedRoute><ProfesseurParticulierVirtuel /></ProtectedRoute>} />
             <Route path="/:role/documents" element={<ProtectedRoute><StudentDocuments /></ProtectedRoute>} />
             <Route path="/:role/revision-sheets" element={<ProtectedRoute><StudentRevisionSheets /></ProtectedRoute>} />
+
+            {/* New Revision Sheets Routes */}
+            <Route path="/student/revision-sheets" element={<ProtectedRoute><RevisionSheets /></ProtectedRoute>} />
+            <Route path="/student/revision-sheets/:courseId/ai-session" element={<ProtectedRoute><AIRevisionSession /></ProtectedRoute>} />
 
             {/* Routes legacy (sans rôle) pour rétrocompatibilité */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

@@ -1,52 +1,39 @@
-import { Download, Eye, FileText, Loader2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Eye, FileText, Trash2, Loader2 } from 'lucide-react';
+import { Document, formatFileSize, getFileTypeLabel } from '@/types/document';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RevisionSheet } from '@/types/revisionSheet';
-import { useDeleteRevisionSheet } from '@/hooks/revision-sheets/useDeleteRevisionSheet';
-import { getRevisionSheetDownloadUrl } from '@/services/revisionSheetService';
-import { useState } from 'react';
+import { documentService } from '@/services/documentService';
 import { toast } from 'sonner';
-import { DeleteDocumentDialog } from '@/components/documents/DeleteDocumentDialog';
+import { DeleteDocumentDialog } from './DeleteDocumentDialog';
 
-interface RevisionSheetCardProps {
-  sheet: RevisionSheet;
-  onReviseWithAI: () => void;
-  onCreateQuiz: () => void;
+interface StandaloneDocumentCardProps {
+  document: Document;
+  onDelete: (id: string) => Promise<void>;
+  onQuiz: (document: Document) => void;
+  onFiche: (document: Document) => void;
+  onProfIA: (document: Document) => void;
+  isProcessing?: boolean;
 }
 
-export const RevisionSheetCard = ({
-  sheet,
-  onReviseWithAI,
-  onCreateQuiz,
-}: RevisionSheetCardProps) => {
-  const deleteMutation = useDeleteRevisionSheet();
+export function StandaloneDocumentCard({
+  document,
+  onDelete,
+  onQuiz,
+  onFiche,
+  onProfIA,
+  isProcessing = false,
+}: StandaloneDocumentCardProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const fileName = sheet.file_name || `Fiche_Revision_${sheet.course.title}.txt`;
 
   const handleDownload = async () => {
-    if (!sheet.file_url) return;
-
+    setIsDownloading(true);
     try {
-      setIsDownloading(true);
-      const downloadUrl = await getRevisionSheetDownloadUrl(sheet.file_url);
-
-      // Download the file
-      const response = await fetch(downloadUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success('Téléchargement réussi');
+      await documentService.downloadDocument(document);
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error('Download failed:', error);
       toast.error('Erreur lors du téléchargement');
     } finally {
       setIsDownloading(false);
@@ -54,26 +41,24 @@ export const RevisionSheetCard = ({
   };
 
   const handleView = async () => {
-    if (!sheet.file_url) return;
-
+    setIsViewing(true);
     try {
-      setIsViewing(true);
-      const downloadUrl = await getRevisionSheetDownloadUrl(sheet.file_url);
-      window.open(downloadUrl, '_blank');
+      const url = await documentService.getViewUrl(document);
+      window.open(url, '_blank');
     } catch (error) {
-      console.error('Error viewing file:', error);
-      toast.error('Erreur lors de l\'ouverture du fichier');
+      console.error('View failed:', error);
+      toast.error('Erreur lors de la visualisation');
     } finally {
       setIsViewing(false);
     }
   };
 
   const handleDeleteConfirm = async () => {
-    deleteMutation.mutate(sheet.course_id);
+    await onDelete(document.id);
     setShowDeleteDialog(false);
   };
 
-  const formattedDate = new Date(sheet.created_at).toLocaleDateString('fr-FR', {
+  const formattedDate = new Date(document.created_at).toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -81,27 +66,31 @@ export const RevisionSheetCard = ({
 
   return (
     <>
-      <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow duration-200 w-[280px] flex-shrink-0">
+      <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow duration-200 relative w-[280px] flex-shrink-0">
+        {/* Processing Overlay */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg z-10 flex flex-col items-center justify-center">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
+            <p className="text-sm font-medium text-gray-900">Chargement IA</p>
+            <p className="text-xs text-gray-600 mt-1">Création du cours en cours...</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-3">
           <Badge variant="secondary" className="mb-2">
-            {sheet.course.subject}
+            {document.subject}
           </Badge>
 
           <div className="flex items-start gap-2 mb-2">
             <FileText className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 line-clamp-1">
-                {sheet.course.title}
-              </h3>
-              <p className="text-xs text-gray-600 line-clamp-1">
-                {fileName}
-              </p>
-            </div>
+            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+              {document.name}
+            </h3>
           </div>
 
           <p className="text-sm text-gray-500">
-            Fiche de révision • {formattedDate}
+            {getFileTypeLabel(document.file_type)} • {formatFileSize(document.file_size)} • {formattedDate}
           </p>
         </div>
 
@@ -141,23 +130,32 @@ export const RevisionSheetCard = ({
         {/* Revision Tools */}
         <div className="border-t pt-3 mb-3">
           <p className="text-xs text-gray-600 mb-2 font-medium">Réviser avec:</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={onReviseWithAI}
+              onClick={() => onQuiz(document)}
               className="text-xs"
             >
-              Prof IA
+              Quiz
             </Button>
 
             <Button
               variant="outline"
               size="sm"
-              onClick={onCreateQuiz}
+              onClick={() => onFiche(document)}
               className="text-xs"
             >
-              Quiz
+              Fiche
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onProfIA(document)}
+              className="text-xs"
+            >
+              Prof IA
             </Button>
           </div>
         </div>
@@ -167,7 +165,6 @@ export const RevisionSheetCard = ({
           variant="destructive"
           size="sm"
           onClick={() => setShowDeleteDialog(true)}
-          disabled={deleteMutation.isPending}
           className="w-full"
         >
           <Trash2 className="w-4 h-4 mr-1" />
@@ -179,8 +176,8 @@ export const RevisionSheetCard = ({
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onConfirm={handleDeleteConfirm}
-        documentName={sheet.course.title}
+        documentName={document.name}
       />
     </>
   );
-};
+}

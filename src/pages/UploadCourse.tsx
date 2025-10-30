@@ -5,8 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Camera, Upload, ArrowLeft, Plus, XCircle, Image } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import { SubjectCombobox } from "@/components/SubjectCombobox";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -26,18 +27,54 @@ const UploadCourse = () => {
     lesson: "",
     difficulties: "",
     days: 7,
+    qcmPerDay: 5,
   });
   const [files, setFiles] = useState<File[]>([]); // Changed from 'file' to 'files'
   const [uploadKind, setUploadKind] = useState<'photo' | 'pdf' | null>(null);
   const [creating, setCreating] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [showAddMoreOptions, setShowAddMoreOptions] = useState(false);
+  const [prefilledFileUrl, setPrefilledFileUrl] = useState<string | null>(null);
+  const [prefilledCourseId, setPrefilledCourseId] = useState<string | null>(null);
+  const [prefilledDocumentId, setPrefilledDocumentId] = useState<string | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null); // New ref for gallery
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // New ref for combined file input
   const isMobile = useIsMobile();
+
+  // Handle prefilled document from navigation state
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.prefilledDocument && state?.step === 'configuration') {
+      const { file_path, file_name, subject, course_id, document_id } = state.prefilledDocument;
+
+      // Set the form data with prefilled values
+      setFormData(prev => ({
+        ...prev,
+        subject: subject || '',
+        lesson: file_name?.replace(/\.[^/.]+$/, '') || '', // Remove file extension from lesson name
+      }));
+
+      // Store the file URL, course_id, and document_id for later use in handleCreate
+      setPrefilledFileUrl(file_path);
+      if (course_id) {
+        setPrefilledCourseId(course_id);
+      }
+      if (document_id) {
+        setPrefilledDocumentId(document_id);
+      }
+
+      // Skip to step 2
+      setStep(2);
+
+      toast({
+        title: 'Document chargé',
+        description: 'Votre document a été pré-rempli. Configurez votre cours.',
+      });
+    }
+  }, [location.state, toast]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -77,68 +114,120 @@ const UploadCourse = () => {
       return;
     }
 
-    if (files.length === 0) { // Changed from 'file' to 'files.length'
+    // Check if we have either files or a prefilled document
+    if (files.length === 0 && !prefilledFileUrl) {
       toast({ title: "Fichier requis", description: "Ajoutez au moins une image ou un PDF pour votre cours.", variant: "destructive" });
       return;
     }
 
     try {
       setCreating(true);
-      const fileUrls: string[] = [];
-      const coverUrls: string[] = [];
+      let finalCourseId: string | undefined;
+      let hasExistingContent = false;
 
-      for (const file of files) {
-        const unique = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`;
-        const sanitizedFileName = sanitizeFileName(file.name);
-        const path = `${user.id}/${unique}-${sanitizedFileName}`;
-
-        const { error: uploadError } = await supabase.storage
+      // Check if we're working with an existing course
+      if (prefilledCourseId) {
+        // Existing course - just update parameters
+        const { data: existingCourse } = await supabase
           .from('courses')
-          .upload(path, file, { upsert: false, contentType: file.type });
-        if (uploadError) throw uploadError;
+          .select('id')
+          .eq('id', prefilledCourseId)
+          .single();
 
-        const { data: pub } = supabase.storage.from('courses').getPublicUrl(path);
-        const publicUrl = pub.publicUrl;
-        fileUrls.push(publicUrl);
+        if (existingCourse) {
+          finalCourseId = existingCourse.id;
+          // Course exists, so use the new webhook (document already uploaded/processed)
+          hasExistingContent = true;
 
-        const isImage = file.type.startsWith('image/');
-        if (isImage) {
-          coverUrls.push(publicUrl);
+          // Update existing course with new parameters
+          await supabase
+            .from('courses')
+            .update({
+              days_number: formData.days,
+              qcm_per_day: formData.qcmPerDay,
+            })
+            .eq('id', prefilledCourseId);
         }
+      } else {
+        // New course - upload files and create course
+        const fileUrls: string[] = [];
+        const coverUrls: string[] = [];
+
+        // If we have a prefilled file URL, use it directly
+        if (prefilledFileUrl) {
+          fileUrls.push(prefilledFileUrl);
+          // Document already exists (standalone document), use new webhook
+          hasExistingContent = true;
+          // No cover for prefilled documents (they are PDFs from standalone docs)
+        } else {
+          // Otherwise, upload the new files
+          for (const file of files) {
+            const unique = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`;
+            const sanitizedFileName = sanitizeFileName(file.name);
+            const path = `${user.id}/${unique}-${sanitizedFileName}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from('courses')
+              .upload(path, file, { upsert: false, contentType: file.type });
+            if (uploadError) throw uploadError;
+
+            const { data: pub } = supabase.storage.from('courses').getPublicUrl(path);
+            const publicUrl = pub.publicUrl;
+            fileUrls.push(publicUrl);
+
+            const isImage = file.type.startsWith('image/');
+            if (isImage) {
+              coverUrls.push(publicUrl);
+            }
+          }
+        }
+
+        const { data, error: insertError } = await supabase
+          .from('courses')
+          .insert([
+            {
+              title: formData.lesson,
+              subject: formData.subject,
+              description: formData.difficulties || null,
+              file_url: fileUrls, // Store as JSON array
+              cover_url: coverUrls.length > 0 ? coverUrls : null, // Store as JSON array or null
+              user_id: user.id,
+              days_number: formData.days, // Store days_number
+              qcm_per_day: formData.qcmPerDay, // Store qcm_per_day
+            },
+          ])
+          .select(); // Select the inserted data to get the ID
+
+        if (insertError) throw insertError;
+
+        finalCourseId = data?.[0]?.id;
       }
 
-      const { data, error: insertError } = await supabase
-        .from('courses')
-        .insert([
-          {
-            title: formData.lesson,
-            subject: formData.subject,
-            description: formData.difficulties || null,
-            file_url: fileUrls, // Store as JSON array
-            cover_url: coverUrls.length > 0 ? coverUrls : null, // Store as JSON array or null
-            user_id: user.id,
-            days_number: formData.days, // Store days_number
-          },
-        ])
-        .select(); // Select the inserted data to get the ID
-
-      if (insertError) throw insertError;
-
-      const courseId = data?.[0]?.id;
-
-      if (courseId && user.id) {
+      if (finalCourseId && user.id) {
         setShowLoader(true); // Show loader
         try {
-          const webhookUrl = "https://n8n.srv932562.hstgr.cloud/webhook/gneration-cours-savistas";
+          // Choose webhook based on whether course content already exists
+          const webhookUrl = hasExistingContent
+            ? "https://n8n.srv932562.hstgr.cloud/webhook/upload-course-with-content-ok"
+            : "https://n8n.srv932562.hstgr.cloud/webhook/gneration-cours-savistas";
+
+          const webhookPayload: any = {
+            course_id: String(finalCourseId), // Ensure course_id is a string
+            user_id: String(user.id),   // Ensure user_id is a string
+            qcm_per_day: formData.qcmPerDay, // Include QCM per day
+          };
+
+          // Add document_id if it exists (for standalone documents)
+          if (prefilledDocumentId) {
+            webhookPayload.document_id = String(prefilledDocumentId);
+          }
+
           const response = await fetch(webhookUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              course_id: String(courseId), // Ensure course_id is a string
-              user_id: String(user.id),   // Ensure user_id is a string
-            }),
+            body: JSON.stringify(webhookPayload),
           });
 
           if (!response.ok) {
@@ -253,8 +342,25 @@ const UploadCourse = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Display selected files */}
-                {files.length > 0 && (
+                {/* Display prefilled document or selected files */}
+                {prefilledFileUrl && (
+                  <div className="space-y-2">
+                    <Label>Document pré-rempli</Label>
+                    <div className="bg-primary/5 border border-primary/20 p-3 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Upload className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium text-primary">
+                          Document depuis "Mes documents"
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Le document sera utilisé pour générer votre cours
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!prefilledFileUrl && files.length > 0 && (
                   <div className="space-y-2">
                     <Label>Fichiers ajoutés</Label>
                     <ul className="space-y-1">
@@ -324,6 +430,24 @@ const UploadCourse = () => {
                     />
                     <span className="text-sm text-muted-foreground whitespace-nowrap">
                       {formData.days} {formData.days > 1 ? "jours" : "jour"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="qcm-per-day">Nombre de QCM par jour (1 à 10)</Label>
+                  <div className="flex items-center gap-4">
+                    <Slider
+                      value={[formData.qcmPerDay]}
+                      onValueChange={(v) => setFormData({ ...formData, qcmPerDay: v[0] })}
+                      min={1}
+                      max={10}
+                      step={1}
+                      aria-label="Nombre de QCM par jour"
+                      className="w-full"
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {formData.qcmPerDay} QCM
                     </span>
                   </div>
                 </div>
