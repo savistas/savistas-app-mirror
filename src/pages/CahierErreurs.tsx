@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAllErrors, ErrorWithDetails } from '@/hooks/useAllErrors';
+import { useErrorRevisionList } from '@/hooks/useErrorRevisionList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -39,12 +46,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { BookOpen, FileQuestion, GraduationCap, Search, Filter, ChevronRight } from 'lucide-react';
+import { BookOpen, FileQuestion, GraduationCap, Search, Filter, ChevronRight, Plus, Loader2, ImageIcon } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import BottomNav from '@/components/BottomNav';
 import BurgerMenu from '@/components/BurgerMenu';
+import { ErrorRevisionModal } from '@/components/error-revision/ErrorRevisionModal';
 
 type ErrorCategory = 'Compréhension' | 'Concentration' | 'Analyse' | 'Mémorisation' | 'Synthèse';
 
@@ -56,6 +64,7 @@ export default function CahierErreurs() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatiere, setSelectedMatiere] = useState<string>('all');
   const [selectedCategorie, setSelectedCategorie] = useState<string>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch user profile for display name
   useEffect(() => {
@@ -84,6 +93,9 @@ export default function CahierErreurs() {
 
   // Fetch all errors
   const { data: errors = [], isLoading } = useAllErrors();
+
+  // Fetch error revisions (manual uploads)
+  const { data: errorRevisions = [], isLoading: isLoadingRevisions } = useErrorRevisionList();
 
   // Get unique matieres for filter
   const matieres = useMemo(() => {
@@ -158,15 +170,25 @@ export default function CahierErreurs() {
       {/* Main Content */}
       <div className="p-4 md:p-8 pt-24 md:pt-28 pb-32">
         <div className="max-w-7xl mx-auto">
-          {/* Page Title */}
-          <div className="mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <GraduationCap className="w-8 h-8" />
-              Cahier d'erreurs
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Consultez toutes vos erreurs et révisez pour progresser
-            </p>
+          {/* Page Title with Action Button */}
+          <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                <GraduationCap className="w-8 h-8" />
+                Cahier d'erreurs
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Consultez toutes vos erreurs et révisez pour progresser
+              </p>
+            </div>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
+              size={isMobile ? 'default' : 'lg'}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Réviser une erreur
+            </Button>
           </div>
 
           {/* Filters and Search */}
@@ -234,17 +256,29 @@ export default function CahierErreurs() {
             </CardContent>
           </Card>
 
-          {/* Errors Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                Liste des erreurs
-                <Badge variant="secondary" className="ml-auto">
-                  {filteredErrors.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          {/* Errors Tabs */}
+          <Tabs defaultValue="exercises" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="exercises">
+                Erreurs d'exercices ({filteredErrors.length})
+              </TabsTrigger>
+              <TabsTrigger value="uploaded">
+                Erreurs téléchargées ({errorRevisions.length})
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Errors d'exercices Tab */}
+            <TabsContent value="exercises">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    Liste des erreurs d'exercices
+                    <Badge variant="secondary" className="ml-auto">
+                      {filteredErrors.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
               {isLoading ? (
                 <div className="text-center py-12 text-gray-500">
                   Chargement de vos erreurs...
@@ -537,10 +571,123 @@ export default function CahierErreurs() {
                   </TooltipProvider>
                 </div>
               )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Erreurs téléchargées Tab */}
+            <TabsContent value="uploaded">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    Erreurs téléchargées
+                    <Badge variant="secondary" className="ml-auto">
+                      {errorRevisions.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingRevisions ? (
+                    <div className="text-center py-12 text-gray-500">
+                      Chargement de vos révisions d'erreurs...
+                    </div>
+                  ) : errorRevisions.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <ImageIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">Aucune erreur téléchargée</p>
+                      <p className="text-sm mt-2">
+                        Utilisez le bouton "Réviser une erreur" pour uploader vos erreurs
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={isMobile ? "space-y-4" : "overflow-x-auto"}>
+                      {errorRevisions.map((revision) => (
+                        <Card key={revision.id} className="overflow-hidden">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <p className="text-xs text-gray-500 mb-1">
+                                  {format(new Date(revision.created_at), 'dd/MM/yyyy', { locale: fr })}
+                                </p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {revision.course_name}
+                                </p>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  revision.status === 'generating'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : revision.status === 'completed'
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-red-50 text-red-700 border-red-200'
+                                }
+                              >
+                                {revision.status === 'generating' && 'Analyse en cours'}
+                                {revision.status === 'completed' && 'Terminé'}
+                                {revision.status === 'error' && 'Erreur'}
+                              </Badge>
+                            </div>
+
+                            <div className="flex gap-2 mb-3">
+                              <Badge variant="outline" className="font-normal text-xs">
+                                {revision.subject}
+                              </Badge>
+                            </div>
+
+                            {revision.user_message && (
+                              <div className="mb-3">
+                                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md border border-gray-100">
+                                  {revision.user_message}
+                                </p>
+                              </div>
+                            )}
+
+                            {revision.status === 'generating' && (
+                              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                                <p className="text-sm text-blue-700">
+                                  Analyse de l'erreur en cours...
+                                </p>
+                              </div>
+                            )}
+
+                            {revision.status === 'completed' && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => {
+                                  // Redirect to view the completed analysis
+                                  // TODO: Create a dedicated page for viewing error revisions
+                                  window.open(revision.error_image_url, '_blank');
+                                }}
+                                className="w-full bg-green-600 hover:bg-green-700"
+                              >
+                                Voir l'analyse
+                              </Button>
+                            )}
+
+                            {revision.status === 'error' && (
+                              <div className="p-3 bg-red-50 rounded-md border border-red-100">
+                                <p className="text-sm text-red-700">
+                                  ⚠️ Une erreur est survenue lors de l'analyse. Veuillez réessayer.
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
+
+      {/* Error Revision Modal */}
+      <ErrorRevisionModal open={isModalOpen} onOpenChange={setIsModalOpen} />
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
