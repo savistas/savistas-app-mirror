@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { saveCheckoutSession } from '@/lib/checkoutSession';
+import { CheckoutLoadingModal } from './CheckoutLoadingModal';
 
 interface PlanDetailsDialogProps {
   open: boolean;
@@ -65,6 +66,9 @@ const PLAN_DETAILS = {
 export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProps) {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | undefined>();
+  const [stripeWindowRef, setStripeWindowRef] = useState<Window | null>(null);
   const planDetails = PLAN_DETAILS[plan];
 
   const handleProceedToPayment = async () => {
@@ -109,6 +113,9 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
           plan: plan,
         });
 
+        // Store session ID for the loading modal
+        setCheckoutSessionId(data.sessionId);
+
         // Open Stripe Checkout in new tab
         const stripeWindow = window.open(data.checkoutUrl, '_blank');
 
@@ -118,8 +125,15 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
           return;
         }
 
-        // Close the dialog so user sees the pending state
+        // Store the window reference
+        setStripeWindowRef(stripeWindow);
+
+        // Close the plan details dialog
         onClose();
+
+        // Show the loading modal immediately
+        setShowLoadingModal(true);
+        setIsProcessing(false);
       } else {
         throw new Error('No checkout URL returned');
       }
@@ -128,6 +142,12 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
       toast.error(error.message || 'Erreur lors de la création de la session de paiement');
       setIsProcessing(false);
     }
+  };
+
+  const handleCloseLoadingModal = () => {
+    setShowLoadingModal(false);
+    setCheckoutSessionId(undefined);
+    setStripeWindowRef(null);
   };
 
   return (
@@ -210,6 +230,14 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Checkout Loading Modal */}
+      <CheckoutLoadingModal
+        open={showLoadingModal}
+        onClose={handleCloseLoadingModal}
+        sessionId={checkoutSessionId}
+        stripeWindow={stripeWindowRef}
+      />
     </Dialog>
   );
 }
