@@ -490,8 +490,8 @@ function CreateCoursePage() {
 
   3. Configurer les secrets Supabase
 
-  npx supabase secrets set STRIPE_SECRET_KEY=your_stripe_secret_key_here
-  npx supabase secrets set STRIPE_WEBHOOK_SECRET=your_webhook_secret_here
+  npx supabase secrets set STRIPE_SECRET_KEY=sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  npx supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
   4. Configurer le webhook Stripe
 
