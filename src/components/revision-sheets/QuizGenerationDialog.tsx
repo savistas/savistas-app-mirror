@@ -13,6 +13,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Loader2 } from 'lucide-react';
 import { useGenerateQuiz } from '@/hooks/revision-sheets/useGenerateQuiz';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { LimitReachedDialog } from '@/components/subscription/LimitReachedDialog';
 
 interface QuizGenerationDialogProps {
   open: boolean;
@@ -26,10 +29,19 @@ export function QuizGenerationDialog({
   courseId,
 }: QuizGenerationDialogProps) {
   const generateQuizMutation = useGenerateQuiz();
+  const { subscription } = useSubscription();
+  const { canCreate, getLimitInfo } = useUsageLimits();
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState<'facile' | 'moyen' | 'difficile'>('moyen');
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
 
   const handleGenerate = async () => {
+    // Check subscription limits before creating exercise/quiz
+    if (!canCreate('exercise')) {
+      setShowLimitDialog(true);
+      return;
+    }
+
     await generateQuizMutation.mutateAsync({
       courseId,
       options: {
@@ -109,6 +121,16 @@ export function QuizGenerationDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Limit Reached Dialog */}
+      <LimitReachedDialog
+        open={showLimitDialog}
+        onClose={() => setShowLimitDialog(false)}
+        resourceType="exercise"
+        currentPlan={subscription?.plan || 'basic'}
+        current={getLimitInfo('exercise').current}
+        limit={getLimitInfo('exercise').limit}
+      />
     </Dialog>
   );
 }

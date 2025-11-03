@@ -21,7 +21,7 @@ import { OrganizationCodeInput } from "@/components/OrganizationCodeInput";
 import { OrganizationCodeDialog } from "@/components/OrganizationCodeDialog";
 import { OrganizationPendingApproval } from "@/components/OrganizationPendingApproval";
 import { ActiveOrganizationInfo } from "@/components/ActiveOrganizationInfo";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { InformationStep } from "@/components/register/InformationStep";
 import { EducationStep } from "@/components/register/EducationStep";
 import { SubscriptionStep } from "@/components/register/SubscriptionStep";
@@ -29,12 +29,17 @@ import { StepIndicator } from "@/components/register/StepIndicator";
 import { StudentProfileForm } from "@/components/StudentProfileForm";
 import { OrganizationProfileForm } from "@/components/OrganizationProfileForm";
 import { useUserRole } from "@/hooks/useUserRole";
+import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
+import { clearCheckoutSession } from "@/lib/checkoutSession";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const Profile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { role, loading: roleLoading } = useUserRole();
+  const { refetch: refetchSubscription } = useSubscription();
 
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -319,6 +324,41 @@ const Profile = () => {
     loadProfilesInfos();
     return () => { active = false; };
   }, [user]);
+
+  // Handle Stripe checkout return (success/cancel)
+  useEffect(() => {
+    const checkoutStatus = searchParams.get('checkout');
+
+    if (checkoutStatus) {
+      if (checkoutStatus === 'success') {
+        // Clear the checkout session from localStorage
+        clearCheckoutSession();
+
+        // Show success toast
+        toast({
+          title: "Paiement réussi!",
+          description: "Votre abonnement a été mis à jour avec succès.",
+        });
+
+        // Refetch subscription data to update UI
+        refetchSubscription();
+      } else if (checkoutStatus === 'canceled') {
+        // Clear the checkout session from localStorage
+        clearCheckoutSession();
+
+        // Show canceled toast
+        toast({
+          title: "Paiement annulé",
+          description: "Vous avez annulé le processus de paiement.",
+          variant: "default",
+        });
+      }
+
+      // Remove the query parameter from URL
+      searchParams.delete('checkout');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, toast, refetchSubscription]);
 
   // Effet pour afficher le dialog du code d'organisation pour les étudiants avec profil incomplet
   useEffect(() => {
@@ -1104,139 +1144,7 @@ const Profile = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Abonnement Basique */}
-                  <Card className={`border-2 transition-all duration-300 ${
-                    form.subscription === 'basic' ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200'
-                  }`}>
-                    <CardContent className="p-4">
-                      <div className="text-center mb-4">
-                        <h3 className="text-xl font-semibold">Basique</h3>
-                        <div className="text-2xl font-bold text-primary">
-                          Gratuit
-                        </div>
-                        {form.subscription === 'basic' && (
-                          <div className="mt-2 text-sm text-blue-600 font-medium">
-                            ✓ Abonnement actuel
-                          </div>
-                        )}
-                      </div>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Modèle IA: basique</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Stockage: limité</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Tokens: faible</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Rapidité: standard</span>
-                        </li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Abonnement Premium */}
-                  <Card className={`border-2 transition-all duration-300 ${
-                    form.subscription === 'premium' ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200 opacity-50'
-                  } relative`}>
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-                        Populaire
-                      </span>
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="text-center mb-4">
-                        <h3 className="text-xl font-semibold">Premium</h3>
-                        <div className="text-2xl font-bold text-muted-foreground">
-                          9,99€
-                          <span className="text-sm font-normal">/mois</span>
-                        </div>
-                        {form.subscription === 'premium' && (
-                          <div className="mt-2 text-sm text-blue-600 font-medium">
-                            ✓ Abonnement actuel
-                          </div>
-                        )}
-                      </div>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Modèle IA: avancé</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Stockage: modéré</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Tokens: moyen</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Rapidité: prioritaire</span>
-                        </li>
-                      </ul>
-                      <Button 
-                        variant="outline"
-                        className="w-full mt-4"
-                        disabled
-                      >
-                        Bientôt disponible
-                      </Button>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Abonnement Pro */}
-                  <Card className={`border-2 transition-all duration-300 ${
-                    form.subscription === 'pro' ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200 opacity-50'
-                  }`}>
-                    <CardContent className="p-4">
-                      <div className="text-center mb-4">
-                        <h3 className="text-xl font-semibold">Pro</h3>
-                        <div className="text-2xl font-bold text-muted-foreground">
-                          19,99€
-                          <span className="text-sm font-normal">/mois</span>
-                        </div>
-                        {form.subscription === 'pro' && (
-                          <div className="mt-2 text-sm text-blue-600 font-medium">
-                            ✓ Abonnement actuel
-                          </div>
-                        )}
-                      </div>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Modèle IA: pro</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Stockage: illimité</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Tokens: illimité</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Rapidité: ultra prioritaire</span>
-                        </li>
-                      </ul>
-                      <Button 
-                        variant="outline"
-                        className="w-full mt-4"
-                        disabled
-                      >
-                        Bientôt disponible
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
+                  <SubscriptionCard />
                 )}
               </TabsContent>
             </Tabs>
