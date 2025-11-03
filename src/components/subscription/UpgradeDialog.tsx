@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckoutLoadingModal } from "./CheckoutLoadingModal";
 import { saveCheckoutSession } from "@/lib/checkoutSession";
 
+
 interface UpgradeDialogProps {
   open: boolean;
   onClose: () => void;
@@ -102,6 +103,8 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
         description: error.message || 'Une erreur est survenue lors de la création de la session de paiement',
         variant: 'destructive',
       });
+
+    } finally {
       setLoading(false);
     }
   };
@@ -334,6 +337,7 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
         sessionId={checkoutSessionId}
         stripeWindow={stripeWindowRef}
       />
+
     </Dialog>
   );
 };
