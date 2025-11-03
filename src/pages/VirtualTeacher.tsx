@@ -21,6 +21,10 @@ import { createElevenLabsAgent, getElevenLabsSignedUrl, getVoiceIdForPersonality
 import { createEcosAgent, createEcosSession, endEcosSession, getDefaultAvatarId } from '@/services/ecosService';
 import type { EcosAgent, EcosSession } from '@/services/ecosService';
 import type { ElevenLabsAgent } from '@/services/elevenLabsAgentService';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { incrementUsage } from '@/services/usageService';
+import { LimitReachedDialog } from '@/components/subscription/LimitReachedDialog';
 
 /**
  * Configuration ElevenLabs - Agent de base
@@ -70,8 +74,12 @@ interface ConversationHistory {
 export default function VirtualTeacher() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { subscription } = useSubscription();
+  const { canCreate, getLimitInfo, remaining } = useUsageLimits();
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
   const conversationIdRef = useRef<string | null>(null);
+  const conversationStartTimeRef = useRef<Date | null>(null);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
 
   // États pour le sélecteur de contexte
   const [conversationType, setConversationType] = useState<ConversationType>('general');
@@ -292,6 +300,26 @@ export default function VirtualTeacher() {
       console.log('❌ [ELEVENLABS] Déconnecté de ElevenLabs');
       console.log('❌ [ELEVENLABS] Status:', conversation.status);
 
+      // Calculate and save AI minutes used
+      if (conversationStartTimeRef.current && user?.id) {
+        const endTime = new Date();
+        const durationMs = endTime.getTime() - conversationStartTimeRef.current.getTime();
+        const durationMinutes = Math.ceil(durationMs / 60000); // Round up to nearest minute
+
+        console.log('⏱️ Conversation duration:', durationMinutes, 'minutes');
+
+        if (durationMinutes > 0) {
+          try {
+            await incrementUsage(user.id, 'ai_minutes', durationMinutes);
+            console.log('✅ AI minutes usage saved:', durationMinutes);
+          } catch (error) {
+            console.error('❌ Error saving AI minutes usage:', error);
+          }
+        }
+
+        conversationStartTimeRef.current = null;
+      }
+
       // Marquer la conversation comme terminée
       if (conversationIdRef.current) {
         await supabase
@@ -438,6 +466,13 @@ export default function VirtualTeacher() {
           description: 'Vous devez être connecté',
           variant: 'destructive',
         });
+        return;
+      }
+
+      // Check if user has available AI minutes before starting conversation
+      const aiMinutesRemaining = remaining?.aiMinutes || 0;
+      if (aiMinutesRemaining <= 0) {
+        setShowLimitDialog(true);
         return;
       }
 
@@ -685,7 +720,10 @@ Matières: ${profileData?.subjects || 'Non renseigné'}
         dynamicVariables, // ← INJECTION DES VARIABLES DYNAMIQUES
       });
 
+      // Track conversation start time for AI minutes usage
+      conversationStartTimeRef.current = new Date();
       console.log('✅ Session ElevenLabs démarrée');
+      console.log('⏱️ Tracking AI minutes from:', conversationStartTimeRef.current);
 
       toast({
         title: '🎉 Prêt !',
@@ -1395,6 +1433,16 @@ Matières: ${profileData?.subjects || 'Non renseigné'}
 
       {/* Bottom Navigation */}
       <BottomNav />
+
+      {/* Limit Reached Dialog */}
+      <LimitReachedDialog
+        open={showLimitDialog}
+        onClose={() => setShowLimitDialog(false)}
+        resourceType="ai_minutes"
+        currentPlan={subscription?.plan || 'basic'}
+        current={getLimitInfo('ai_minutes').current}
+        limit={getLimitInfo('ai_minutes').limit}
+      />
     </>
   );
 }

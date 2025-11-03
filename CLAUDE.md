@@ -108,7 +108,8 @@ All routes are defined in [src/App.tsx](src/App.tsx):
 - `/courses/:id` - Course detail page (protected)
 - `/terms` - Terms of service
 - `/privacy` - Privacy policy
-
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2bWticGtvY2N4cG1mcHhoYWN2Iiwicm9sZS
+I6ImFub24iLCJpYXQiOjE3NTQ3NzY2MTEsImV4cCI6MjA3MDM1MjYxMX0.I6XUsURaSpVwsZY-DrFw6tAUY50nzFkDBM4FqoPJpm4
 ### Authentication Flow
 
 1. **AuthContext** ([src/contexts/AuthContext.tsx](src/contexts/AuthContext.tsx)) provides:
