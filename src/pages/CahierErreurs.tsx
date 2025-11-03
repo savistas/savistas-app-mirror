@@ -653,18 +653,28 @@ export default function CahierErreurs() {
                             )}
 
                             {revision.status === 'completed' && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => {
-                                  // Redirect to view the completed analysis
-                                  // TODO: Create a dedicated page for viewing error revisions
-                                  window.open(revision.error_image_url, '_blank');
-                                }}
-                                className="w-full bg-green-600 hover:bg-green-700"
-                              >
-                                Voir l'analyse
-                              </Button>
+                              <div className="space-y-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(revision.error_image_url, '_blank')}
+                                  className="w-full"
+                                >
+                                  Voir l'image d'erreur
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Redirect to view the completed analysis
+                                    // TODO: Create a dedicated page for viewing error revisions
+                                    window.open(revision.error_image_url, '_blank');
+                                  }}
+                                  className="w-full bg-green-600 hover:bg-green-700"
+                                >
+                                  Voir l'analyse
+                                </Button>
+                              </div>
                             )}
 
                             {revision.status === 'error' && (

@@ -65,7 +65,11 @@ export const ErrorRevisionModal = ({ open, onOpenChange }: ErrorRevisionModalPro
         )}
 
         {/* Formulaire */}
-        <ErrorRevisionForm onSubmit={handleSubmit} disabled={isLoading} />
+        <ErrorRevisionForm
+          onSubmit={handleSubmit}
+          onCancel={() => onOpenChange(false)}
+          disabled={isLoading}
+        />
       </DialogContent>
     </Dialog>
   );

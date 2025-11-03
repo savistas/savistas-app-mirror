@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FileUploadZone } from './FileUploadZone';
+import { MultiFileUploadZone } from './MultiFileUploadZone';
 import { ErrorRevisionFormData } from '@/types/errorRevision';
 import { useSubjects } from '@/hooks/useDocuments';
 
@@ -27,19 +28,27 @@ const ACCEPTED_DOCUMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', '
 const NEW_SUBJECT_VALUE = '__NEW_SUBJECT__';
 
 export const errorRevisionSchema = z.object({
-  errorImage: z
-    .instanceof(File, { message: 'La photo de l\'erreur est obligatoire' })
-    .refine((file) => file.size <= MAX_FILE_SIZE, 'La taille maximale est 10MB')
+  errorImages: z
+    .array(z.instanceof(File))
+    .min(1, 'Au moins une photo d\'erreur est obligatoire')
     .refine(
-      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      (files) => files.every((file) => file.size <= MAX_FILE_SIZE),
+      'La taille maximale par fichier est 10MB'
+    )
+    .refine(
+      (files) => files.every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
       'Format accepté: JPG, PNG, PDF'
     ),
 
-  courseDocument: z
-    .instanceof(File, { message: 'Le document de cours est obligatoire' })
-    .refine((file) => file.size <= MAX_FILE_SIZE, 'La taille maximale est 10MB')
+  courseDocuments: z
+    .array(z.instanceof(File))
+    .min(1, 'Au moins un document de cours est obligatoire')
     .refine(
-      (file) => ACCEPTED_DOCUMENT_TYPES.includes(file.type),
+      (files) => files.every((file) => file.size <= MAX_FILE_SIZE),
+      'La taille maximale par fichier est 10MB'
+    )
+    .refine(
+      (files) => files.every((file) => ACCEPTED_DOCUMENT_TYPES.includes(file.type)),
       'Format accepté: PDF, JPG, PNG'
     ),
 
@@ -65,10 +74,11 @@ export type ErrorRevisionFormValues = z.infer<typeof errorRevisionSchema>;
 
 interface ErrorRevisionFormProps {
   onSubmit: (data: ErrorRevisionFormData) => void;
+  onCancel?: () => void;
   disabled?: boolean;
 }
 
-export const ErrorRevisionForm = ({ onSubmit, disabled = false }: ErrorRevisionFormProps) => {
+export const ErrorRevisionForm = ({ onSubmit, onCancel, disabled = false }: ErrorRevisionFormProps) => {
   const { data: subjects = [], isLoading: loadingSubjects } = useSubjects();
 
   const {
@@ -94,8 +104,8 @@ export const ErrorRevisionForm = ({ onSubmit, disabled = false }: ErrorRevisionF
   const handleFormSubmit = (data: ErrorRevisionFormValues) => {
     // If new subject, use newSubjectName as the subject
     const finalData: ErrorRevisionFormData = {
-      errorImage: data.errorImage,
-      courseDocument: data.courseDocument,
+      errorImages: data.errorImages,
+      courseDocuments: data.courseDocuments,
       subject: data.subject === NEW_SUBJECT_VALUE ? data.newSubjectName! : data.subject,
       courseName: data.courseName,
       userMessage: data.userMessage,
@@ -105,36 +115,36 @@ export const ErrorRevisionForm = ({ onSubmit, disabled = false }: ErrorRevisionF
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {/* Error Image Upload */}
+      {/* Error Images Upload - Multiple Files */}
       <Controller
-        name="errorImage"
+        name="errorImages"
         control={control}
         render={({ field }) => (
-          <FileUploadZone
+          <MultiFileUploadZone
             value={field.value}
             onChange={field.onChange}
             accept="image/jpeg,image/jpg,image/png,application/pdf"
-            label="Photo de l'erreur"
+            label="Photos des erreurs"
             required
             disabled={disabled}
-            error={errors.errorImage?.message}
+            error={errors.errorImages?.message}
           />
         )}
       />
 
-      {/* Course Document Upload */}
+      {/* Course Documents Upload - Multiple Files */}
       <Controller
-        name="courseDocument"
+        name="courseDocuments"
         control={control}
         render={({ field }) => (
-          <FileUploadZone
+          <MultiFileUploadZone
             value={field.value}
             onChange={field.onChange}
             accept="application/pdf,image/jpeg,image/jpg,image/png"
-            label="Document du cours"
+            label="Documents du cours"
             required
             disabled={disabled}
-            error={errors.courseDocument?.message}
+            error={errors.courseDocuments?.message}
           />
         )}
       />
@@ -256,7 +266,7 @@ export const ErrorRevisionForm = ({ onSubmit, disabled = false }: ErrorRevisionF
         <Button
           type="button"
           variant="outline"
-          onClick={() => window.history.back()}
+          onClick={onCancel}
           disabled={disabled}
           className="flex-1"
         >

@@ -15,7 +15,7 @@ const WEBHOOK_URL = 'https://n8n.srv932562.hstgr.cloud/webhook/error-analysis';
 
 export const errorRevisionService = {
   /**
-   * Upload de la photo d'erreur dans le bucket 'error_revision'
+   * Upload d'une photo d'erreur dans le bucket 'error_revision'
    */
   async uploadErrorImage(userId: string, errorId: string, file: File): Promise<string> {
     const fileExt = file.name.split('.').pop();
@@ -40,8 +40,9 @@ export const errorRevisionService = {
     return publicUrl;
   },
 
+
   /**
-   * Upload du document de cours dans le bucket 'courses'
+   * Upload d'un document de cours dans le bucket 'courses'
    * et création de l'entrée dans la table 'documents'
    */
   async uploadCourseDocument(
@@ -98,7 +99,41 @@ export const errorRevisionService = {
   },
 
   /**
-   * Création de l'entrée dans error_single_revision
+   * Upload de plusieurs documents de cours
+   */
+  async uploadCourseDocuments(
+    userId: string,
+    files: File[],
+    courseName: string,
+    subject: string
+  ): Promise<string[]> {
+    const documentIds: string[] = [];
+    const uploadedFiles: string[] = [];
+
+    try {
+      for (const file of files) {
+        const documentId = await this.uploadCourseDocument(userId, file, courseName, subject);
+        documentIds.push(documentId);
+      }
+      return documentIds;
+    } catch (error) {
+      // En cas d'erreur, nettoyer les documents déjà uploadés
+      console.error('Error uploading multiple documents, rolling back:', error);
+
+      // Supprimer les documents créés
+      if (documentIds.length > 0) {
+        await supabase
+          .from('documents')
+          .delete()
+          .in('id', documentIds);
+      }
+
+      throw error;
+    }
+  },
+
+  /**
+   * Création de l'entrée dans error_single_revision (UNE erreur par row)
    */
   async createErrorRevision(
     userId: string,
@@ -108,8 +143,9 @@ export const errorRevisionService = {
       .from('error_single_revision')
       .insert({
         user_id: userId,
-        document_id: data.documentId,
-        error_image_url: data.errorImageUrl,
+        upload_session_id: data.uploadSessionId, // Groupement des erreurs
+        document_ids: data.documentIds, // Documents partagés
+        error_image_url: data.errorImageUrl, // UNE seule URL
         subject: data.subject,
         course_name: data.courseName,
         user_message: data.userMessage || null,
@@ -150,53 +186,77 @@ export const errorRevisionService = {
     }
   },
 
+
   /**
    * Flow complet d'upload et de création
+   * Crée UNE row par erreur (découpage automatique)
+   * Appelle le webhook UNE SEULE FOIS avec toutes les erreurs
    */
   async submitErrorRevision(
     userId: string,
     formData: ErrorRevisionFormData
-  ): Promise<string> {
-    // 1. Créer un ID temporaire pour l'erreur
-    const tempErrorId = crypto.randomUUID();
+  ): Promise<{ uploadSessionId: string; errorRevisionIds: string[] }> {
+    // 1. Générer un ID de session unique pour grouper toutes les erreurs de cet upload
+    const uploadSessionId = crypto.randomUUID();
 
     try {
-      // 2. Upload de la photo d'erreur dans error_revision bucket
-      const errorImageUrl = await this.uploadErrorImage(
+      // 2. Upload de tous les documents de cours (partagés entre toutes les erreurs)
+      const documentIds = await this.uploadCourseDocuments(
         userId,
-        tempErrorId,
-        formData.errorImage
-      );
-
-      // 3. Upload du document de cours dans courses bucket
-      const documentId = await this.uploadCourseDocument(
-        userId,
-        formData.courseDocument,
+        formData.courseDocuments,
         formData.courseName,
         formData.subject
       );
 
-      // 4. Création de l'entrée error_single_revision
-      const revisionId = await this.createErrorRevision(userId, {
-        errorImageUrl,
-        documentId,
-        subject: formData.subject,
-        courseName: formData.courseName,
-        userMessage: formData.userMessage,
-      });
+      const errorRevisionIds: string[] = [];
+      const errorRevisions: { error_revision_id: string; error_image_url: string }[] = [];
 
-      // 5. Appel du webhook (ne bloque pas si échec)
-      try {
-        await this.triggerAnalysisWebhook({
-          error_revision_id: revisionId,
-          document_id: documentId,
+      // 3. Pour CHAQUE image d'erreur, créer une row séparée
+      for (const errorImageFile of formData.errorImages) {
+        // 3a. Upload l'image d'erreur
+        const errorImageUrl = await this.uploadErrorImage(
+          userId,
+          uploadSessionId,
+          errorImageFile
+        );
+
+        // 3b. Créer une row dans error_single_revision
+        const revisionId = await this.createErrorRevision(userId, {
+          uploadSessionId,
+          errorImageUrl,        // UNE seule URL par row
+          documentIds,          // Documents partagés
+          subject: formData.subject,
+          courseName: formData.courseName,
+          userMessage: formData.userMessage,
         });
-      } catch (webhookError) {
-        console.error('Webhook call failed, but revision was created:', webhookError);
-        // On ne throw pas - la révision est créée, le webhook pourra être réessayé
+
+        errorRevisionIds.push(revisionId);
+
+        // 3c. Collecter les infos pour le batch webhook
+        errorRevisions.push({
+          error_revision_id: revisionId,
+          error_image_url: errorImageUrl,
+        });
       }
 
-      return revisionId;
+      // 4. Appeler le webhook N8N UNE SEULE FOIS avec toutes les erreurs
+      try {
+        await this.triggerAnalysisWebhook({
+          upload_session_id: uploadSessionId,
+          error_revisions: errorRevisions,
+          document_ids: documentIds,
+          user_id: userId,
+          subject: formData.subject,
+          course_name: formData.courseName,
+          user_message: formData.userMessage,
+        });
+      } catch (webhookError) {
+        console.error(`Webhook call failed for upload session ${uploadSessionId}:`, webhookError);
+        // On ne throw pas - les révisions sont créées, le webhook pourra être réessayé
+      }
+
+      // 5. Retourner l'ID de session et les IDs des erreurs créées
+      return { uploadSessionId, errorRevisionIds };
     } catch (error) {
       // En cas d'erreur, on essaie de nettoyer les uploads
       console.error('Error in submitErrorRevision:', error);
@@ -270,7 +330,7 @@ export const errorRevisionService = {
     // Récupérer les infos pour cleanup
     const { data: revision } = await supabase
       .from('error_single_revision')
-      .select('error_image_url, document_id')
+      .select('error_image_url, document_ids')
       .eq('id', revisionId)
       .eq('user_id', userId)
       .single();
@@ -291,7 +351,7 @@ export const errorRevisionService = {
       throw error;
     }
 
-    // Note: Les fichiers dans storage et le document ne sont pas supprimés
+    // Note: Les fichiers dans storage et les documents ne sont pas supprimés
     // pour garder une trace. Si besoin, ajouter le cleanup ici.
   },
 };
