@@ -238,6 +238,7 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
         sessionId={checkoutSessionId}
         stripeWindow={stripeWindowRef}
       />
+
     </Dialog>
   );
 }
