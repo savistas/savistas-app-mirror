@@ -11,6 +11,7 @@ import { OrganizationCodeInput } from '@/components/OrganizationCodeInput';
 import { Loader2, AlertCircle, Check, Upload, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PlanDetailsDialog } from '@/components/subscription/PlanDetailsDialog';
 
 interface StudentProfileFormProps {
   onComplete: () => void;
@@ -84,6 +85,8 @@ export const StudentProfileForm = ({
 
   // État pour l'abonnement
   const [subscription, setSubscription] = useState('basic');
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<'premium' | 'pro'>('premium');
 
   // États pour la validation du code d'organisation
   const [organizationValidated, setOrganizationValidated] = useState<boolean>(false);
@@ -98,6 +101,17 @@ export const StudentProfileForm = ({
     setOrganizationValidated(isValid);
     setValidatedOrgId(orgId);
     setValidatedOrgName(orgName);
+  };
+
+  const handlePlanClick = (sub: typeof subscriptions[0]) => {
+    if (sub.price === "Gratuit") {
+      // Free plan: just select it
+      setSubscription(sub.id);
+    } else {
+      // Paid plan: open upgrade dialog
+      setSelectedPlanForUpgrade(sub.id as 'premium' | 'pro');
+      setShowUpgradeDialog(true);
+    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -552,7 +566,7 @@ export const StudentProfileForm = ({
                           : 'border-slate-200 hover:border-primary/50',
                         sub.popular && "ring-2 ring-primary/20"
                       )}
-                      onClick={() => sub.id === 'basic' && setSubscription(sub.id)}
+                      onClick={() => handlePlanClick(sub)}
                     >
                       {sub.popular && (
                         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -599,10 +613,15 @@ export const StudentProfileForm = ({
                           type="button"
                           variant={subscription === sub.id ? "default" : "outline"}
                           className="w-full"
-                          onClick={() => sub.id === 'basic' && setSubscription(sub.id)}
-                          disabled={sub.price !== "Gratuit"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlanClick(sub);
+                          }}
                         >
-                          {sub.price !== "Gratuit" ? "Bientôt disponible" : (subscription === sub.id ? "Choisir" : "Choisir")}
+                          {sub.price === "Gratuit"
+                            ? (subscription === sub.id ? "Sélectionné" : "Choisir")
+                            : "Souscrire"
+                          }
                         </Button>
                       </CardContent>
                     </Card>
@@ -644,6 +663,13 @@ export const StudentProfileForm = ({
           </Button>
         </div>
       </form>
+
+      {/* Plan Details Dialog for Premium/Pro plans */}
+      <PlanDetailsDialog
+        open={showUpgradeDialog}
+        onClose={() => setShowUpgradeDialog(false)}
+        plan={selectedPlanForUpgrade}
+      />
     </div>
   );
 };
