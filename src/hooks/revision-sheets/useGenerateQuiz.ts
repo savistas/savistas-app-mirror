@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { QuizGenerationOptions } from '@/types/revisionSheet';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { incrementUsage } from '@/services/usageService';
 
 interface GenerateQuizParams {
   courseId: string;
@@ -11,6 +13,7 @@ interface GenerateQuizParams {
 
 export function useGenerateQuiz() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ courseId, options }: GenerateQuizParams) => {
@@ -26,7 +29,12 @@ export function useGenerateQuiz() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Increment usage counter after successful exercise creation
+      if (user?.id) {
+        await incrementUsage(user.id, 'exercise', 1);
+      }
+
       toast.success('Quiz généré avec succès !');
       // Redirect to the quiz page
       if (data?.exerciseId) {
