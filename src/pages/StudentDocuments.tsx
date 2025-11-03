@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, FolderOpen, Plus, FileText, ChevronRight } from 'lucide-react';
 import { DocumentsByCourse as GroupedDocs, Document, UserDocument } from '@/types/document';
 import { toast } from 'sonner';
@@ -87,14 +88,33 @@ export default function StudentDocuments() {
     return Object.values(grouped);
   }, [courseDocuments, searchQuery]);
 
-  // Filter standalone documents
+  // Filter standalone documents (excluding error_revision type)
   const filteredStandaloneDocuments = useMemo(() => {
     if (!standaloneDocuments) return [];
 
-    if (!searchQuery) return standaloneDocuments;
+    // Filter out error_revision documents
+    const normalDocs = standaloneDocuments.filter((doc) => doc.type !== 'error_revision');
+
+    if (!searchQuery) return normalDocs;
 
     const query = searchQuery.toLowerCase();
-    return standaloneDocuments.filter((doc) =>
+    return normalDocs.filter((doc) =>
+      doc.name.toLowerCase().includes(query) ||
+      doc.subject.toLowerCase().includes(query)
+    );
+  }, [standaloneDocuments, searchQuery]);
+
+  // Filter error revision documents (only error_revision type)
+  const filteredErrorRevisionDocuments = useMemo(() => {
+    if (!standaloneDocuments) return [];
+
+    // Filter only error_revision documents
+    const errorDocs = standaloneDocuments.filter((doc) => doc.type === 'error_revision');
+
+    if (!searchQuery) return errorDocs;
+
+    const query = searchQuery.toLowerCase();
+    return errorDocs.filter((doc) =>
       doc.name.toLowerCase().includes(query) ||
       doc.subject.toLowerCase().includes(query)
     );
@@ -114,7 +134,7 @@ export default function StudentDocuments() {
     );
   }, [courseDocuments, searchQuery]);
 
-  // Group all documents by subject (matière)
+  // Group all documents by subject (matière) - normal documents
   const documentsBySubject = useMemo(() => {
     const grouped: Record<string, {
       standalone: Document[];
@@ -140,7 +160,26 @@ export default function StudentDocuments() {
     return grouped;
   }, [filteredStandaloneDocuments, filteredCourseDocuments]);
 
+  // Group error revision documents by subject (matière)
+  const errorRevisionDocumentsBySubject = useMemo(() => {
+    const grouped: Record<string, {
+      standalone: Document[];
+      courses: UserDocument[];
+    }> = {};
+
+    // Add error revision documents
+    filteredErrorRevisionDocuments.forEach((doc) => {
+      if (!grouped[doc.subject]) {
+        grouped[doc.subject] = { standalone: [], courses: [] };
+      }
+      grouped[doc.subject].standalone.push(doc);
+    });
+
+    return grouped;
+  }, [filteredErrorRevisionDocuments]);
+
   const subjects = Object.keys(documentsBySubject).sort();
+  const errorRevisionSubjects = Object.keys(errorRevisionDocumentsBySubject).sort();
 
   // Handlers for standalone documents
   const handleDelete = async (id: string) => {
@@ -312,8 +351,20 @@ export default function StudentDocuments() {
           />
         </div>
 
-        {/* Documents grouped by subject (matière) */}
-        {subjects.length === 0 ? (
+        {/* Tabs for Documents and Error Revision Documents */}
+        <Tabs defaultValue="documents" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="documents">
+              Mes documents ({subjects.length})
+            </TabsTrigger>
+            <TabsTrigger value="error_revision">
+              Documents d'erreurs ({errorRevisionSubjects.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Normal Documents Tab */}
+          <TabsContent value="documents">
+            {subjects.length === 0 ? (
           searchQuery ? (
             <div className="text-center py-12">
               <div className="mb-4 p-6 bg-gray-50 rounded-full inline-block">
@@ -386,7 +437,82 @@ export default function StudentDocuments() {
               );
             })}
           </Accordion>
-        )}
+            )}
+          </TabsContent>
+
+          {/* Error Revision Documents Tab */}
+          <TabsContent value="error_revision">
+            {errorRevisionSubjects.length === 0 ? (
+              searchQuery ? (
+                <div className="text-center py-12">
+                  <div className="mb-4 p-6 bg-gray-50 rounded-full inline-block">
+                    <Search className="w-16 h-16 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Aucun résultat</h3>
+                  <p className="text-muted-foreground">
+                    Aucun document d'erreur ne correspond à votre recherche "{searchQuery}"
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mb-4 p-6 bg-gray-50 rounded-full inline-block">
+                    <FolderOpen className="w-16 h-16 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Aucun document d'erreur</h3>
+                  <p className="text-muted-foreground">
+                    Les documents uploadés lors de révisions d'erreurs apparaîtront ici
+                  </p>
+                </div>
+              )
+            ) : (
+              <Accordion type="multiple" className="w-full space-y-4">
+                {errorRevisionSubjects.map((subject) => {
+                  const { standalone, courses } = errorRevisionDocumentsBySubject[subject];
+                  const totalDocs = standalone.length + courses.length;
+
+                  return (
+                    <AccordionItem
+                      key={subject}
+                      value={subject}
+                      className="border rounded-lg bg-white shadow-sm"
+                    >
+                      <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                              <FolderOpen className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="font-semibold text-lg">{subject}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {totalDocs} document{totalDocs > 1 ? 's' : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6">
+                        <div className="flex overflow-x-auto gap-4 pb-2">
+                          {/* Error Revision Documents */}
+                          {standalone.map((document) => (
+                            <ProcessingDocumentWrapper
+                              key={document.id}
+                              document={document}
+                              onDelete={handleDelete}
+                              onQuiz={handleQuiz}
+                              onFiche={handleFiche}
+                              onProfIA={handleProfIA}
+                            />
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            )}
+          </TabsContent>
+        </Tabs>
         </div>
       </div>
 
