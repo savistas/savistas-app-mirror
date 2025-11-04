@@ -26,7 +26,7 @@ const UploadCourse = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { subscription } = useSubscription();
-  const { canCreate, getLimitInfo } = useUsageLimits();
+  const { canCreate, getLimitInfo, remaining } = useUsageLimits();
   const [step, setStep] = useState(1);
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -435,21 +435,36 @@ const UploadCourse = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="qcm-days">Nombre de jours d'exercices (1 à 10)</Label>
-                  <div className="flex items-center gap-4">
-                    <Slider
-                      value={[formData.days]}
-                      onValueChange={(v) => setFormData({ ...formData, days: v[0] })}
-                      min={1}
-                      max={10}
-                      step={1}
-                      aria-label="Nombre de jours d'exercices"
-                      className="w-full"
-                    />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formData.days} {formData.days > 1 ? "jours" : "jour"}
-                    </span>
-                  </div>
+                  <Label htmlFor="qcm-days">Nombre de jours d'exercices</Label>
+                  {remaining && remaining.exercises > 0 ? (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <Slider
+                          value={[Math.min(formData.days, Math.min(10, remaining.exercises))]}
+                          onValueChange={(v) => setFormData({ ...formData, days: v[0] })}
+                          min={1}
+                          max={Math.min(10, remaining.exercises)}
+                          step={1}
+                          aria-label="Nombre de jours d'exercices"
+                          className="w-full"
+                        />
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {Math.min(formData.days, Math.min(10, remaining.exercises))} {Math.min(formData.days, Math.min(10, remaining.exercises)) > 1 ? "jours" : "jour"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Il vous reste <strong>{remaining.exercises} exercice{remaining.exercises > 1 ? 's' : ''}</strong> ce mois-ci (max. {Math.min(10, remaining.exercises)} jours pour ce cours)
+                      </p>
+                    </>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <p className="text-sm text-orange-800">
+                        ⚠️ Vous avez atteint votre limite d'exercices pour ce mois-ci.
+                        {subscription?.plan === 'basic' && ' Passez à Premium pour créer jusqu\'à 10 exercices par mois.'}
+                        {subscription?.plan === 'premium' && ' Passez à Pro pour créer jusqu\'à 30 exercices par mois.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -470,12 +485,12 @@ const UploadCourse = () => {
                   </div>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleCreate}
-                  disabled={creating}
+                  disabled={creating || (remaining?.exercises === 0)}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
                 >
-                  {creating ? "Création..." : "Créer"}
+                  {creating ? "Création..." : remaining?.exercises === 0 ? "Limite atteinte" : "Créer"}
                 </Button>
               </CardContent>
             </Card>

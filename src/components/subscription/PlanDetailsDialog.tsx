@@ -17,21 +17,21 @@ interface PlanDetailsDialogProps {
   open: boolean;
   onClose: () => void;
   plan: 'premium' | 'pro';
+  currentPlan: 'basic' | 'premium' | 'pro';
 }
 
 const PLAN_DETAILS = {
   premium: {
     name: 'Premium',
-    price: '9,99€',
+    price: '9,90€',
     priceId: 'price_1SNu6P37eeTawvFRvh1JGgOC', // Your Stripe price ID
     features: [
       '10 cours par mois',
       '10 exercices par mois',
       '10 fiches de révision par mois',
-      'Modèle IA avancé',
-      'Stockage modéré',
-      'Tokens moyens',
-      'Rapidité prioritaire',
+      '0 minutes Avatar IA incluses',
+      'Achats de minutes IA disponibles',
+      '10 jours max par cours',
     ],
     benefits: [
       'Accès immédiat après paiement',
@@ -41,16 +41,16 @@ const PLAN_DETAILS = {
   },
   pro: {
     name: 'Pro',
-    price: '19,99€',
+    price: '19,90€',
     priceId: 'price_1SNu6N37eeTawvFR0CRbzo7F', // Your Stripe price ID
     features: [
       '30 cours par mois',
       '30 exercices par mois',
       '30 fiches de révision par mois',
-      'Modèle IA professionnel',
-      'Stockage illimité',
-      'Tokens illimités',
-      'Rapidité ultra prioritaire',
+      '0 minutes Avatar IA incluses',
+      'Achats de minutes IA disponibles',
+      '10 jours max par cours',
+      'Support prioritaire',
     ],
     benefits: [
       'Accès immédiat après paiement',
@@ -61,10 +61,15 @@ const PLAN_DETAILS = {
   },
 };
 
-export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProps) {
+export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDetailsDialogProps) {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const planDetails = PLAN_DETAILS[plan];
+
+  // Determine if this is an upgrade or downgrade
+  const planOrder = { basic: 0, premium: 1, pro: 2 };
+  const isUpgrade = planOrder[plan] > planOrder[currentPlan];
+  const isDowngrade = planOrder[plan] < planOrder[currentPlan];
 
   const handleProceedToPayment = async () => {
     if (!user?.id) {
@@ -80,19 +85,25 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
         body: {
           priceId: planDetails.priceId,
           mode: 'subscription',
-          successUrl: `${window.location.origin}/profile?checkout=success`,
+          successUrl: `${window.location.origin}/profile?checkout=success&type=subscription`,
           cancelUrl: `${window.location.origin}/profile?checkout=canceled`,
         },
       });
 
       if (error) throw error;
 
-      // Check if this was an upgrade (no checkout needed)
+      // Check if this was an upgrade/downgrade (no checkout needed)
       if (data?.upgraded && data?.success) {
-        // Subscription upgraded successfully without checkout
-        toast.success('Abonnement mis à jour!', {
-          description: 'Votre abonnement a été changé avec succès. La différence de prix a été calculée au prorata.',
-        });
+        // Subscription updated successfully without checkout
+        if (isDowngrade) {
+          toast.success('Plan modifié!', {
+            description: 'Votre plan a été changé avec succès. Un crédit pour la période non utilisée a été appliqué à votre prochaine facture.',
+          });
+        } else {
+          toast.success('Abonnement mis à jour!', {
+            description: 'Votre abonnement a été amélioré avec succès. La différence de prix a été calculée au prorata.',
+          });
+        }
 
         // Close dialog and let parent refresh
         onClose();
@@ -117,9 +128,14 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl">Plan {planDetails.name}</DialogTitle>
+            <DialogTitle className="text-2xl">
+              {isDowngrade ? `Passer au plan ${planDetails.name}` : `Plan ${planDetails.name}`}
+            </DialogTitle>
             <DialogDescription>
-              Débloquez toutes les fonctionnalités avec le plan {planDetails.name}
+              {isDowngrade
+                ? `Modifier votre abonnement pour le plan ${planDetails.name}`
+                : `Débloquez toutes les fonctionnalités avec le plan ${planDetails.name}`
+              }
             </DialogDescription>
           </DialogHeader>
 
@@ -181,12 +197,12 @@ export function PlanDetailsDialog({ open, onClose, plan }: PlanDetailsDialogProp
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Redirection vers Stripe...
+                  {isDowngrade ? 'Modification en cours...' : 'Redirection vers Stripe...'}
                 </>
               ) : (
                 <>
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Procéder au paiement
+                  {isDowngrade ? 'Confirmer le changement' : currentPlan === 'basic' ? 'Procéder au paiement' : 'Confirmer l\'amélioration'}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}

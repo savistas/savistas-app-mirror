@@ -19,10 +19,11 @@ const PLANS = [
     icon: Check,
     popular: false,
     features: [
-      '3 cours par mois',
-      '3 exercices par mois',
-      '3 fiches de révision par mois',
-      'Fonctionnalités de base',
+      '2 cours par mois',
+      '2 exercices par mois',
+      '2 fiches de révision par mois',
+      '3 minutes Avatar IA par mois',
+      '10 jours max par cours',
     ],
   },
   {
@@ -36,6 +37,7 @@ const PLANS = [
       '10 cours par mois',
       '10 exercices par mois',
       '10 fiches de révision par mois',
+      '0 minutes Avatar IA incluses',
       'Achats de minutes IA disponibles',
       '10 jours max par cours',
     ],
@@ -51,6 +53,7 @@ const PLANS = [
       '30 cours par mois',
       '30 exercices par mois',
       '30 fiches de révision par mois',
+      '0 minutes Avatar IA incluses',
       'Achats de minutes IA disponibles',
       '10 jours max par cours',
       'Support prioritaire',
@@ -75,23 +78,49 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
     return '';
   };
 
-  // Filter plans based on current plan
-  const availablePlans = PLANS.filter(plan => {
-    // Don't show current plan
-    return plan.id !== currentPlan;
-  });
+  // Show all plans (including current plan)
+  const availablePlans = PLANS;
 
   const getButtonText = (planId: string) => {
-    const isDowngrade = currentPlan !== 'basic' && planId === 'basic';
-    if (isDowngrade) return 'Se désabonner';
-    return 'Voir plus';
+    // Current plan
+    if (planId === currentPlan) {
+      return 'Plan actuel';
+    }
+
+    // Downgrade to basic
+    if (currentPlan !== 'basic' && planId === 'basic') {
+      return 'Se désabonner';
+    }
+
+    // Upgrade from basic
+    if (currentPlan === 'basic' && planId !== 'basic') {
+      return 'Souscrire';
+    }
+
+    // Upgrade from premium to pro
+    if (currentPlan === 'premium' && planId === 'pro') {
+      return 'Passer à Pro';
+    }
+
+    // Downgrade from pro to premium
+    if (currentPlan === 'pro' && planId === 'premium') {
+      return 'Passer à Premium';
+    }
+
+    return 'Choisir';
   };
 
   const handlePlanClick = (planId: typeof PLANS[number]['id']) => {
+    // If clicking on current plan, do nothing
+    if (planId === currentPlan) {
+      return;
+    }
+
     // If downgrading to basic, show confirmation dialog
     if (currentPlan !== 'basic' && planId === 'basic') {
       setShowUnsubscribeDialog(true);
     } else if (planId !== 'basic') {
+      // For all paid plans (upgrades and downgrades)
       setSelectedPlan(planId as 'premium' | 'pro');
     }
   };
@@ -106,7 +135,7 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {availablePlans.map((plan) => {
             const Icon = plan.icon;
             const isCurrentPlan = plan.id === currentPlan;
@@ -155,8 +184,9 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
 
                   <Button
                     onClick={() => handlePlanClick(plan.id)}
+                    disabled={plan.id === currentPlan}
                     variant={plan.id === 'basic' && currentPlan !== 'basic' ? "destructive" : "default"}
-                    className={`w-full ${plan.id !== 'basic' ? getButtonColor(plan.color) : ''}`}
+                    className={`w-full ${plan.id !== 'basic' && plan.id !== currentPlan ? getButtonColor(plan.color) : ''}`}
                   >
                     {getButtonText(plan.id)}
                   </Button>
@@ -172,6 +202,7 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
           open={!!selectedPlan}
           onClose={() => setSelectedPlan(null)}
           plan={selectedPlan}
+          currentPlan={currentPlan}
         />
       )}
 

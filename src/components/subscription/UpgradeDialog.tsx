@@ -17,6 +17,7 @@ interface UpgradeDialogProps {
   open: boolean;
   onClose: () => void;
   currentPlan: 'basic' | 'premium' | 'pro';
+  showOnlyAIMinutes?: boolean;
 }
 
 const PRICE_IDS = {
@@ -27,7 +28,7 @@ const PRICE_IDS = {
   ai_60min: 'price_1SNu5g37eeTawvFRdsQ1vIYp',
 };
 
-export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps) => {
+export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = false }: UpgradeDialogProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -42,11 +43,12 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
       }
 
       // Call Edge Function to create checkout session
+      const purchaseType = mode === 'payment' ? 'ai_minutes' : 'subscription';
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId,
           mode,
-          successUrl: `${window.location.origin}/profile?checkout=success`,
+          successUrl: `${window.location.origin}/profile?checkout=success&type=${purchaseType}`,
           cancelUrl: `${window.location.origin}/profile?checkout=canceled`,
         },
       });
@@ -79,16 +81,29 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
-              <Crown className="w-6 h-6 text-yellow-500" />
-              Améliorer mon abonnement
+              {showOnlyAIMinutes ? (
+                <>
+                  <Bot className="w-6 h-6 text-orange-500" />
+                  Acheter des minutes Avatar IA
+                </>
+              ) : (
+                <>
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                  Améliorer mon abonnement
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Choisissez le plan qui correspond à vos besoins ou achetez des minutes supplémentaires pour l'avatar IA
+              {showOnlyAIMinutes
+                ? "Achetez des minutes supplémentaires pour utiliser l'avatar IA. Les minutes n'expirent jamais."
+                : "Choisissez le plan qui correspond à vos besoins ou achetez des minutes supplémentaires pour l'avatar IA"
+              }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
             {/* Subscription Plans */}
+            {!showOnlyAIMinutes && (
             <div>
               <h3 className="font-semibold text-lg mb-4">Plans d'abonnement</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -196,17 +211,22 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
                 )}
               </div>
             </div>
+            )}
 
             {/* AI Minutes Packs */}
-            {(currentPlan === 'premium' || currentPlan === 'pro') && (
+            {(showOnlyAIMinutes || currentPlan === 'premium' || currentPlan === 'pro') && (
               <div>
-                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-orange-500" />
-                  Minutes Avatar IA supplémentaires
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Les minutes achetées s'accumulent et n'expirent jamais
-                </p>
+                {!showOnlyAIMinutes && (
+                  <>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                      <Bot className="w-5 h-5 text-orange-500" />
+                      Minutes Avatar IA supplémentaires
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Les minutes achetées s'accumulent et n'expirent jamais
+                    </p>
+                  </>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* 10 minutes */}
@@ -281,7 +301,7 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
             )}
 
             {/* Current plan message */}
-            {currentPlan === 'pro' && (
+            {!showOnlyAIMinutes && currentPlan === 'pro' && (
               <div className="text-center text-muted-foreground">
                 <p className="text-sm">Vous êtes déjà sur le plan Pro, le plus complet!</p>
               </div>

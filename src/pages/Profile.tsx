@@ -328,20 +328,36 @@ const Profile = () => {
   // Handle Stripe checkout return (success/cancel)
   useEffect(() => {
     const checkoutStatus = searchParams.get('checkout');
+    const purchaseType = searchParams.get('type'); // 'subscription' or 'ai_minutes'
 
     if (checkoutStatus) {
       if (checkoutStatus === 'success') {
         // Clear the checkout session from localStorage
         clearCheckoutSession();
 
-        // Show success toast
-        toast({
-          title: "Paiement réussi!",
-          description: "Votre abonnement a été mis à jour avec succès.",
-        });
+        // Show success toast based on purchase type
+        if (purchaseType === 'ai_minutes') {
+          toast({
+            title: "Achat réussi!",
+            description: "Vos minutes Avatar IA ont été ajoutées à votre compte.",
+          });
+        } else {
+          toast({
+            title: "Paiement réussi!",
+            description: "Votre abonnement a été mis à jour avec succès.",
+          });
+        }
 
         // Refetch subscription data to update UI
-        refetchSubscription();
+        // Add delay to allow webhook to process (race condition fix)
+        setTimeout(() => {
+          refetchSubscription();
+
+          // Retry after 3 seconds to ensure data is updated
+          setTimeout(() => {
+            refetchSubscription();
+          }, 3000);
+        }, 2000);
       } else if (checkoutStatus === 'canceled') {
         // Clear the checkout session from localStorage
         clearCheckoutSession();
@@ -354,8 +370,9 @@ const Profile = () => {
         });
       }
 
-      // Remove the query parameter from URL
+      // Remove the query parameters from URL
       searchParams.delete('checkout');
+      searchParams.delete('type');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams, toast, refetchSubscription]);

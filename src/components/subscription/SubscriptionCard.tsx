@@ -228,6 +228,7 @@ export const SubscriptionCard = () => {
         open={showUpgradeDialog}
         onClose={() => setShowUpgradeDialog(false)}
         currentPlan={subscription.plan}
+        showOnlyAIMinutes={true}
       />
     </>
   );
