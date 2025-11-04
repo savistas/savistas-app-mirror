@@ -239,23 +239,22 @@ export const errorRevisionService = {
         });
       }
 
-      // 4. Appeler le webhook N8N UNE SEULE FOIS avec toutes les erreurs
-      try {
-        await this.triggerAnalysisWebhook({
-          upload_session_id: uploadSessionId,
-          error_revisions: errorRevisions,
-          document_ids: documentIds,
-          user_id: userId,
-          subject: formData.subject,
-          course_name: formData.courseName,
-          user_message: formData.userMessage,
-        });
-      } catch (webhookError) {
+      // 4. Appeler le webhook N8N en background (ne pas attendre)
+      // Le modal se fermera immédiatement, les erreurs seront en status "generating"
+      this.triggerAnalysisWebhook({
+        upload_session_id: uploadSessionId,
+        error_revisions: errorRevisions,
+        document_ids: documentIds,
+        user_id: userId,
+        subject: formData.subject,
+        course_name: formData.courseName,
+        user_message: formData.userMessage,
+      }).catch((webhookError) => {
         console.error(`Webhook call failed for upload session ${uploadSessionId}:`, webhookError);
         // On ne throw pas - les révisions sont créées, le webhook pourra être réessayé
-      }
+      });
 
-      // 5. Retourner l'ID de session et les IDs des erreurs créées
+      // 5. Retourner immédiatement l'ID de session et les IDs des erreurs créées
       return { uploadSessionId, errorRevisionIds };
     } catch (error) {
       // En cas d'erreur, on essaie de nettoyer les uploads

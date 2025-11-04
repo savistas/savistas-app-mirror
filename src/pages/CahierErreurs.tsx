@@ -53,6 +53,7 @@ import { fr } from 'date-fns/locale';
 import BottomNav from '@/components/BottomNav';
 import BurgerMenu from '@/components/BurgerMenu';
 import { ErrorRevisionModal } from '@/components/error-revision/ErrorRevisionModal';
+import { ErrorAnalysisCard } from '@/components/error-revision/ErrorAnalysisCard';
 
 type ErrorCategory = 'Compréhension' | 'Concentration' | 'Analyse' | 'Mémorisation' | 'Synthèse';
 
@@ -96,6 +97,19 @@ export default function CahierErreurs() {
 
   // Fetch error revisions (manual uploads)
   const { data: errorRevisions = [], isLoading: isLoadingRevisions } = useErrorRevisionList();
+
+  // Group error revisions by course_name
+  const groupedErrorRevisions = useMemo(() => {
+    const groups: Record<string, typeof errorRevisions> = {};
+    errorRevisions.forEach((revision) => {
+      const key = revision.course_name;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(revision);
+    });
+    return groups;
+  }, [errorRevisions]);
 
   // Get unique matieres for filter
   const matieres = useMemo(() => {
@@ -600,94 +614,30 @@ export default function CahierErreurs() {
                       </p>
                     </div>
                   ) : (
-                    <div className={isMobile ? "space-y-4" : "overflow-x-auto"}>
-                      {errorRevisions.map((revision) => (
-                        <Card key={revision.id} className="overflow-hidden">
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <p className="text-xs text-gray-500 mb-1">
-                                  {format(new Date(revision.created_at), 'dd/MM/yyyy', { locale: fr })}
-                                </p>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {revision.course_name}
-                                </p>
+                    <Accordion type="multiple" className="space-y-2">
+                      {Object.entries(groupedErrorRevisions).map(([courseName, revisions]) => (
+                        <AccordionItem key={courseName} value={courseName} className="border rounded-lg px-4">
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex items-center justify-between w-full pr-2">
+                              <div className="flex items-center gap-3">
+                                <BookOpen className="w-4 h-4 text-purple-600" />
+                                <span className="font-medium text-sm">{courseName}</span>
                               </div>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  revision.status === 'generating'
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                    : revision.status === 'completed'
-                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                    : 'bg-red-50 text-red-700 border-red-200'
-                                }
-                              >
-                                {revision.status === 'generating' && 'Analyse en cours'}
-                                {revision.status === 'completed' && 'Terminé'}
-                                {revision.status === 'error' && 'Erreur'}
+                              <Badge variant="secondary" className="text-xs">
+                                {revisions.length} erreur{revisions.length > 1 ? 's' : ''}
                               </Badge>
                             </div>
-
-                            <div className="flex gap-2 mb-3">
-                              <Badge variant="outline" className="font-normal text-xs">
-                                {revision.subject}
-                              </Badge>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3 pt-2">
+                              {revisions.map((revision) => (
+                                <ErrorAnalysisCard key={revision.id} revision={revision} />
+                              ))}
                             </div>
-
-                            {revision.user_message && (
-                              <div className="mb-3">
-                                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md border border-gray-100">
-                                  {revision.user_message}
-                                </p>
-                              </div>
-                            )}
-
-                            {revision.status === 'generating' && (
-                              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-                                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                                <p className="text-sm text-blue-700">
-                                  Analyse de l'erreur en cours...
-                                </p>
-                              </div>
-                            )}
-
-                            {revision.status === 'completed' && (
-                              <div className="space-y-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(revision.error_image_url, '_blank')}
-                                  className="w-full"
-                                >
-                                  Voir l'image d'erreur
-                                </Button>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => {
-                                    // Redirect to view the completed analysis
-                                    // TODO: Create a dedicated page for viewing error revisions
-                                    window.open(revision.error_image_url, '_blank');
-                                  }}
-                                  className="w-full bg-green-600 hover:bg-green-700"
-                                >
-                                  Voir l'analyse
-                                </Button>
-                              </div>
-                            )}
-
-                            {revision.status === 'error' && (
-                              <div className="p-3 bg-red-50 rounded-md border border-red-100">
-                                <p className="text-sm text-red-700">
-                                  ⚠️ Une erreur est survenue lors de l'analyse. Veuillez réessayer.
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
+                          </AccordionContent>
+                        </AccordionItem>
                       ))}
-                    </div>
+                    </Accordion>
                   )}
                 </CardContent>
               </Card>
