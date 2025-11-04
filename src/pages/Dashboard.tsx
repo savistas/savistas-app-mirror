@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import BottomNav from "@/components/BottomNav";
-import { Badge } from "@/components/ui/badge"; // Importation ajoutée
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +28,7 @@ import SurveyConfirmationDialog from "@/components/SurveyConfirmationDialog";
 import TroublesDetectionDialog from "@/components/TroublesDetectionDialog";
 import BurgerMenu from "@/components/BurgerMenu";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useDisplayName } from "@/hooks/useDisplayName";
 
 interface Course {
   id: string;
@@ -44,7 +44,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
-  const [displayName, setDisplayName] = useState<string>("");
+  const displayName = useDisplayName();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
   const [progressByCourse, setProgressByCourse] = useState<any>({});
@@ -188,14 +188,7 @@ const Dashboard = () => {
           learning_styles_completed: false
         });
         if (isMounted) {
-          setDisplayName(user.user_metadata?.full_name || user.email || 'Mon profil');
           setShowTroublesDialog(true);
-        }
-      }
-
-      if (profileData) {
-        if (isMounted) {
-          setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
         }
       }
     };
@@ -705,9 +698,9 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {/* Affichage des scores du QCM si disponibles */}
-              {Object.entries(troublesData).some(([key, value]) => 
-                key.endsWith('_score') && value && value !== 'Faible'
+              {/* Affichage des scores du QCM si disponibles - UNIQUEMENT Élevé et Très élevé */}
+              {Object.entries(troublesData).some(([key, value]) =>
+                key.endsWith('_score') && (value === 'Élevé' || value === 'Très élevé')
               ) && (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-gray-800">
@@ -715,7 +708,8 @@ const Dashboard = () => {
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {Object.entries(troublesData).map(([key, value]) => {
-                      if (!key.endsWith('_score') || !value || value === 'Faible') return null;
+                      // Afficher UNIQUEMENT les troubles "Élevé" et "Très élevé"
+                      if (!key.endsWith('_score') || !value || (value !== 'Élevé' && value !== 'Très élevé')) return null;
                       
                       const troubleNames: Record<string, string> = {
                         tdah_score: 'TDAH',
@@ -765,11 +759,6 @@ const Dashboard = () => {
 
 
       </main>
-
-      {/* Bottom Navigation */}
-      <div className="relative z-50">
-        <BottomNav />
-      </div>
 
       <TroublesDetectionDialog
         isOpen={showTroublesDialog}

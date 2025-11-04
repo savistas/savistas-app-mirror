@@ -18,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { analyzeLearningStyles } from '@/services/learningStylesAnalyzer';
 import BurgerMenu from '@/components/BurgerMenu';
-import BottomNav from '@/components/BottomNav';
 import { EquosLiveKitContainer } from '@/components/equos/EquosLiveKitContainer';
 import {
   createEquosAgent,
@@ -729,7 +728,6 @@ export default function ProfesseurParticulierVirtuel() {
         onClose={() => setShowTimeUpDialog(false)}
       />
 
-      <BottomNav />
     </>
   );
 }

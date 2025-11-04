@@ -9,7 +9,6 @@ import { MemberRequestCard } from '@/components/MemberRequestCard';
 import { MembersTable } from '@/components/MembersTable';
 import { OrganizationSettings } from '@/components/OrganizationSettings';
 import { OnboardingOrganizationDialog } from '@/components/OnboardingOrganizationDialog';
-import BottomNav from '@/components/BottomNav';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
 
@@ -248,7 +247,6 @@ const DashboardOrganization = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 };

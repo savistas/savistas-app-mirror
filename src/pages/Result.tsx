@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import {
   User,
@@ -12,6 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDisplayName } from "@/hooks/useDisplayName";
 import { Json } from "@/integrations/supabase/types"; // Import Json type
 
 // Helper function to format seconds to readable time
@@ -72,7 +72,7 @@ interface QuestionTiming {
 const Result = () => {
   const { id } = useParams<{ id: string }>(); // Exercise ID
   const { user } = useAuth();
-  const [displayName, setDisplayName] = useState<string>("");
+  const displayName = useDisplayName();
   const [exerciseMetadata, setExerciseMetadata] = useState<ExerciseMetadata | null>(null);
   const [userResponsesDetails, setUserResponsesDetails] = useState<UserResponseDetail[]>([]); // Store detailed responses
   const [totalTimeSeconds, setTotalTimeSeconds] = useState<number>(0);
@@ -89,19 +89,6 @@ const Result = () => {
       }
 
       try {
-        // Fetch user profile for display name
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profileData) {
-          setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
-        } else {
-          setDisplayName(user.user_metadata?.full_name || user.email || 'Mon profil');
-        }
-
         // Fetch exercise metadata
         const { data: exerciseData, error: exerciseError } = await supabase
           .from("exercises")
@@ -339,7 +326,6 @@ const Result = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 };
