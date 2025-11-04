@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrganizationSubscription, createOrgCheckoutSession, cancelOrganizationSubscription } from '@/services/organizationSubscriptionService';
 import { supabase } from '@/integrations/supabase/client';
 import { OrganizationSubscription, OrganizationWithSubscription, CreateOrgCheckoutSessionParams } from '@/types/organizationSubscription';
-import { OrganizationPlanType } from '@/constants/organizationPlans';
+import { OrganizationPlanType, ORGANIZATION_PLANS, OrganizationPlanConfig } from '@/constants/organizationPlans';
 import { getSeatLimitForPlan } from '@/utils/organizationPlanHelpers';
 
 /**
@@ -78,8 +78,9 @@ export const useOrganizationSubscription = (organizationId: string | undefined) 
   });
 
   // Compute derived values
-  const plan: OrganizationPlanType | null = organization?.subscription_plan || null;
-  const seatLimit = organization?.seat_limit || (plan ? getSeatLimitForPlan(plan) : 0);
+  const planType: OrganizationPlanType | null = organization?.subscription_plan || null;
+  const plan: OrganizationPlanConfig | null = planType ? ORGANIZATION_PLANS[planType] : null;
+  const seatLimit = organization?.seat_limit || (planType ? getSeatLimitForPlan(planType) : 0);
   const activeMembersCount = organization?.active_members_count || 0;
   const isActive = subscription?.status === 'active' || subscription?.status === 'trialing';
 
