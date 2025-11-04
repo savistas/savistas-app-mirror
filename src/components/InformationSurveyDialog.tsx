@@ -4,10 +4,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface Question {
   id: string;
@@ -204,6 +206,45 @@ const scoringRules: Record<string, Record<string, Record<string, number>>> = {
   },
 };
 
+// Fonction pour obtenir les 3 meilleurs styles d'apprentissage
+const getTopLearningStyles = (scores: Record<string, number>) => {
+  const learningStyleNames: Record<string, string> = {
+    score_visuel: 'Visuel',
+    score_spatial: 'Spatial',
+    score_auditif: 'Auditif',
+    score_linguistique: 'Linguistique',
+    score_kinesthésique: 'Kinesthésique',
+    score_lecture: 'Lecture',
+    score_ecriture: 'Écriture',
+    score_logique_mathematique: 'Logique-mathématique',
+    score_interpersonnelle: 'Interpersonnelle',
+    score_musicale: 'Musicale',
+    score_naturaliste: 'Naturaliste',
+    score_intrapersonnelle: 'Intrapersonnelle',
+  };
+
+  return Object.entries(scores)
+    .map(([key, score]) => ({
+      name: learningStyleNames[key] || key,
+      score: score,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+};
+
+// Fonction pour obtenir la couleur du badge selon l'index
+const getStyleColor = (index: number) => {
+  const pastelColors = [
+    "bg-pink-100 text-pink-800 border-pink-200",
+    "bg-green-100 text-green-800 border-green-200",
+    "bg-purple-100 text-purple-800 border-purple-200",
+    "bg-yellow-100 text-yellow-800 border-yellow-200",
+    "bg-blue-100 text-blue-800 border-blue-200",
+    "bg-indigo-100 text-indigo-800 border-indigo-200",
+  ];
+  return pastelColors[index % pastelColors.length];
+};
+
 interface InformationSurveyDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -227,6 +268,8 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
   const [answers, setAnswersInternal] = useState<Record<string, string | string[]>>(initialAnswers);
   const [direction, setDirection] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true); // State for the welcome screen
+  const [showResults, setShowResults] = useState(false);
+  const [calculatedScores, setCalculatedScores] = useState<Array<{name: string, score: number}> | null>(null);
 
   // Synchronize internal state with props
   useEffect(() => {
@@ -240,6 +283,8 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       setShowWelcome(initialQuestionIndex === 0 && Object.keys(initialAnswers).length === 0); // Show welcome only if starting fresh
+      setShowResults(false); // Reset results when dialog opens
+      setCalculatedScores(null); // Reset calculated scores
     }
   }, [isOpen, initialQuestionIndex, initialAnswers]);
 
@@ -277,144 +322,174 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
   };
 
   const handleNext = async () => {
-    console.log('handleNext called'); // Debugging: Check if handleNext is called
+    console.log('handleNext called');
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      // End of survey
+      // Dernière question - calculer les scores et afficher les résultats
       console.log('Survey completed!', answers);
 
-      // Save answers to Supabase
-      const { data: { user } } = await supabase.auth.getUser();
+      // Calculate learning style scores
+      const learningStyleScores: Record<string, number> = {
+        score_visuel: 0,
+        score_spatial: 0,
+        score_auditif: 0,
+        score_linguistique: 0,
+        score_kinesthésique: 0,
+        score_lecture: 0,
+        score_ecriture: 0,
+        score_logique_mathematique: 0,
+        score_interpersonnelle: 0,
+        score_musicale: 0,
+        score_naturaliste: 0,
+        score_intrapersonnelle: 0,
+      };
 
-      if (user) {
-
-        // Calculate learning style scores
-        const learningStyleScores: Record<string, number> = {
-          score_visuel: 0,
-          score_spatial: 0,
-          score_auditif: 0,
-          score_linguistique: 0,
-          score_kinesthésique: 0,
-          score_lecture: 0,
-          score_ecriture: 0,
-          score_logique_mathematique: 0,
-          score_interpersonnelle: 0,
-          score_musicale: 0,
-          score_naturaliste: 0,
-          score_intrapersonnelle: 0,
-        };
-
-        for (const questionId in answers) {
-          const answerOption = answers[questionId];
-          if (typeof answerOption === 'string' && scoringRules[questionId] && scoringRules[questionId][answerOption]) {
-            const scoresToAdd = scoringRules[questionId][answerOption];
-            for (const style in scoresToAdd) {
-              learningStyleScores[style] += scoresToAdd[style];
-            }
+      for (const questionId in answers) {
+        const answerOption = answers[questionId];
+        if (typeof answerOption === 'string' && scoringRules[questionId] && scoringRules[questionId][answerOption]) {
+          const scoresToAdd = scoringRules[questionId][answerOption];
+          for (const style in scoresToAdd) {
+            learningStyleScores[style] += scoresToAdd[style];
           }
         }
+      }
 
-        console.log('Calculated learning style scores:', learningStyleScores);
+      console.log('Calculated learning style scores:', learningStyleScores);
 
-        // Check if a record already exists for the user in styles_apprentissage
-        const { data: existingStyle, error: fetchError } = await supabase
-          .from('styles_apprentissage')
-          .select('user_id')
-          .eq('user_id', user.id)
-          .single();
+      // Stocker les scores et afficher la page de résultats
+      const topStyles = getTopLearningStyles(learningStyleScores);
+      setCalculatedScores(topStyles);
+      setShowResults(true);
+    }
+  };
 
-        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means "no rows found"
-          console.error('Error fetching existing learning style:', fetchError);
-          // Optionally, handle the error
-        } else {
-          let saveError;
-          if (existingStyle) {
-            // Update existing record
-            const { error } = await supabase
-              .from('styles_apprentissage')
-              .update(learningStyleScores)
-              .eq('user_id', user.id);
-            saveError = error;
-          } else {
-            // Insert new record
-            const { error } = await supabase
-              .from('styles_apprentissage')
-              .insert({ user_id: user.id, ...learningStyleScores });
-            saveError = error;
+  const saveResults = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      // Recalculer les scores complets (pas seulement le top 3)
+      const learningStyleScores: Record<string, number> = {
+        score_visuel: 0,
+        score_spatial: 0,
+        score_auditif: 0,
+        score_linguistique: 0,
+        score_kinesthésique: 0,
+        score_lecture: 0,
+        score_ecriture: 0,
+        score_logique_mathematique: 0,
+        score_interpersonnelle: 0,
+        score_musicale: 0,
+        score_naturaliste: 0,
+        score_intrapersonnelle: 0,
+      };
+
+      for (const questionId in answers) {
+        const answerOption = answers[questionId];
+        if (typeof answerOption === 'string' && scoringRules[questionId] && scoringRules[questionId][answerOption]) {
+          const scoresToAdd = scoringRules[questionId][answerOption];
+          for (const style in scoresToAdd) {
+            learningStyleScores[style] += scoresToAdd[style];
           }
+        }
+      }
 
-          if (saveError) {
-            console.error('Error saving learning styles to Supabase:', saveError);
-            // Optionally, handle the error
-          } else {
-            console.log('Learning styles saved to Supabase successfully!');
+      // Check if a record already exists for the user in styles_apprentissage
+      const { data: existingStyle, error: fetchError } = await supabase
+        .from('styles_apprentissage')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
 
-            // Save raw answers to profiles_infos
-            const rawAnswersToSave: Record<string, string> = {};
-            questions.forEach(question => {
-              const answerValue = answers[question.id];
-              if (question.type === 'radio' && typeof answerValue === 'string' && question.options) {
-                const selectedOption = question.options.find(option => option.value === answerValue);
-                if (selectedOption) {
-                  switch (question.id) {
-                    case 'q1': rawAnswersToSave.pref_apprendre_idee = selectedOption.label; break;
-                    case 'q2': rawAnswersToSave.memoire_poesie = selectedOption.label; break;
-                    case 'q3': rawAnswersToSave.resoudre_maths = selectedOption.label; break;
-                    case 'q4': rawAnswersToSave.temps_libre_pref = selectedOption.label; break;
-                    case 'q5': rawAnswersToSave.travail_groupe_role = selectedOption.label; break;
-                    case 'q6': rawAnswersToSave.retenir_info = selectedOption.label; break;
-                    case 'q7': rawAnswersToSave.pref_enseignant = selectedOption.label; break;
-                    case 'q8': rawAnswersToSave.decouvrir_endroit = selectedOption.label; break;
-                    case 'q9': rawAnswersToSave.reussir_definition = selectedOption.label; break;
-                    case 'q10': rawAnswersToSave.souvenir_important = selectedOption.label; break;
-                  }
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching existing learning style:', fetchError);
+      } else {
+        let saveError;
+        if (existingStyle) {
+          // Update existing record
+          const { error } = await supabase
+            .from('styles_apprentissage')
+            .update(learningStyleScores)
+            .eq('user_id', user.id);
+          saveError = error;
+        } else {
+          // Insert new record
+          const { error } = await supabase
+            .from('styles_apprentissage')
+            .insert({ user_id: user.id, ...learningStyleScores });
+          saveError = error;
+        }
+
+        if (saveError) {
+          console.error('Error saving learning styles to Supabase:', saveError);
+        } else {
+          console.log('Learning styles saved to Supabase successfully!');
+
+          // Save raw answers to profiles_infos
+          const rawAnswersToSave: Record<string, string> = {};
+          questions.forEach(question => {
+            const answerValue = answers[question.id];
+            if (question.type === 'radio' && typeof answerValue === 'string' && question.options) {
+              const selectedOption = question.options.find(option => option.value === answerValue);
+              if (selectedOption) {
+                switch (question.id) {
+                  case 'q1': rawAnswersToSave.pref_apprendre_idee = selectedOption.label; break;
+                  case 'q2': rawAnswersToSave.memoire_poesie = selectedOption.label; break;
+                  case 'q3': rawAnswersToSave.resoudre_maths = selectedOption.label; break;
+                  case 'q4': rawAnswersToSave.temps_libre_pref = selectedOption.label; break;
+                  case 'q5': rawAnswersToSave.travail_groupe_role = selectedOption.label; break;
+                  case 'q6': rawAnswersToSave.retenir_info = selectedOption.label; break;
+                  case 'q7': rawAnswersToSave.pref_enseignant = selectedOption.label; break;
+                  case 'q8': rawAnswersToSave.decouvrir_endroit = selectedOption.label; break;
+                  case 'q9': rawAnswersToSave.reussir_definition = selectedOption.label; break;
+                  case 'q10': rawAnswersToSave.souvenir_important = selectedOption.label; break;
                 }
               }
-            });
-            console.log('Raw answers to save:', rawAnswersToSave);
-            console.log('User ID:', user.id);
+            }
+          });
 
-            const { data: existingProfile, error: fetchProfileError } = await supabase
-              .from('profiles_infos')
-              .select('user_id')
-              .eq('user_id', user.id)
-              .single();
+          const { data: existingProfile, error: fetchProfileError } = await supabase
+            .from('profiles_infos')
+            .select('user_id')
+            .eq('user_id', user.id)
+            .single();
 
-            if (fetchProfileError && fetchProfileError.code !== 'PGRST116') {
-              console.error('Error fetching existing profile info:', fetchProfileError);
+          if (fetchProfileError && fetchProfileError.code !== 'PGRST116') {
+            console.error('Error fetching existing profile info:', fetchProfileError);
+          } else {
+            let profileSaveError;
+            if (existingProfile) {
+              const { error } = await supabase
+                .from('profiles_infos')
+                .update(rawAnswersToSave)
+                .eq('user_id', user.id);
+              profileSaveError = error;
             } else {
-              let profileSaveError;
-              if (existingProfile) {
-                console.log('Existing profile found, updating...');
-                const { error } = await supabase
-                  .from('profiles_infos')
-                  .update(rawAnswersToSave)
-                  .eq('user_id', user.id);
-                profileSaveError = error;
-              } else {
-                console.log('No existing profile found, inserting new...');
-                const { error } = await supabase
-                  .from('profiles_infos')
-                  .insert({ user_id: user.id, ...rawAnswersToSave });
-                profileSaveError = error;
-              }
+              const { error } = await supabase
+                .from('profiles_infos')
+                .insert({ user_id: user.id, ...rawAnswersToSave });
+              profileSaveError = error;
+            }
 
-              if (profileSaveError) {
-                console.error('Error saving profile info to Supabase:', profileSaveError);
-              } else {
-                console.log('Profile info saved to Supabase successfully!');
-                onSurveyComplete(); // Notify parent component that survey is complete
-                onClose(); // Close the dialog
-              }
+            if (profileSaveError) {
+              console.error('Error saving profile info to Supabase:', profileSaveError);
+            } else {
+              console.log('Profile info saved to Supabase successfully!');
             }
           }
         }
-      } else {
-        console.warn('No user logged in. Data not saved.');
-        onClose(); // Close dialog even if not logged in, or handle differently
       }
+    } else {
+      console.warn('No user logged in. Data not saved.');
     }
+
+    // Call onSurveyComplete to properly close the dialog BEFORE reloading
+    onSurveyComplete();
+
+    // Reload page after a small delay to ensure dialog closes properly
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   // Réactiver la fermeture du dialogue en cas de succès
@@ -518,11 +593,11 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
 
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-            <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" /> {/* Ajout du logo */}
+            <img src="/logo-savistas.png" alt="Savistas Logo" className="mb-6 h-24" />
             <DialogHeader className="mb-8">
               <DialogTitle className="text-3xl font-bold text-gray-800">Bienvenue !</DialogTitle>
               <DialogDescription className="text-lg text-gray-600 mt-2">
-                Afin de personnaliser au mieux votre apprentissage afin de l’adapter au type de méthode veuillez remplir judicieusement ce questionnaire
+                Afin de personnaliser au mieux votre apprentissage afin de l'adapter au type de méthode veuillez remplir judicieusement ce questionnaire
               </DialogDescription>
             </DialogHeader>
             <div className="w-full flex justify-center">
@@ -534,6 +609,97 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
               </Button>
             </div>
           </div>
+        ) : showResults ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col h-full p-8 overflow-y-auto relative"
+          >
+            {/* Contenu de la page de résultats */}
+            <div className="flex flex-col items-center justify-start max-w-3xl mx-auto w-full space-y-6 pt-8">
+              {/* Titre */}
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-gray-800">
+                  Vos styles d'apprentissage dominants
+                </h2>
+                <p className="text-gray-600">
+                  Voici une analyse de vos réponses au questionnaire
+                </p>
+              </div>
+
+              {/* Résultats */}
+              <div className="w-full bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Vos 3 styles d'apprentissage dominants :
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {calculatedScores?.map((style, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1, duration: 0.3 }}
+                    >
+                      <Badge
+                        variant="secondary"
+                        className={`px-4 py-3 text-md font-semibold w-full justify-center border-2 ${getStyleColor(index)}`}
+                      >
+                        {style.name}
+                      </Badge>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* FAQ en Accordéon */}
+              <div className="w-full">
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1" className="border rounded-lg px-4">
+                    <AccordionTrigger className="text-left hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">
+                          À propos de vos résultats
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-700 space-y-3 pt-2">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                        <p className="font-medium text-blue-900">
+                          📊 Comprendre vos styles d'apprentissage
+                        </p>
+                        <p className="text-sm">
+                          Ces résultats identifient vos styles d'apprentissage dominants basés sur vos préférences et habitudes.
+                        </p>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <p>
+                          <strong>Comment utiliser ces résultats ?</strong>
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          <li>Ces styles vous aident à comprendre comment vous apprenez le mieux</li>
+                          <li>Utilisez ces informations pour adapter vos méthodes d'étude</li>
+                          <li>Votre expérience d'apprentissage sera personnalisée en fonction de ces résultats</li>
+                          <li>Vous pouvez refaire ce test à tout moment depuis votre profil</li>
+                        </ul>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+
+              {/* Bouton Terminer */}
+              <div className="w-full pt-4">
+                <Button
+                  onClick={saveResults}
+                  className="w-full px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+                >
+                  Terminer et enregistrer
+                </Button>
+              </div>
+            </div>
+          </motion.div>
         ) : (
           <>
             {/* Progress bar - fixe */}
@@ -589,12 +755,12 @@ const InformationSurveyDialog: React.FC<InformationSurveyDialogProps> = ({
                   </Button>
                   {isLastQuestion ? (
                     <Button
-                      onClick={handleNext} // Call handleNext directly for submission
-                      disabled={!allQuestionsAnswered()} // Disable if not all questions are answered
+                      onClick={handleNext}
+                      disabled={!allQuestionsAnswered()}
                       variant="default"
                       className="px-6 py-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 text-lg"
                     >
-                      Soumettre
+                      Voir les résultats
                     </Button>
                   ) : (
                     <Button

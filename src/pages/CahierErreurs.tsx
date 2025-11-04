@@ -6,6 +6,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { supabase } from '@/integrations/supabase/client';
 import { useAllErrors, ErrorWithDetails } from '@/hooks/useAllErrors';
 import { useErrorRevisionList } from '@/hooks/useErrorRevisionList';
@@ -50,7 +51,6 @@ import { BookOpen, FileQuestion, GraduationCap, Search, Filter, ChevronRight, Pl
 import { useIsMobile } from '@/hooks/use-mobile';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import BottomNav from '@/components/BottomNav';
 import BurgerMenu from '@/components/BurgerMenu';
 import { ErrorRevisionModal } from '@/components/error-revision/ErrorRevisionModal';
 import { ErrorAnalysisCard } from '@/components/error-revision/ErrorAnalysisCard';
@@ -61,36 +61,11 @@ export default function CahierErreurs() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [displayName, setDisplayName] = useState<string>('');
+  const displayName = useDisplayName();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatiere, setSelectedMatiere] = useState<string>('all');
   const [selectedCategorie, setSelectedCategorie] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Fetch user profile for display name
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileData) {
-        setDisplayName(
-          profileData.full_name ||
-            user.user_metadata?.full_name ||
-            profileData.email ||
-            user.email ||
-            'Mon profil'
-        );
-      }
-    };
-
-    loadProfile();
-  }, [user]);
 
   // Fetch all errors
   const { data: errors = [], isLoading } = useAllErrors();
@@ -651,7 +626,6 @@ export default function CahierErreurs() {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
   );

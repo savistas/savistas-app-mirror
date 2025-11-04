@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDisplayName } from "@/hooks/useDisplayName";
 import { ArrowLeft, FileText, ArrowRight, CheckCircle, Trash2, Download } from "lucide-react";
 import {
   Accordion,
@@ -94,12 +94,12 @@ function isExerciseResponseMetadata(obj: any): obj is ExerciseResponseMetadata {
 const CourseDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const displayName = useDisplayName();
   const [course, setCourse] = useState<Course | null>(null);
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoadingRevision, setIsLoadingRevision] = useState(false); // New state for loading
   const [hasRevisionSheet, setHasRevisionSheet] = useState(false); // New state to track if revision sheet is available
-  const [displayName, setDisplayName] = useState<string>("");
 
   const handleGenerateRevisionSheet = async () => {
     if (!id) {
@@ -305,19 +305,6 @@ const CourseDetail = () => {
       }
 
       try {
-        // Fetch user profile for display name
-        if (user) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, email')
-            .eq('user_id', user.id)
-            .single();
-
-          if (profileData) {
-            setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
-          }
-        }
-
         // Fetch course details
         const { data: courseData, error: courseError } = await supabase
           .from("courses")
@@ -790,7 +777,6 @@ const CourseDetail = () => {
           </CardContent>
         </Card>
       </main>
-      <BottomNav />
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>

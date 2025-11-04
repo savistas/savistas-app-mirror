@@ -15,7 +15,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { analyzeLearningStyles } from '@/services/learningStylesAnalyzer';
 import { generateAgentConfig, ConversationType, PromptContext } from '@/services/systemPromptGenerator';
 import BurgerMenu from '@/components/BurgerMenu';
-import BottomNav from '@/components/BottomNav';
 import { AvatarContainer } from '@/components/virtual-teacher/AvatarContainer';
 import { createElevenLabsAgent, getElevenLabsSignedUrl, getVoiceIdForPersonality } from '@/services/elevenLabsAgentService';
 import { createEcosAgent, createEcosSession, endEcosSession, getDefaultAvatarId } from '@/services/ecosService';
@@ -1432,7 +1431,6 @@ Matières: ${profileData?.subjects || 'Non renseigné'}
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNav />
 
       {/* Limit Reached Dialog */}
       <LimitReachedDialog

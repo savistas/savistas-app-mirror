@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import { Progress } from "@/components/ui/progress";
 import { QuizTimer } from "@/components/QuizTimer";
@@ -10,6 +9,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDisplayName } from "@/hooks/useDisplayName";
 import { Json } from "@/integrations/supabase/types";
 import { sendQuizErrorsToWebhook } from "@/lib/errorCategorizationService";
 import { useQuizTimer } from "@/hooks/useQuizTimer";
@@ -46,6 +46,7 @@ const DailyQuiz = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const displayName = useDisplayName();
 
   const [exerciseMetadata, setExerciseMetadata] = useState<ExerciseMetadata | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState("");
@@ -53,7 +54,6 @@ const DailyQuiz = () => {
   const [userResponsesDetails, setUserResponsesDetails] = useState<UserResponseDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string>("");
 
   // Initialize quiz timer
   const {
@@ -103,25 +103,6 @@ const DailyQuiz = () => {
 
     fetchExercise();
   }, [id]);
-
-  // Fetch user display name
-  useEffect(() => {
-    const fetchUserName = async () => {
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!error && data) {
-        setDisplayName(data.full_name || "");
-      }
-    };
-
-    fetchUserName();
-  }, [user]);
 
   // Start timer when exercise is loaded
   useEffect(() => {
@@ -353,7 +334,6 @@ const DailyQuiz = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 };

@@ -14,9 +14,9 @@ import { Search, FolderOpen, Plus, FileText, ChevronRight } from 'lucide-react';
 import { DocumentsByCourse as GroupedDocs, Document, UserDocument } from '@/types/document';
 import { toast } from 'sonner';
 import BurgerMenu from '@/components/BurgerMenu';
-import BottomNav from '@/components/BottomNav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { supabase } from '@/integrations/supabase/client';
 import { useDocuments, useDocumentDelete } from '@/hooks/useDocuments';
 import { DocumentGrid } from '@/components/documents/DocumentGrid';
@@ -30,33 +30,15 @@ export default function StudentDocuments() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const displayName = useDisplayName();
   const { data: courseDocuments, isLoading: loadingCourseDocuments } = useUserDocuments();
   const { data: standaloneDocuments, isLoading: loadingStandaloneDocuments } = useDocuments();
   const { mutateAsync: deleteDocument } = useDocumentDelete();
   const { downloadFile, getSignedUrl } = useDownloadFile();
-  const [displayName, setDisplayName] = useState<string>('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileData) {
-        setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
-      }
-    };
-
-    loadProfile();
-  }, [user]);
 
   // Group course documents by course
   const groupedDocuments = useMemo((): GroupedDocs[] => {
@@ -310,7 +292,6 @@ export default function StudentDocuments() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
-        {isMobile && <BottomNav />}
       </div>
     );
   }
@@ -532,7 +513,6 @@ export default function StudentDocuments() {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
   );

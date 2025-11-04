@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface Question {
   id: string;
@@ -244,6 +245,47 @@ const calculateScores = (answers: Record<string, string>) => {
   return scores;
 };
 
+// Fonction pour filtrer les troubles élevés et très élevés
+const getHighTroubles = (scores: Record<string, string>) => {
+  const troubleLabels: Record<string, string> = {
+    tdah_score: 'TDAH',
+    dyslexie_score: 'Dyslexie',
+    dyscalculie_score: 'Dyscalculie',
+    dyspraxie_score: 'Dyspraxie',
+    tsa_score: 'TSA',
+    trouble_langage_score: 'Trouble du langage',
+    tdi_score: 'TDI',
+    tics_tourette_score: 'Tics/Tourette',
+    begaiement_score: 'Bégaiement',
+    trouble_sensoriel_isole_score: 'Trouble sensoriel isolé',
+  };
+
+  const highTroubles: Array<{ label: string; level: string }> = [];
+
+  Object.entries(scores).forEach(([key, level]) => {
+    if (level === 'Élevé' || level === 'Très élevé') {
+      highTroubles.push({
+        label: troubleLabels[key] || key,
+        level: level,
+      });
+    }
+  });
+
+  return highTroubles;
+};
+
+// Fonction pour obtenir la couleur du badge selon le niveau
+const getTroubleColor = (level: string) => {
+  switch (level) {
+    case 'Élevé':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'Très élevé':
+      return 'bg-red-200 text-red-900 border-red-300';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
+
 interface TroublesDetectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -266,6 +308,8 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
   const [showQCMChoice, setShowQCMChoice] = useState(false);
   const [showMedicalDiagnosisInput, setShowMedicalDiagnosisInput] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [calculatedScores, setCalculatedScores] = useState<any>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -279,6 +323,8 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
       setCurrentQuestionIndex(0);
       setAnswers({});
       setIsNavigating(false);
+      setShowResults(false);
+      setCalculatedScores(null);
     }
   }, [isOpen]);
 
@@ -339,8 +385,10 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
         console.warn('Tentative de navigation vers un index invalide:', nextIndex);
       }
     } else {
-      // Calculate scores and save to database
-      await saveResults();
+      // Dernière question - calculer les scores et afficher les résultats
+      const scores = calculateScores(answers);
+      setCalculatedScores(scores);
+      setShowResults(true);
     }
   };
 
@@ -386,8 +434,8 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
         .insert(rawAnswersData);
     }
 
-    // Calculate and save scores
-    const scores = hasMedicalDiagnosis ? {} : calculateScores(answers);
+    // Use already calculated scores or calculate them
+    const scores = hasMedicalDiagnosis ? {} : (calculatedScores || calculateScores(answers));
     const scoresData = {
       user_id: user.id,
       has_medical_diagnosis: hasMedicalDiagnosis || false,
@@ -415,7 +463,13 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
 
     // Note: troubles_detection_completed flag is automatically updated by database trigger
 
+    // Call onComplete to properly close the dialog BEFORE reloading
     onComplete();
+
+    // Reload page after a small delay to ensure dialog closes properly
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   const handlePrevious = () => {
@@ -688,7 +742,7 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
             >
               <X className="h-4 w-4" />
             </Button>
-            
+
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               Voulez-vous réaliser un court QCM de prédétection des troubles ?
             </h2>
@@ -711,6 +765,131 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
               </Button>
             </div>
           </div>
+        ) : showResults ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col h-full p-8 overflow-y-auto relative"
+          >
+            {/* Bouton de fermeture */}
+            <Button
+              onClick={handleRequestExit}
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100 z-10"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            {/* Contenu de la page de résultats */}
+            <div className="flex flex-col items-center justify-start max-w-3xl mx-auto w-full space-y-6 pt-8">
+              {/* Titre */}
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-gray-800">
+                  Résultats de votre prédétection
+                </h2>
+                <p className="text-gray-600">
+                  Voici une analyse de vos réponses au questionnaire
+                </p>
+              </div>
+
+              {/* Résultats */}
+              <div className="w-full bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+                {(() => {
+                  const highTroubles = calculatedScores ? getHighTroubles(calculatedScores) : [];
+
+                  return highTroubles.length > 0 ? (
+                    <>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                        Troubles détectés :
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {highTroubles.map((trouble, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1, duration: 0.3 }}
+                            className={`px-4 py-3 rounded-lg border-2 font-medium text-center ${getTroubleColor(trouble.level)}`}
+                          >
+                            <div className="font-semibold">{trouble.label}</div>
+                            <div className="text-sm mt-1">{trouble.level}</div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className="text-center py-8 space-y-3"
+                    >
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-2">
+                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-800">
+                        Aucun trouble élevé détecté
+                      </h3>
+                      <p className="text-gray-600 max-w-md mx-auto">
+                        Vos réponses n'indiquent pas de signaux significatifs nécessitant une attention particulière.
+                      </p>
+                    </motion.div>
+                  );
+                })()}
+              </div>
+
+              {/* FAQ en Accordéon */}
+              <div className="w-full">
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1" className="border rounded-lg px-4">
+                    <AccordionTrigger className="text-left hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">
+                          Important : À propos de ces résultats
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-700 space-y-3 pt-2">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-2">
+                        <p className="font-medium text-yellow-900">
+                          ⚠️ Ces résultats ne constituent pas un diagnostic médical
+                        </p>
+                        <p className="text-sm">
+                          Ce questionnaire est un outil de prédétection conçu pour identifier des signaux potentiels.
+                          Il ne remplace en aucun cas l'avis d'un professionnel de santé qualifié.
+                        </p>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <p>
+                          <strong>Que faire avec ces résultats ?</strong>
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          <li>Si des troubles élevés sont détectés, nous vous recommandons de consulter un spécialiste (orthophoniste, neuropsychologue, pédiatre, etc.)</li>
+                          <li>Ces informations nous permettront de mieux personnaliser votre expérience d'apprentissage</li>
+                          <li>Vous pouvez refaire ce test à tout moment depuis votre profil</li>
+                        </ul>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+
+              {/* Bouton Terminer */}
+              <div className="w-full pt-4">
+                <Button
+                  onClick={saveResults}
+                  className="w-full px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+                >
+                  Terminer et enregistrer
+                </Button>
+              </div>
+            </div>
+          </motion.div>
         ) : (
           <>
             {/* Bouton de fermeture */}
@@ -791,12 +970,12 @@ const TroublesDetectionDialog: React.FC<TroublesDetectionDialogProps> = ({
                   </Button>
                   {currentQuestionIndex === questions.length - 1 ? (
                     <Button
-                      onClick={saveResults}
+                      onClick={handleNext}
                       disabled={!answers[`q${currentQuestionIndex + 1}`] || isNavigating}
                       variant="default"
                       className="px-6 py-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 text-lg"
                     >
-                      Terminer
+                      Voir les résultats
                     </Button>
                   ) : null}
                 </div>
