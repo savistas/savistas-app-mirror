@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Savistas AI-Cademy is a learning platform built with React, TypeScript, Vite, and Supabase. The application focuses on personalized education with learning disability pre-detection, learning style assessment, and adaptive course management.
+Savistas AI-Cademy is a comprehensive learning platform built with React, TypeScript, Vite, and Supabase. The application focuses on personalized education with learning disability pre-detection, learning style assessment, adaptive course management, and B2B organization management.
+
+### Key Features
+- **Adaptive Learning**: Personalized learning paths based on detected learning disabilities and styles
+- **Subscription Management**: Tiered subscription plans (Basic, Premium, Pro) with usage tracking via Stripe
+- **B2B Organizations**: School and company organization management with admin validation
+- **AI-Powered Features**: Virtual teacher (ElevenLabs/Equos), AI-generated revision sheets and quizzes
+- **Error Tracking**: "Cahier d'erreurs" for tracking and revising student mistakes
 
 ## Development Commands
 
@@ -37,6 +44,9 @@ npx supabase start
 # Stop local Supabase
 npx supabase stop
 
+# Check Supabase status
+npx supabase status
+
 # Generate TypeScript types from database
 npx supabase gen types typescript --local > src/integrations/supabase/types.ts
 
@@ -45,6 +55,27 @@ npx supabase migration new <migration_name>
 
 # Apply migrations
 npx supabase db push
+```
+
+### Stripe CLI Commands
+```bash
+# Check Stripe CLI version
+~/.local/bin/stripe --version
+
+# Configure Stripe CLI
+~/.local/bin/stripe config
+
+# Login to Stripe
+~/.local/bin/stripe login
+
+# List webhook endpoints
+~/.local/bin/stripe webhook_endpoints list
+
+# View recent events
+~/.local/bin/stripe events
+
+# Listen to webhooks locally
+stripe listen --forward-to localhost:54321/functions/v1/stripe-webhook
 ```
 
 ## Architecture Overview
@@ -93,23 +124,45 @@ src/
 
 ### Routing Structure
 
-All routes are defined in [src/App.tsx](src/App.tsx):
+All routes are defined in [src/App.tsx](src/App.tsx). The app supports two routing modes:
+
+#### Public Routes
 - `/auth` - Authentication page (login/signup)
 - `/reset-password` - Password reset
-- `/informations` - Initial information survey (protected)
-- `/dashboard` - Main dashboard (protected)
-- `/profile` - User profile (protected)
-- `/upload-course` - Course upload interface (protected)
-- `/calendar` - Calendar view (protected)
-- `/planning` - Planning interface (protected)
-- `/daily-quiz/:id` - Quiz taking interface (protected)
-- `/result/:id` - Quiz results (protected)
-- `/messaging` - Messaging interface (protected)
-- `/courses/:id` - Course detail page (protected)
 - `/terms` - Terms of service
 - `/privacy` - Privacy policy
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2bWticGtvY2N4cG1mcHhoYWN2Iiwicm9sZS
-I6ImFub24iLCJpYXQiOjE3NTQ3NzY2MTEsImV4cCI6MjA3MDM1MjYxMX0.I6XUsURaSpVwsZY-DrFw6tAUY50nzFkDBM4FqoPJpm4
+
+#### Protected Routes (with Layout/BottomNav)
+
+**Admin Routes (contact.savistas@gmail.com only)**:
+- `/admin` - Admin dashboard
+- `/admin/organization-requests` - B2B organization validation backoffice
+
+**Role-based Routes** (pattern: `/:role/route`):
+- `/:role/dashboard` - Main dashboard
+- `/:role/dashboard-organization` - Organization dashboard (B2B)
+- `/:role/creation-request` - Organization request status
+- `/:role/profile` - User profile with subscription management
+- `/:role/upload-course` - Course upload interface
+- `/:role/calendar` - Calendar view
+- `/:role/planning` - Planning interface
+- `/:role/daily-quiz/:id` - Quiz taking interface
+- `/:role/result/:id` - Quiz results
+- `/:role/messaging` - Messaging interface
+- `/:role/progression` - Progress tracking
+- `/:role/cahier-erreurs` - Error notebook
+- `/:role/courses/:id` - Course detail page
+- `/:role/professeur-virtuel` - Virtual teacher (ElevenLabs)
+- `/:role/professeur-particulier-virtuel` - Private virtual teacher (Equos)
+- `/:role/documents` - Student documents
+- `/:role/revision-sheets` - Student revision sheets
+
+**Special Routes**:
+- `/student/revision-sheets` - Revision sheets listing
+- `/student/revision-sheets/:courseId/ai-session` - AI-powered revision session
+
+**Legacy Routes** (without role prefix for backward compatibility):
+- `/dashboard`, `/profile`, `/upload-course`, etc.
 ### Authentication Flow
 
 1. **AuthContext** ([src/contexts/AuthContext.tsx](src/contexts/AuthContext.tsx)) provides:
@@ -125,16 +178,39 @@ I6ImFub24iLCJpYXQiOjE3NTQ3NzY2MTEsImV4cCI6MjA3MDM1MjYxMX0.I6XUsURaSpVwsZY-DrFw6t
 ### Database Schema (Supabase)
 
 Key tables:
-- `profiles` - User profile data with completion flags
+
+**User Management**:
+- `profiles` - User profile data with completion flags, role, and subscription info
   - `troubles_detection_completed`: Boolean for troubles questionnaire
   - `learning_styles_completed`: Boolean for learning styles survey
   - `survey_completed`: Boolean for general survey completion
+  - `role`: 'student' | 'parent' | 'professor' | 'school' | 'company'
+  - `subscription`: 'basic' | 'premium' | 'pro'
 
+**Learning Disabilities & Styles**:
 - `troubles_questionnaire_reponses` - Raw questionnaire responses (13 questions)
 - `troubles_detection_scores` - Calculated scores for 10 different learning disabilities
+- `learning_styles` - User learning style preferences and assessments
+
+**Course Management**:
 - `courses` - Course content and metadata
 - `quizzes` - Quiz data linked to courses
 - `user_quiz_attempts` - User quiz attempts and scores
+- `fiches_revision` - Revision sheets generated from courses
+- `user_errors` - Student error tracking (cahier d'erreurs)
+- `error_revision` - Error revision sessions and progress
+
+**Subscription & Usage (Stripe Integration)**:
+- `user_subscriptions` - Stripe subscription data and AI minutes purchased
+- `monthly_usage` - Tracks monthly resource usage (courses, exercises, fiches, AI minutes)
+
+**B2B Organizations**:
+- `organizations` - School/company organization data with validation status
+- `organization_members` - Organization membership with roles
+- `organization_requests` - Pending organization creation requests for admin validation
+
+**Email Registry**:
+- `emails_registry` - Tracks sent emails to prevent duplicates
 
 ### Critical Onboarding Logic
 
@@ -173,6 +249,103 @@ const getTroubleColor = (level: string) => {
   }
 };
 ```
+
+## Subscription & Payments System
+
+The platform implements a comprehensive subscription system with Stripe integration. See [SUBSCRIPTION_IMPLEMENTATION.md](SUBSCRIPTION_IMPLEMENTATION.md) for full details.
+
+### Plans and Pricing
+
+| Feature | Basic (Free) | Premium (9.90€) | Pro (19.90€) |
+|---------|-------------|----------------|--------------|
+| Courses/month | 2 | 10 | 30 |
+| Exercises/month | 2 | 10 | 30 |
+| Revision sheets/month | 2 | 10 | 30 |
+| AI Minutes | 3 + purchases | 0 + purchases | 0 + purchases |
+
+### Key Components
+- `<SubscriptionCard />` - Display subscription info in Profile page
+- `<UpgradeDialog />` - Modal for upgrading plans or purchasing AI minutes
+- `<LimitReachedDialog />` - Modal shown when usage limits are reached
+- `<PlanSelectionCards />` - Plan comparison and selection
+- `<PlanDetailsDialog />` - Detailed plan information
+
+### Hooks
+- `useSubscription()` - Get subscription and limits
+- `useUsageLimits()` - Track usage and check limits
+- `useConversationTimeLimit()` - Manage AI conversation time limits
+
+### Edge Functions
+- `stripe-webhook` - Handle Stripe events (NO JWT verification needed)
+- `create-checkout-session` - Create Stripe checkout sessions
+- `check-usage-limits` - Verify usage limits server-side
+- `reset-usage-periods` - Monthly reset cron job
+- `cancel-subscription` - Cancel user subscriptions
+
+### Usage Tracking
+Always check limits before creating resources and increment after success:
+
+```typescript
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { incrementUsage } from '@/services/usageService';
+
+const { canCreate } = useUsageLimits();
+
+// Before creating
+if (!canCreate('course')) {
+  setShowLimitDialog(true);
+  return;
+}
+
+// After successful creation
+await incrementUsage(userId, 'course', 1);
+```
+
+### Proration Logic
+When users upgrade (e.g., Premium → Pro), Stripe automatically calculates prorated charges. See [SUBSCRIPTION_UPGRADE_GUIDE.md](SUBSCRIPTION_UPGRADE_GUIDE.md).
+
+## B2B Organization Management
+
+The platform supports B2B organizations (schools and companies) with an admin validation system. See [BACKOFFICE_ADMIN_GUIDE.md](BACKOFFICE_ADMIN_GUIDE.md).
+
+### Organization Creation Flow
+1. User with role 'school' or 'company' submits organization request
+2. Request stored in `organization_requests` table with status 'pending'
+3. Admin (contact.savistas@gmail.com) reviews in `/admin/organization-requests`
+4. Admin approves or rejects request
+5. If approved, organization is created and admin becomes organization admin
+
+### Key Components
+- `OrganizationProfileForm` - Form for requesting organization creation
+- `AdminOrganizationRequests` - Admin backoffice page for validating requests
+- `OrganizationRequestCard` - Display individual organization requests
+- `DashboardOrganization` - Organization management dashboard
+
+### Hooks
+- `useAdminAccess()` - Check if user is admin (contact.savistas@gmail.com)
+- `useOrganizationRequests()` - Manage organization requests
+- `useOrganization()` - Get organization data
+- `useOrganizationMembers()` - Manage organization members
+- `useOrganizationCode()` - Generate and validate organization codes
+
+## AI-Powered Features
+
+### Virtual Teacher (ElevenLabs)
+- Agent ID: `agent_5901k7s57ptne94thf6jaf9ngqas`
+- Location: `src/pages/VirtualTeacher.tsx`
+- Uses conversation time tracking with AI minutes
+- See [VERIFY_AI_MINUTES.md](VERIFY_AI_MINUTES.md) for verification steps
+
+### Private Virtual Teacher (Equos)
+- Uses Equos SDK for advanced AI conversations
+- Dynamic instruction generation based on user profile
+- Location: `src/pages/ProfesseurParticulierVirtuel.tsx`
+- See [CONFIGURATION_EQUOS.md](CONFIGURATION_EQUOS.md)
+
+### AI-Generated Content
+- Revision sheets: Generated via `generate-revision-sheet` Edge Function
+- Quizzes: Generated via `generate-quiz-from-fiche` Edge Function
+- Error reports: AI-powered analysis of student errors
 
 ## UI Component Guidelines
 
@@ -258,6 +431,20 @@ Several debugging scripts exist in the root:
 
 These are development utilities and should not be deleted.
 
+## Services Layer
+
+The application includes several service modules for business logic:
+
+### Key Services
+- `usageService.ts` - Subscription usage tracking and limit checking
+- `elevenLabsService.ts` / `elevenLabsAgentService.ts` - ElevenLabs AI integration
+- `equosService.ts` / `equosAgentService.ts` - Equos AI integration
+- `revisionSheetService.ts` - Revision sheet generation
+- `documentService.ts` - Document management
+- `errorRevisionService.ts` - Error tracking and revision
+- `learningStylesAnalyzer.ts` - Learning style analysis
+- `systemPromptGenerator.ts` - Dynamic AI prompt generation
+
 ## Known Issues & Considerations
 
 1. **Dialog State Management**: The troubles detection and learning styles dialogs have complex state interdependencies. Always check completion flags before opening dialogs.
@@ -268,8 +455,15 @@ These are development utilities and should not be deleted.
 
 4. **Lovable Integration**: Project was originally created on Lovable platform. The `lovable-tagger` plugin is used in development mode.
 
+5. **Stripe Webhooks**: The `stripe-webhook` Edge Function must be deployed with `--no-verify-jwt` flag as it receives unsigned requests from Stripe.
+
+6. **AI Minutes Tracking**: Conversation duration is tracked and rounded up to nearest minute. Minutes purchased accumulate without expiration, while subscription limits reset monthly.
+
+7. **Organization Validation**: Only the admin email (contact.savistas@gmail.com) can approve/reject organization requests. This is enforced via RLS policies.
+
 ## Testing Strategy
 
+### Survey/Questionnaire Testing
 When testing survey/questionnaire flows:
 1. Check database state in `profiles` table
 2. Verify completion flags are correctly set
@@ -278,3 +472,78 @@ When testing survey/questionnaire flows:
 5. Validate data is saved to both response and scores tables
 
 See [VALIDATION_QUESTIONNAIRES_LOGIC.md](VALIDATION_QUESTIONNAIRES_LOGIC.md) for specific test scenarios.
+
+### Subscription Testing
+Test subscription upgrades using Stripe test mode:
+1. Use test card `4242 4242 4242 4242` for payments
+2. Verify proration calculations are correct
+3. Check webhook events are received and processed
+4. Validate database updates in `user_subscriptions` and `monthly_usage`
+5. Test limit enforcement for each resource type
+
+See [SUBSCRIPTION_IMPLEMENTATION.md](SUBSCRIPTION_IMPLEMENTATION.md) for detailed testing procedures.
+
+### Organization Testing
+Test B2B organization flows:
+1. Create organization request with school/company role
+2. Verify request appears in admin backoffice
+3. Test approval creates organization and adds admin member
+4. Test rejection stores reason correctly
+5. Verify RLS policies prevent unauthorized access
+
+See [BACKOFFICE_ADMIN_GUIDE.md](BACKOFFICE_ADMIN_GUIDE.md) for test cases.
+
+## Deployment & Maintenance
+
+### Edge Functions Deployment
+```bash
+# Deploy all functions
+npx supabase functions deploy stripe-webhook --no-verify-jwt
+npx supabase functions deploy create-checkout-session
+npx supabase functions deploy check-usage-limits
+npx supabase functions deploy reset-usage-periods
+npx supabase functions deploy cancel-subscription
+npx supabase functions deploy generate-revision-sheet
+npx supabase functions deploy generate-quiz-from-fiche
+npx supabase functions deploy create-equos-session
+npx supabase functions deploy create-equos-agent
+```
+
+### Setting Secrets
+```bash
+# Stripe secrets
+npx supabase secrets set STRIPE_SECRET_KEY=sk_live_...
+npx supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Other API keys (if needed)
+npx supabase secrets set ELEVENLABS_API_KEY=sk_...
+npx supabase secrets set EQUOS_API_KEY=...
+```
+
+### Cron Jobs
+Configure via Supabase Dashboard or SQL for:
+- Monthly usage reset (`reset-usage-periods`)
+- Should run hourly or daily to catch expired subscriptions
+
+### Migration Management
+```bash
+# Apply all pending migrations
+npx supabase db push
+
+# Create new migration
+npx supabase migration new <migration_name>
+
+# Regenerate types after schema changes
+npx supabase gen types typescript --local > src/integrations/supabase/types.ts
+```
+
+## Important Documentation Files
+
+- [SUBSCRIPTION_IMPLEMENTATION.md](SUBSCRIPTION_IMPLEMENTATION.md) - Complete subscription system docs
+- [SUBSCRIPTION_UPGRADE_GUIDE.md](SUBSCRIPTION_UPGRADE_GUIDE.md) - Proration and upgrade logic
+- [BACKOFFICE_ADMIN_GUIDE.md](BACKOFFICE_ADMIN_GUIDE.md) - B2B organization validation
+- [VALIDATION_QUESTIONNAIRES_LOGIC.md](VALIDATION_QUESTIONNAIRES_LOGIC.md) - Onboarding flow
+- [IMPLEMENTATION_TROUBLES_SECTION.md](IMPLEMENTATION_TROUBLES_SECTION.md) - Troubles detection
+- [VERIFY_AI_MINUTES.md](VERIFY_AI_MINUTES.md) - AI minutes verification
+- [CONFIGURATION_EQUOS.md](CONFIGURATION_EQUOS.md) - Equos integration
+- [A_FAIRE_MAINTENANT.md](A_FAIRE_MAINTENANT.md) - Current TODO items

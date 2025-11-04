@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface UseOrganizationCodeReturn {
   validateCode: (code: string) => Promise<{ organizationId: string; organizationName: string } | null>;
-  joinOrganization: (userId: string, organizationId: string) => Promise<boolean>;
   isValidating: boolean;
   error: string | null;
   clearError: () => void;
@@ -66,57 +65,8 @@ export function useOrganizationCode(): UseOrganizationCodeReturn {
     }
   };
 
-  /**
-   * Rejoindre une organisation
-   * Ajoute l'utilisateur comme membre avec le statut "active"
-   */
-  const joinOrganization = async (userId: string, organizationId: string): Promise<boolean> => {
-    try {
-      // 1. Vérifier si l'utilisateur est déjà membre
-      const { data: existing } = await supabase
-        .from('organization_members')
-        .select('id, status')
-        .eq('user_id', userId)
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-      if (existing) {
-        if (existing.status === 'active') {
-          setError('Vous êtes déjà membre de cette organisation');
-        } else {
-          setError('Votre demande d\'adhésion est en cours de traitement');
-        }
-        return false;
-      }
-
-      // 2. Ajouter comme membre avec statut "active" (adhésion via code = approbation automatique)
-      const { error: insertError } = await supabase
-        .from('organization_members')
-        .insert({
-          user_id: userId,
-          organization_id: organizationId,
-          role: 'student',
-          status: 'active',
-          approved_at: new Date().toISOString(),
-        });
-
-      if (insertError) {
-        console.error('Error adding member:', insertError);
-        setError('Erreur lors de l\'ajout à l\'organisation');
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      setError('Erreur inattendue lors de l\'adhésion');
-      return false;
-    }
-  };
-
   return {
     validateCode,
-    joinOrganization,
     isValidating,
     error,
     clearError,

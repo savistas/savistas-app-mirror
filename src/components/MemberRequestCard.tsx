@@ -15,6 +15,8 @@ interface MemberRequestCardProps {
   requestedAt: string;
   onApprove: (id: string) => Promise<{ error: any }>;
   onReject: (id: string) => Promise<{ error: any }>;
+  disableApprove?: boolean;
+  disableReason?: string;
 }
 
 export const MemberRequestCard = ({
@@ -25,6 +27,8 @@ export const MemberRequestCard = ({
   requestedAt,
   onApprove,
   onReject,
+  disableApprove = false,
+  disableReason,
 }: MemberRequestCardProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -89,26 +93,31 @@ export const MemberRequestCard = ({
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            onClick={handleApprove}
-            disabled={loading}
-            size="sm"
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Check className="w-4 h-4 mr-1" />
-            Accepter
-          </Button>
-          <Button
-            onClick={handleReject}
-            disabled={loading}
-            size="sm"
-            variant="outline"
-            className="border-red-500 text-red-600 hover:bg-red-50"
-          >
-            <X className="w-4 h-4 mr-1" />
-            Refuser
-          </Button>
+        <div className="flex gap-2 flex-col items-end">
+          <div className="flex gap-2">
+            <Button
+              onClick={handleApprove}
+              disabled={loading || disableApprove}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Check className="w-4 h-4 mr-1" />
+              Accepter
+            </Button>
+            <Button
+              onClick={handleReject}
+              disabled={loading}
+              size="sm"
+              variant="outline"
+              className="border-red-500 text-red-600 hover:bg-red-50"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Refuser
+            </Button>
+          </div>
+          {disableApprove && disableReason && (
+            <p className="text-xs text-muted-foreground italic">{disableReason}</p>
+          )}
         </div>
       </div>
     </Card>

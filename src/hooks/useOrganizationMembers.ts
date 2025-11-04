@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { checkOrganizationCapacity } from '@/services/organizationSubscriptionService';
 
 interface Member {
   id: string;
@@ -14,6 +15,33 @@ interface Member {
   approved_at: string | null;
   organization_name: string;
   organization_code: string;
+}
+
+interface ApproveMemberResult {
+  error: Error | null;
+  capacityExceeded?: boolean;
+  noSubscription?: boolean;
+  capacityInfo?: {
+    can_add: boolean;
+    current_members: number;
+    seat_limit: number;
+    remaining_seats: number;
+  };
+}
+
+interface RemoveMemberResult {
+  error: Error | null;
+  autoDowngradeTriggered?: boolean;
+  adjustmentInfo?: {
+    old_plan: string;
+    new_plan: string;
+    current_members: number;
+    new_seat_limit: number;
+  };
+}
+
+interface RejectMemberResult {
+  error: Error | null;
 }
 
 export const useOrganizationMembers = (organizationId: string | null) => {
@@ -69,24 +97,69 @@ export const useOrganizationMembers = (organizationId: string | null) => {
     }
   }, [organizationId]);
 
-  const approveMember = async (memberId: string) => {
-    const { error } = await supabase
-      .from('organization_members')
-      .update({
-        status: 'active',
-        approved_at: new Date().toISOString(),
-        approved_by: user?.id,
-      })
-      .eq('id', memberId);
-
-    if (!error) {
-      await fetchMembers();
+  const approveMember = async (memberId: string): Promise<ApproveMemberResult> => {
+    // CRITICAL: Check capacity before approving
+    if (!organizationId) {
+      return { error: new Error('Organization ID is required') };
     }
 
-    return { error };
+    try {
+      // CRITICAL: Check if organization has an active subscription plan
+      const { data: organization, error: orgError } = await supabase
+        .from('organizations')
+        .select('subscription_plan')
+        .eq('id', organizationId)
+        .single();
+
+      if (orgError || !organization) {
+        return {
+          error: new Error('Impossible de vérifier l\'abonnement de l\'organisation'),
+        };
+      }
+
+      if (!organization.subscription_plan) {
+        return {
+          error: new Error(
+            'Vous devez souscrire à un plan d\'abonnement avant d\'ajouter des membres. ' +
+            'Rendez-vous dans la section Abonnement de votre profil pour choisir un plan.'
+          ),
+          noSubscription: true,
+        };
+      }
+
+      const capacityCheck = await checkOrganizationCapacity(organizationId);
+
+      if (!capacityCheck.can_add) {
+        return {
+          error: new Error(
+            `Capacité maximale atteinte. Votre organisation a ${capacityCheck.current_members} membres ` +
+            `sur ${capacityCheck.seat_limit} autorisés. Passez à un plan supérieur pour ajouter ce membre.`
+          ),
+          capacityExceeded: true,
+          capacityInfo: capacityCheck,
+        };
+      }
+
+      const { error } = await supabase
+        .from('organization_members')
+        .update({
+          status: 'active',
+          approved_at: new Date().toISOString(),
+          approved_by: user?.id,
+        })
+        .eq('id', memberId);
+
+      if (!error) {
+        await fetchMembers();
+      }
+
+      return { error };
+    } catch (err: any) {
+      return { error: err };
+    }
   };
 
-  const rejectMember = async (memberId: string) => {
+  const rejectMember = async (memberId: string): Promise<RejectMemberResult> => {
     const { error } = await supabase
       .from('organization_members')
       .update({ status: 'rejected' })
@@ -99,7 +172,7 @@ export const useOrganizationMembers = (organizationId: string | null) => {
     return { error };
   };
 
-  const removeMember = async (memberId: string) => {
+  const removeMember = async (memberId: string): Promise<RemoveMemberResult> => {
     const { error } = await supabase
       .from('organization_members')
       .delete()
@@ -107,6 +180,31 @@ export const useOrganizationMembers = (organizationId: string | null) => {
 
     if (!error) {
       await fetchMembers();
+
+      // Check if plan adjustment is needed after member removal
+      // The database triggers will update active_members_count automatically
+      // The check_organization_plan_adjustment() function will determine if downgrade is needed
+      if (organizationId) {
+        try {
+          const { data: adjustmentCheck } = await supabase
+            .rpc('check_organization_plan_adjustment', {
+              org_id: organizationId,
+            });
+
+          // If adjustment is needed, the result will indicate required action
+          // This can be used to show AutoDowngradeNotification component
+          if (adjustmentCheck) {
+            return {
+              error: null,
+              autoDowngradeTriggered: true,
+              adjustmentInfo: adjustmentCheck
+            };
+          }
+        } catch (adjustmentError) {
+          console.error('Error checking plan adjustment:', adjustmentError);
+          // Don't fail the member removal if adjustment check fails
+        }
+      }
     }
 
     return { error };

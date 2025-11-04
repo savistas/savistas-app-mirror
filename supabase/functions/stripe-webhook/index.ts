@@ -11,10 +11,22 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 
-// Product ID to plan mapping
+// Individual user product ID to plan mapping
 const PRODUCT_TO_PLAN: Record<string, string> = {
   'prod_TKZEuhKCVXME7l': 'premium', // Plan personnel premium
   'prod_TKZEcbBNDNMCmR': 'pro',     // Plan personnel pro
+};
+
+// B2B organization product ID to plan mapping
+const ORG_PRODUCT_TO_PLAN: Record<string, string> = {
+  // Monthly products
+  'prod_TKZEnwNiSwAjiu': 'b2b_pro',
+  'prod_TKZEg8FhoYWpQp': 'b2b_max',
+  'prod_TKZEwBnUONQnHD': 'b2b_ultra',
+  // Yearly products
+  'prod_TKZERNkKTiGW4k': 'b2b_pro',
+  'prod_TKZEGlgJJhRX20': 'b2b_max',
+  'prod_TKZE2ydWNgjoR6': 'b2b_ultra',
 };
 
 // AI minutes products
@@ -23,6 +35,16 @@ const AI_MINUTES_PRODUCTS: Record<string, number> = {
   'prod_TKZEPlyD9oRz7p': 30,  // Avatar IA - 30min
   'prod_TKZE9LG0MXrH1i': 60,  // Avatar IA - 60min
 };
+
+// Helper to determine seat limit from plan
+function getSeatLimitForPlan(plan: string): number {
+  switch (plan) {
+    case 'b2b_pro': return 20;
+    case 'b2b_max': return 50;
+    case 'b2b_ultra': return 100;
+    default: return 0;
+  }
+}
 
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
@@ -51,11 +73,20 @@ serve(async (req) => {
           mode: session.mode,
           customer: session.customer,
           subscription: session.subscription,
+          metadata: session.metadata,
         });
 
         if (session.mode === 'subscription') {
-          // Subscription checkout
-          await handleSubscriptionCreated(supabase, session);
+          // Check if this is an organization subscription
+          const organizationId = session.metadata?.organization_id;
+
+          if (organizationId) {
+            console.log('🏢 Organization subscription detected');
+            await handleOrgSubscriptionCreated(supabase, session);
+          } else {
+            console.log('👤 Individual subscription detected');
+            await handleSubscriptionCreated(supabase, session);
+          }
         } else if (session.mode === 'payment') {
           // One-time payment (AI minutes)
           await handleOneTimePayment(supabase, session);
@@ -67,7 +98,17 @@ serve(async (req) => {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('🔄 Subscription updated:', subscription.id);
-        await handleSubscriptionUpdated(supabase, subscription);
+
+        // Check if organization subscription
+        const organizationId = subscription.metadata?.organization_id;
+
+        if (organizationId) {
+          console.log('🏢 Organization subscription update');
+          await handleOrgSubscriptionUpdated(supabase, subscription);
+        } else {
+          console.log('👤 Individual subscription update');
+          await handleSubscriptionUpdated(supabase, subscription);
+        }
         break;
       }
 
@@ -75,7 +116,17 @@ serve(async (req) => {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('❌ Subscription deleted:', subscription.id);
-        await handleSubscriptionDeleted(supabase, subscription);
+
+        // Check if organization subscription
+        const organizationId = subscription.metadata?.organization_id;
+
+        if (organizationId) {
+          console.log('🏢 Organization subscription deletion');
+          await handleOrgSubscriptionDeleted(supabase, subscription);
+        } else {
+          console.log('👤 Individual subscription deletion');
+          await handleSubscriptionDeleted(supabase, subscription);
+        }
         break;
       }
 
@@ -85,7 +136,18 @@ serve(async (req) => {
 
         if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
           console.log('💰 Renewal payment succeeded:', invoice.subscription);
-          await handleRenewal(supabase, invoice);
+
+          // Retrieve subscription to check metadata
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+          const organizationId = subscription.metadata?.organization_id;
+
+          if (organizationId) {
+            console.log('🏢 Organization renewal');
+            await handleOrgRenewal(supabase, invoice);
+          } else {
+            console.log('👤 Individual renewal');
+            await handleRenewal(supabase, invoice);
+          }
         }
         break;
       }
@@ -94,7 +156,20 @@ serve(async (req) => {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         console.log('⚠️ Payment failed:', invoice.subscription);
-        await handlePaymentFailed(supabase, invoice);
+
+        if (invoice.subscription) {
+          // Retrieve subscription to check metadata
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+          const organizationId = subscription.metadata?.organization_id;
+
+          if (organizationId) {
+            console.log('🏢 Organization payment failed');
+            await handleOrgPaymentFailed(supabase, invoice);
+          } else {
+            console.log('👤 Individual payment failed');
+            await handlePaymentFailed(supabase, invoice);
+          }
+        }
         break;
       }
 
@@ -402,4 +477,243 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
   }
 
   console.log(`✅ Added ${totalMinutes} AI minutes to user ${userId}`);
+}
+
+// ============================================================================
+// ORGANIZATION SUBSCRIPTION HANDLERS
+// ============================================================================
+
+// Handle new organization subscription creation
+async function handleOrgSubscriptionCreated(supabase: any, session: Stripe.Checkout.Session) {
+  const customerId = session.customer as string;
+  const subscriptionId = session.subscription as string;
+  const organizationId = session.metadata?.organization_id;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in session metadata');
+    return;
+  }
+
+  console.log('🔄 Processing organization subscription creation:', {
+    customerId,
+    subscriptionId,
+    organizationId,
+    sessionId: session.id
+  });
+
+  // Retrieve full subscription details
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const productId = subscription.items.data[0].price.product as string;
+  const plan = ORG_PRODUCT_TO_PLAN[productId];
+
+  if (!plan) {
+    console.error('❌ Unknown organization product:', productId);
+    return;
+  }
+
+  const seatLimit = getSeatLimitForPlan(plan);
+
+  console.log('📦 Organization product details:', {
+    productId,
+    plan,
+    seatLimit,
+    status: subscription.status,
+    currentPeriodStart: subscription.current_period_start,
+    currentPeriodEnd: subscription.current_period_end
+  });
+
+  // Upsert organization subscription
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .upsert({
+      organization_id: organizationId,
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      plan: plan,
+      status: subscription.status,
+      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      cancel_at_period_end: subscription.cancel_at_period_end,
+    }, {
+      onConflict: 'organization_id'
+    });
+
+  if (error) {
+    console.error('❌ Error upserting organization subscription:', error);
+    throw error;
+  }
+
+  // Update organization with plan and seat limit
+  const { error: orgError } = await supabase
+    .from('organizations')
+    .update({
+      subscription_plan: plan,
+      seat_limit: seatLimit,
+    })
+    .eq('id', organizationId);
+
+  if (orgError) {
+    console.error('❌ Error updating organization:', orgError);
+    throw orgError;
+  }
+
+  console.log(`✅ Organization subscription created for ${organizationId} with plan ${plan}`);
+}
+
+// Handle organization subscription update
+async function handleOrgSubscriptionUpdated(supabase: any, subscription: Stripe.Subscription) {
+  const organizationId = subscription.metadata?.organization_id;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in subscription metadata');
+    return;
+  }
+
+  const productId = subscription.items.data[0].price.product as string;
+  const plan = ORG_PRODUCT_TO_PLAN[productId];
+
+  if (!plan) {
+    console.error('❌ Unknown organization product:', productId);
+    return;
+  }
+
+  const seatLimit = getSeatLimitForPlan(plan);
+
+  // Update organization subscription
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      plan: plan,
+      status: subscription.status,
+      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      cancel_at_period_end: subscription.cancel_at_period_end,
+      canceled_at: subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null,
+    })
+    .eq('organization_id', organizationId);
+
+  if (error) {
+    console.error('❌ Error updating organization subscription:', error);
+    throw error;
+  }
+
+  // Update organization
+  const { error: orgError } = await supabase
+    .from('organizations')
+    .update({
+      subscription_plan: plan,
+      seat_limit: seatLimit,
+    })
+    .eq('id', organizationId);
+
+  if (orgError) {
+    console.error('❌ Error updating organization:', orgError);
+    throw orgError;
+  }
+
+  console.log(`✅ Organization subscription updated for ${organizationId} to plan ${plan}`);
+}
+
+// Handle organization subscription deletion
+async function handleOrgSubscriptionDeleted(supabase: any, subscription: Stripe.Subscription) {
+  const organizationId = subscription.metadata?.organization_id;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in subscription metadata');
+    return;
+  }
+
+  // Update subscription to canceled
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      status: 'canceled',
+      stripe_subscription_id: null,
+      cancel_at_period_end: false,
+      canceled_at: new Date().toISOString(),
+    })
+    .eq('organization_id', organizationId);
+
+  if (error) {
+    console.error('❌ Error canceling organization subscription:', error);
+    throw error;
+  }
+
+  // Remove plan from organization
+  const { error: orgError } = await supabase
+    .from('organizations')
+    .update({
+      subscription_plan: null,
+      seat_limit: null,
+    })
+    .eq('id', organizationId);
+
+  if (orgError) {
+    console.error('❌ Error updating organization:', orgError);
+    throw orgError;
+  }
+
+  console.log(`✅ Organization ${organizationId} subscription canceled`);
+}
+
+// Handle organization renewal
+async function handleOrgRenewal(supabase: any, invoice: Stripe.Invoice) {
+  const subscriptionId = invoice.subscription as string;
+
+  // Retrieve subscription
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const organizationId = subscription.metadata?.organization_id;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in subscription metadata');
+    return;
+  }
+
+  // Update period dates
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      status: 'active',
+    })
+    .eq('organization_id', organizationId);
+
+  if (error) {
+    console.error('❌ Error updating organization renewal:', error);
+    throw error;
+  }
+
+  console.log(`✅ Organization subscription renewed for ${organizationId}`);
+}
+
+// Handle organization payment failure
+async function handleOrgPaymentFailed(supabase: any, invoice: Stripe.Invoice) {
+  const subscriptionId = invoice.subscription as string;
+
+  if (!subscriptionId) return;
+
+  // Retrieve subscription
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const organizationId = subscription.metadata?.organization_id;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in subscription metadata');
+    return;
+  }
+
+  // Update status to past_due
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      status: 'past_due',
+    })
+    .eq('organization_id', organizationId);
+
+  if (error) {
+    console.error('❌ Error updating organization payment failure:', error);
+    throw error;
+  }
+
+  console.log(`⚠️ Payment failed for organization ${organizationId}`);
 }

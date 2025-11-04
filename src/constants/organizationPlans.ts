@@ -1,0 +1,327 @@
+/**
+ * B2B Organization Subscription Plans Configuration
+ *
+ * Defines the three B2B plans for schools and companies:
+ * - PRO: 1-20 users
+ * - MAX: 21-50 users
+ * - ULTRA: 51-100 users
+ *
+ * All plans include:
+ * - Per-student limits: 30 exercises, 30 fiches, 60 AI minutes per month
+ * - Unlimited course creation
+ * - 10 days max per course
+ *
+ * Both monthly and yearly billing options available
+ */
+
+export type OrganizationPlanType = 'b2b_pro' | 'b2b_max' | 'b2b_ultra';
+export type BillingPeriod = 'monthly' | 'yearly';
+
+export interface OrganizationPlanPricing {
+  monthly: {
+    price: number; // in euros
+    stripePriceId: string;
+    stripeProductId: string;
+  };
+  yearly: {
+    price: number; // in euros (annual total)
+    stripePriceId: string;
+    stripeProductId: string;
+    monthlySavings: number; // savings per month vs monthly plan
+  };
+}
+
+export interface OrganizationPlanConfig {
+  id: OrganizationPlanType;
+  name: string;
+  displayName: string;
+  description: string;
+  pricing: OrganizationPlanPricing;
+  seatRange: {
+    min: number;
+    max: number;
+  };
+  perStudentLimits: {
+    exercisesPerMonth: number;
+    fichesPerMonth: number;
+    aiMinutesPerMonth: number;
+    coursesPerMonth: number | null; // null = unlimited
+    maxDaysPerCourse: number;
+  };
+  features: string[];
+  popular?: boolean;
+}
+
+export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanConfig> = {
+  b2b_pro: {
+    id: 'b2b_pro',
+    name: 'PRO',
+    displayName: 'Version PRO',
+    description: 'Idéal pour les petites équipes et écoles',
+    pricing: {
+      monthly: {
+        price: 1200,
+        stripePriceId: 'price_1SNu6M37eeTawvFRnK6RfHSx',
+        stripeProductId: 'prod_TKZEnwNiSwAjiu',
+      },
+      yearly: {
+        price: 14400,
+        stripePriceId: 'price_1SNu6I37eeTawvFR5qEIYme2',
+        stripeProductId: 'prod_TKZERNkKTiGW4k',
+        monthlySavings: 0, // 14400/12 = 1200, no discount
+      },
+    },
+    seatRange: {
+      min: 1,
+      max: 20,
+    },
+    perStudentLimits: {
+      exercisesPerMonth: 30,
+      fichesPerMonth: 30,
+      aiMinutesPerMonth: 60,
+      coursesPerMonth: null, // unlimited
+      maxDaysPerCourse: 10,
+    },
+    features: [
+      '1 à 20 utilisateurs',
+      '30 exercices par étudiant/mois',
+      '30 fiches de révision par étudiant/mois',
+      '60 minutes Avatar IA par étudiant/mois',
+      'Création de cours illimitée',
+      '10 jours max par cours',
+      'Tableau de bord organisation',
+      'Gestion des membres',
+      'Support prioritaire',
+    ],
+  },
+  b2b_max: {
+    id: 'b2b_max',
+    name: 'MAX',
+    displayName: 'Version MAX',
+    description: 'Parfait pour les écoles de taille moyenne',
+    pricing: {
+      monthly: {
+        price: 3000,
+        stripePriceId: 'price_1SNu6L37eeTawvFR3rSzsjbQ',
+        stripeProductId: 'prod_TKZEg8FhoYWpQp',
+      },
+      yearly: {
+        price: 36000,
+        stripePriceId: 'price_1SNu6G37eeTawvFR4qXvQVbL',
+        stripeProductId: 'prod_TKZEGlgJJhRX20',
+        monthlySavings: 0, // 36000/12 = 3000, no discount
+      },
+    },
+    seatRange: {
+      min: 21,
+      max: 50,
+    },
+    perStudentLimits: {
+      exercisesPerMonth: 30,
+      fichesPerMonth: 30,
+      aiMinutesPerMonth: 60,
+      coursesPerMonth: null, // unlimited
+      maxDaysPerCourse: 10,
+    },
+    features: [
+      '21 à 50 utilisateurs',
+      '30 exercices par étudiant/mois',
+      '30 fiches de révision par étudiant/mois',
+      '60 minutes Avatar IA par étudiant/mois',
+      'Création de cours illimitée',
+      '10 jours max par cours',
+      'Tableau de bord organisation',
+      'Gestion des membres',
+      'Support prioritaire',
+      'Rapports avancés',
+    ],
+    popular: true,
+  },
+  b2b_ultra: {
+    id: 'b2b_ultra',
+    name: 'ULTRA',
+    displayName: 'Version ULTRA',
+    description: 'Pour les grandes institutions',
+    pricing: {
+      monthly: {
+        price: 5000,
+        stripePriceId: 'price_1SNu6J37eeTawvFRw1XwsG3Q',
+        stripeProductId: 'prod_TKZEwBnUONQnHD',
+      },
+      yearly: {
+        price: 60000,
+        stripePriceId: 'price_1SNu6F37eeTawvFRVCWXFR1M',
+        stripeProductId: 'prod_TKZE2ydWNgjoR6',
+        monthlySavings: 0, // 60000/12 = 5000, no discount
+      },
+    },
+    seatRange: {
+      min: 51,
+      max: 100,
+    },
+    perStudentLimits: {
+      exercisesPerMonth: 30,
+      fichesPerMonth: 30,
+      aiMinutesPerMonth: 60,
+      coursesPerMonth: null, // unlimited
+      maxDaysPerCourse: 10,
+    },
+    features: [
+      '51 à 100 utilisateurs',
+      '30 exercices par étudiant/mois',
+      '30 fiches de révision par étudiant/mois',
+      '60 minutes Avatar IA par étudiant/mois',
+      'Création de cours illimitée',
+      '10 jours max par cours',
+      'Tableau de bord organisation',
+      'Gestion des membres',
+      'Support prioritaire',
+      'Rapports avancés',
+      'Formation personnalisée',
+      'API access',
+    ],
+  },
+};
+
+/**
+ * Maps Stripe product IDs to organization plan types
+ * Includes both monthly and yearly product IDs
+ */
+export const STRIPE_PRODUCT_TO_ORG_PLAN: Record<string, OrganizationPlanType> = {
+  // Monthly products
+  'prod_TKZEnwNiSwAjiu': 'b2b_pro',
+  'prod_TKZEg8FhoYWpQp': 'b2b_max',
+  'prod_TKZEwBnUONQnHD': 'b2b_ultra',
+  // Yearly products
+  'prod_TKZERNkKTiGW4k': 'b2b_pro',
+  'prod_TKZEGlgJJhRX20': 'b2b_max',
+  'prod_TKZE2ydWNgjoR6': 'b2b_ultra',
+};
+
+/**
+ * Get all organization plans as an array, sorted by monthly price
+ */
+export const getOrganizationPlansArray = (): OrganizationPlanConfig[] => {
+  return Object.values(ORGANIZATION_PLANS).sort((a, b) => a.pricing.monthly.price - b.pricing.monthly.price);
+};
+
+/**
+ * Get organization plan configuration by type
+ */
+export const getOrganizationPlan = (planType: OrganizationPlanType): OrganizationPlanConfig => {
+  return ORGANIZATION_PLANS[planType];
+};
+
+/**
+ * Get price for a plan based on billing period
+ */
+export const getPlanPrice = (planType: OrganizationPlanType, billingPeriod: BillingPeriod): number => {
+  const plan = ORGANIZATION_PLANS[planType];
+  return plan.pricing[billingPeriod].price;
+};
+
+/**
+ * Get Stripe price ID for a plan based on billing period
+ */
+export const getStripePriceId = (planType: OrganizationPlanType, billingPeriod: BillingPeriod): string => {
+  const plan = ORGANIZATION_PLANS[planType];
+  return plan.pricing[billingPeriod].stripePriceId;
+};
+
+/**
+ * Get monthly equivalent price (for comparison)
+ */
+export const getMonthlyEquivalentPrice = (planType: OrganizationPlanType, billingPeriod: BillingPeriod): number => {
+  const plan = ORGANIZATION_PLANS[planType];
+  if (billingPeriod === 'monthly') {
+    return plan.pricing.monthly.price;
+  }
+  return plan.pricing.yearly.price / 12;
+};
+
+/**
+ * Calculate savings when choosing yearly vs monthly
+ */
+export const calculateYearlySavings = (planType: OrganizationPlanType): number => {
+  const plan = ORGANIZATION_PLANS[planType];
+  const monthlyTotal = plan.pricing.monthly.price * 12;
+  const yearlyTotal = plan.pricing.yearly.price;
+  return monthlyTotal - yearlyTotal;
+};
+
+/**
+ * Determine which plan is required based on member count
+ */
+export const getRequiredPlanForMemberCount = (memberCount: number): OrganizationPlanType => {
+  if (memberCount <= 20) return 'b2b_pro';
+  if (memberCount <= 50) return 'b2b_max';
+  return 'b2b_ultra';
+};
+
+/**
+ * Check if a plan upgrade is needed for a given member count
+ */
+export const needsPlanUpgrade = (
+  currentPlan: OrganizationPlanType,
+  newMemberCount: number
+): { needed: boolean; suggestedPlan?: OrganizationPlanType } => {
+  const requiredPlan = getRequiredPlanForMemberCount(newMemberCount);
+  const currentPlanConfig = ORGANIZATION_PLANS[currentPlan];
+
+  if (newMemberCount > currentPlanConfig.seatRange.max) {
+    return { needed: true, suggestedPlan: requiredPlan };
+  }
+
+  return { needed: false };
+};
+
+/**
+ * Check if a plan downgrade should occur for a given member count
+ */
+export const shouldPlanDowngrade = (
+  currentPlan: OrganizationPlanType,
+  newMemberCount: number
+): { should: boolean; suggestedPlan?: OrganizationPlanType } => {
+  const requiredPlan = getRequiredPlanForMemberCount(newMemberCount);
+
+  // Downgrade if current plan is higher tier than required
+  const planOrder: OrganizationPlanType[] = ['b2b_pro', 'b2b_max', 'b2b_ultra'];
+  const currentIndex = planOrder.indexOf(currentPlan);
+  const requiredIndex = planOrder.indexOf(requiredPlan);
+
+  if (currentIndex > requiredIndex) {
+    return { should: true, suggestedPlan: requiredPlan };
+  }
+
+  return { should: false };
+};
+
+/**
+ * Get the next higher plan (for upgrades)
+ */
+export const getNextPlan = (currentPlan: OrganizationPlanType): OrganizationPlanType | null => {
+  if (currentPlan === 'b2b_pro') return 'b2b_max';
+  if (currentPlan === 'b2b_max') return 'b2b_ultra';
+  return null; // already at highest
+};
+
+/**
+ * Get the next lower plan (for downgrades)
+ */
+export const getPreviousPlan = (currentPlan: OrganizationPlanType): OrganizationPlanType | null => {
+  if (currentPlan === 'b2b_ultra') return 'b2b_max';
+  if (currentPlan === 'b2b_max') return 'b2b_pro';
+  return null; // already at lowest
+};
+
+/**
+ * Format price for display
+ */
+export const formatOrgPlanPrice = (priceInEuros: number): string => {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(priceInEuros);
+};

@@ -171,29 +171,29 @@ export const SubscriptionCard = () => {
             </div>
 
             {/* AI Minutes */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-orange-500" />
-                  <span>Minutes Avatar IA</span>
-                </div>
-                <span className="font-medium">
-                  {usage?.ai_minutes_used || 0} / {limits.aiMinutes} min
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+              <div className="flex items-center gap-2 text-sm text-orange-700">
+                <Bot className="w-4 h-4" />
+                <span className="font-medium">Minutes Avatar IA</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-orange-600">
+                  {remaining?.aiMinutes || 0}
+                </span>
+                <span className="text-sm text-orange-700">
+                  {remaining?.aiMinutes === 1 ? 'minute restante' : 'minutes restantes'}
                 </span>
               </div>
-              <Progress
-                value={calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes)}
-                className="h-2"
-                indicatorClassName={getProgressColor(calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {remaining?.aiMinutes || 0} minutes restantes
+              <div className="flex items-center justify-between text-xs text-orange-600">
+                <span>
+                  {usage?.ai_minutes_used || 0} utilisées sur {limits.aiMinutes} disponibles
+                </span>
                 {subscription.ai_minutes_purchased > 0 && (
-                  <span className="text-green-600 ml-1">
-                    ({subscription.ai_minutes_purchased} min achetées)
+                  <span className="font-medium">
+                    +{subscription.ai_minutes_purchased} min achetées
                   </span>
                 )}
-              </p>
+              </div>
             </div>
 
             {/* Max Days per Course */}

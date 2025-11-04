@@ -57,6 +57,26 @@ serve(async (req) => {
       throw new Error('Invalid mode. Must be "subscription" or "payment"');
     }
 
+    // CRITICAL VALIDATION: Check if user is in an organization
+    // Users in organizations should NOT be able to purchase individual subscriptions
+    // They already benefit from the organization subscription
+    if (mode === 'subscription') {
+      const { data: orgMembership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (orgMembership) {
+        throw new Error(
+          'Vous êtes membre d\'une organisation et bénéficiez déjà d\'un abonnement. ' +
+          'Vous ne pouvez pas souscrire à un plan individuel. ' +
+          'Contactez l\'administrateur de votre organisation pour toute question.'
+        );
+      }
+    }
+
     // Get or create Stripe customer
     let customerId: string;
 
