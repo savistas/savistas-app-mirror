@@ -239,7 +239,7 @@ export const StudentProfileForm = ({
         throw profileError;
       }
 
-      // Si rejoint via code : ajouter le membre à l'organisation avec statut 'pending'
+      // Si rejoint via code : vérifier les prérequis puis ajouter le membre à l'organisation avec statut 'pending'
       if (joinedViaCode && organizationId) {
         const { data: existingMembership } = await supabase
           .from('organization_members')
@@ -248,6 +248,39 @@ export const StudentProfileForm = ({
           .maybeSingle();
 
         if (!existingMembership) {
+          // CRITICAL: Check if organization can accept new members BEFORE creating request
+          // 1. Check if org has a subscription plan
+          const { data: org, error: orgError } = await supabase
+            .from('organizations')
+            .select('subscription_plan, seat_limit, active_members_count')
+            .eq('id', organizationId)
+            .single();
+
+          if (orgError || !org) {
+            console.error('Error fetching organization:', orgError);
+            throw new Error('Impossible de vérifier les informations de l\'organisation');
+          }
+
+          if (!org.subscription_plan) {
+            throw new Error(
+              `L'organisation ${organizationName || 'sélectionnée'} n'a pas encore souscrit à un plan d'abonnement. ` +
+              'Contactez l\'administrateur de l\'organisation pour qu\'il souscrive à un plan avant de pouvoir rejoindre.'
+            );
+          }
+
+          // 2. Check if org has capacity (seats available)
+          const currentMembers = org.active_members_count || 0;
+          const seatLimit = org.seat_limit || 0;
+
+          if (currentMembers >= seatLimit) {
+            throw new Error(
+              `L'organisation ${organizationName || 'sélectionnée'} a atteint sa capacité maximale ` +
+              `(${currentMembers}/${seatLimit} membres). ` +
+              'L\'organisation doit passer à un plan supérieur pour accepter de nouveaux membres.'
+            );
+          }
+
+          // All checks passed - create pending membership request
           const { error: memberError } = await supabase
             .from('organization_members')
             .insert({

@@ -1159,17 +1159,18 @@ const Profile = () => {
                 {/* Organization Admin (School/Company) - B2B Subscription Management */}
                 {(role === 'school' || role === 'company') ? (
                   <>
-                    <OrganizationSubscriptionCard
-                      organizationId={adminOrganization?.id || ''}
-                      onManage={() => navigate(`/${role}/dashboard-organization`)}
-                    />
+                    {adminOrganization ? (
+                      <>
+                        <OrganizationSubscriptionCard
+                          organizationId={adminOrganization.id}
+                          onManage={() => navigate(`/${role}/dashboard-organization`)}
+                        />
 
-                    {/* Show plan selection inline like students */}
-                    {adminOrganization && (
-                      <OrganizationPlanSelection
-                        currentPlan={adminOrganization.subscription_plan}
-                        organizationId={adminOrganization.id}
-                        onSelectPlan={async (priceId: string, planType: OrganizationPlanType, billingPeriod: BillingPeriod) => {
+                        {/* Show plan selection inline like students */}
+                        <OrganizationPlanSelection
+                          currentPlan={adminOrganization.subscription_plan}
+                          organizationId={adminOrganization.id}
+                          onSelectPlan={async (priceId: string, planType: OrganizationPlanType, billingPeriod: BillingPeriod) => {
                           try {
                             const result = await createOrgCheckoutSession({
                               organizationId: adminOrganization.id,
@@ -1199,6 +1200,25 @@ const Profile = () => {
                           }
                         }}
                       />
+                      </>
+                    ) : (
+                      /* No organization created yet - show message */
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-blue-500" />
+                            Abonnement Organisation
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-muted-foreground mb-4">
+                            Vous devez d'abord créer votre organisation pour souscrire à un abonnement.
+                          </p>
+                          <Button onClick={() => navigate(`/${role}/dashboard-organization`)}>
+                            Créer mon organisation
+                          </Button>
+                        </CardContent>
+                      </Card>
                     )}
                   </>
                 ) : /* Organization Member - Show benefits banner (CRITICAL: Check only isInOrganization to prevent showing SubscriptionCard during loading) */
