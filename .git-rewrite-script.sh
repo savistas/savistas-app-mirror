@@ -1,0 +1,8 @@
+#!/bin/bash
+# Script pour remplacer les clés sensibles dans l'historique Git
+
+# Remplacer la clé Stripe
+sed -i '' 's/sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/g' "$1" 2>/dev/null || true
+
+# Remplacer le webhook secret
+sed -i '' 's/whsec_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/whsec_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/g' "$1" 2>/dev/null || true
