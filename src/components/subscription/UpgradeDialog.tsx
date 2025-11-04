@@ -11,8 +11,6 @@ import { Check, Crown, Bot, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckoutLoadingModal } from "./CheckoutLoadingModal";
-import { saveCheckoutSession } from "@/lib/checkoutSession";
 
 
 interface UpgradeDialogProps {
@@ -32,9 +30,6 @@ const PRICE_IDS = {
 export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [showLoadingModal, setShowLoadingModal] = useState(false);
-  const [checkoutSessionId, setCheckoutSessionId] = useState<string | undefined>();
-  const [stripeWindowRef, setStripeWindowRef] = useState<Window | null>(null);
 
   const handleUpgrade = async (priceId: string, mode: 'subscription' | 'payment') => {
     setLoading(true);
@@ -61,40 +56,9 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
         throw error;
       }
 
-      // Open Stripe Checkout
-      if (data.checkoutUrl && data.sessionId) {
-        // Save checkout session to localStorage
-        saveCheckoutSession({
-          sessionId: data.sessionId,
-          priceId,
-          plan: mode === 'subscription' ? (priceId === PRICE_IDS.premium ? 'premium' : 'pro') : 'ai_minutes',
-        });
-
-        // Store session ID for the loading modal
-        setCheckoutSessionId(data.sessionId);
-
-        // Open Stripe Checkout in new tab
-        const stripeWindow = window.open(data.checkoutUrl, '_blank');
-
-        if (!stripeWindow) {
-          toast({
-            title: 'Pop-ups bloqués',
-            description: 'Veuillez autoriser les pop-ups pour continuer vers le paiement',
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-
-        // Store the window reference
-        setStripeWindowRef(stripeWindow);
-
-        // Close the upgrade dialog
-        onClose();
-
-        // Show the loading modal immediately
-        setShowLoadingModal(true);
-        setLoading(false);
+      // Redirect to Stripe Checkout in same tab
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
       }
     } catch (error: any) {
       console.error('Error:', error);
@@ -107,12 +71,6 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCloseLoadingModal = () => {
-    setShowLoadingModal(false);
-    setCheckoutSessionId(undefined);
-    setStripeWindowRef(null);
   };
 
   return (
@@ -331,14 +289,6 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Checkout Loading Modal - Moved outside Dialog to prevent unmounting */}
-      <CheckoutLoadingModal
-        open={showLoadingModal}
-        onClose={handleCloseLoadingModal}
-        sessionId={checkoutSessionId}
-        stripeWindow={stripeWindowRef}
-      />
     </>
   );
 };

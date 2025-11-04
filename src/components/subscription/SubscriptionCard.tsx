@@ -7,30 +7,14 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUsageLimits } from "@/hooks/useUsageLimits";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PlanSelectionCards } from "./PlanSelectionCards";
 import { UpgradeDialog } from "./UpgradeDialog";
-import { CheckoutPendingState } from "./CheckoutPendingState";
-import { hasActiveCheckoutSession } from "@/lib/checkoutSession";
 
 export const SubscriptionCard = () => {
   const { subscription, limits, isLoading, refetch } = useSubscription();
   const { usage, remaining } = useUsageLimits();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [hasPendingCheckout, setHasPendingCheckout] = useState(false);
-
-  // Check for pending checkout session on mount and when localStorage changes
-  useEffect(() => {
-    const checkPendingSession = () => {
-      setHasPendingCheckout(hasActiveCheckoutSession());
-    };
-
-    checkPendingSession();
-
-    // Listen for storage events (in case checkout is started in another tab)
-    window.addEventListener('storage', checkPendingSession);
-    return () => window.removeEventListener('storage', checkPendingSession);
-  }, []);
 
   if (isLoading) {
     return (
@@ -86,19 +70,8 @@ export const SubscriptionCard = () => {
     return Math.min((current / limit) * 100, 100);
   };
 
-  const handleCancelCheckout = () => {
-    // Update state when checkout is canceled
-    setHasPendingCheckout(false);
-    refetch(); // Refresh subscription data
-  };
-
   return (
     <>
-      {/* Show pending checkout state if active */}
-      {hasPendingCheckout && (
-        <CheckoutPendingState onCancel={handleCancelCheckout} />
-      )}
-
       <Card className="border-2">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">

@@ -36,7 +36,7 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
 
     console.log('✅ Webhook verified:', event.type);
 
@@ -120,10 +120,24 @@ async function handleSubscriptionCreated(supabase: any, session: Stripe.Checkout
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
 
+  console.log('🔄 Processing subscription creation:', {
+    customerId,
+    subscriptionId,
+    sessionId: session.id
+  });
+
   // Retrieve full subscription details
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const productId = subscription.items.data[0].price.product as string;
   const plan = PRODUCT_TO_PLAN[productId] || 'basic';
+
+  console.log('📦 Product details:', {
+    productId,
+    plan,
+    status: subscription.status,
+    currentPeriodStart: subscription.current_period_start,
+    currentPeriodEnd: subscription.current_period_end
+  });
 
   // Get user_id from session metadata
   const userId = session.metadata?.user_id;
@@ -132,6 +146,8 @@ async function handleSubscriptionCreated(supabase: any, session: Stripe.Checkout
     console.error('❌ No user_id in session metadata');
     return;
   }
+
+  console.log('👤 Processing for user_id:', userId);
 
   // Upsert user subscription
   const { error } = await supabase
@@ -155,10 +171,15 @@ async function handleSubscriptionCreated(supabase: any, session: Stripe.Checkout
   }
 
   // Update profile subscription field for backward compatibility
-  await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({ subscription: plan })
     .eq('user_id', userId);
+
+  if (profileError) {
+    console.error('❌ Error updating profile subscription:', profileError);
+    throw profileError;
+  }
 
   console.log(`✅ Subscription created for user ${userId} with plan ${plan}`);
 }
@@ -199,12 +220,17 @@ async function handleSubscriptionUpdated(supabase: any, subscription: Stripe.Sub
   }
 
   // Update profile
-  await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({ subscription: plan })
     .eq('user_id', userSub.user_id);
 
-  console.log(`✅ Subscription updated for user ${userSub.user_id}`);
+  if (profileError) {
+    console.error('❌ Error updating profile subscription:', profileError);
+    throw profileError;
+  }
+
+  console.log(`✅ Subscription updated for user ${userSub.user_id} to plan ${plan}`);
 }
 
 // Handle subscription deletion (downgrade to basic)
@@ -239,10 +265,15 @@ async function handleSubscriptionDeleted(supabase: any, subscription: Stripe.Sub
   }
 
   // Update profile
-  await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({ subscription: 'basic' })
     .eq('user_id', userSub.user_id);
+
+  if (profileError) {
+    console.error('❌ Error updating profile to basic:', profileError);
+    throw profileError;
+  }
 
   console.log(`✅ User ${userSub.user_id} downgraded to basic`);
 }

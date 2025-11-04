@@ -1,15 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Sparkles } from "lucide-react";
+import { Check, Crown, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { PlanDetailsDialog } from "./PlanDetailsDialog";
+import { UnsubscribeConfirmDialog } from "./UnsubscribeConfirmDialog";
 
 interface PlanSelectionCardsProps {
   currentPlan: 'basic' | 'premium' | 'pro';
 }
 
 const PLANS = [
+  {
+    id: 'basic' as const,
+    name: 'Basique',
+    price: 'Gratuit',
+    color: 'gray',
+    icon: Check,
+    popular: false,
+    features: [
+      '3 cours par mois',
+      '3 exercices par mois',
+      '3 fiches de révision par mois',
+      'Fonctionnalités de base',
+    ],
+  },
   {
     id: 'premium' as const,
     name: 'Premium',
@@ -45,6 +60,7 @@ const PLANS = [
 
 export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => {
   const [selectedPlan, setSelectedPlan] = useState<'premium' | 'pro' | null>(null);
+  const [showUnsubscribeDialog, setShowUnsubscribeDialog] = useState(false);
 
   const getCardBorderColor = (planId: string, color: string) => {
     if (planId === currentPlan) return 'border-green-500 bg-green-50/50';
@@ -61,22 +77,24 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
 
   // Filter plans based on current plan
   const availablePlans = PLANS.filter(plan => {
-    if (currentPlan === 'basic') return true;
-    if (currentPlan === 'premium') return plan.id === 'pro';
-    return false; // If pro, show no plans
+    // Don't show current plan
+    return plan.id !== currentPlan;
   });
 
-  if (currentPlan === 'pro') {
-    return (
-      <div className="text-center py-8">
-        <Crown className="w-12 h-12 mx-auto text-purple-600 mb-4" />
-        <h3 className="text-xl font-semibold mb-2">Vous êtes sur le plan Pro!</h3>
-        <p className="text-muted-foreground">
-          Vous bénéficiez déjà du meilleur plan disponible.
-        </p>
-      </div>
-    );
-  }
+  const getButtonText = (planId: string) => {
+    const isDowngrade = currentPlan !== 'basic' && planId === 'basic';
+    if (isDowngrade) return 'Se désabonner';
+    return 'Voir plus';
+  };
+
+  const handlePlanClick = (planId: typeof PLANS[number]['id']) => {
+    // If downgrading to basic, show confirmation dialog
+    if (currentPlan !== 'basic' && planId === 'basic') {
+      setShowUnsubscribeDialog(true);
+    } else if (planId !== 'basic') {
+      setSelectedPlan(planId as 'premium' | 'pro');
+    }
+  };
 
   return (
     <>
@@ -136,12 +154,11 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
                   </ul>
 
                   <Button
-                    onClick={() => setSelectedPlan(plan.id)}
-                    variant={isCurrentPlan ? "outline" : "default"}
-                    disabled={isCurrentPlan}
-                    className={`w-full ${!isCurrentPlan ? getButtonColor(plan.color) : ''}`}
+                    onClick={() => handlePlanClick(plan.id)}
+                    variant={plan.id === 'basic' && currentPlan !== 'basic' ? "destructive" : "default"}
+                    className={`w-full ${plan.id !== 'basic' ? getButtonColor(plan.color) : ''}`}
                   >
-                    {isCurrentPlan ? 'Plan actuel' : 'Voir plus'}
+                    {getButtonText(plan.id)}
                   </Button>
                 </CardContent>
               </Card>
@@ -157,6 +174,12 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
           plan={selectedPlan}
         />
       )}
+
+      <UnsubscribeConfirmDialog
+        open={showUnsubscribeDialog}
+        onClose={() => setShowUnsubscribeDialog(false)}
+        currentPlan={currentPlan}
+      />
     </>
   );
 };
