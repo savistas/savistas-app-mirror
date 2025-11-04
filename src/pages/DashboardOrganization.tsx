@@ -340,6 +340,7 @@ const DashboardOrganization = () => {
                   activeMembers={activeMembers}
                   pendingMembers={pendingMembers}
                   onRemoveMember={handleRemoveMember}
+                  organizationId={organization?.id || null}
                 />
               )}
             </CardContent>

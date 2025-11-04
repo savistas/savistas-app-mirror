@@ -271,7 +271,8 @@ export const cancelOrganizationSubscription = async (
 };
 
 /**
- * Get all organization members' usage for a period
+ * Get all organization members' usage for current period
+ * Only returns active/current billing period data
  */
 export const getOrganizationMembersUsage = async (
   organizationId: string,
@@ -280,12 +281,18 @@ export const getOrganizationMembersUsage = async (
   let query = supabase
     .from('organization_monthly_usage')
     .select('*')
-    .eq('organization_id', organizationId)
-    .order('user_id', { ascending: true });
+    .eq('organization_id', organizationId);
 
   if (periodStart) {
+    // If specific period requested, filter by that
     query = query.eq('period_start', periodStart);
+  } else {
+    // Otherwise, only get current/active periods (where period_end >= today)
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    query = query.gte('period_end', today);
   }
+
+  query = query.order('user_id', { ascending: true });
 
   const { data, error } = await query;
 

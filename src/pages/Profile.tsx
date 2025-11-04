@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2 } from "lucide-react";
+import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
@@ -1201,12 +1201,29 @@ const Profile = () => {
                       />
                     )}
                   </>
-                ) : /* Organization Member - Show benefits banner */
-                isInOrganization && organization ? (
-                  <UserOrganizationBanner
-                    organizationName={organization.name}
-                    organizationPlan={organizationPlan}
-                  />
+                ) : /* Organization Member - Show benefits banner (CRITICAL: Check only isInOrganization to prevent showing SubscriptionCard during loading) */
+                isInOrganization ? (
+                  organization ? (
+                    <UserOrganizationBanner
+                      organizationName={organization.name}
+                      organizationPlan={organizationPlan}
+                    />
+                  ) : (
+                    /* Organization data still loading */
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardContent className="p-6">
+                        <div className="space-y-3 text-center">
+                          <div className="flex items-center justify-center gap-2 text-blue-900">
+                            <Building2 className="w-5 h-5" />
+                            <h3 className="text-lg font-semibold">Membre d'une organisation</h3>
+                          </div>
+                          <p className="text-blue-800">
+                            Chargement des informations de votre organisation...
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
                 ) : activeOrganization ? (
                   /* Legacy organization check for backward compatibility */
                   <Card className="border-blue-200 bg-blue-50">
@@ -1228,7 +1245,41 @@ const Profile = () => {
                   </Card>
                 ) : (
                   /* Individual User - B2C Subscription */
-                  <SubscriptionCard />
+                  <>
+                    {/* Option to join an organization (for students only) */}
+                    {role === 'student' && !pendingOrgApproval && !activeOrganization && (
+                      <Card className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="w-5 h-5 text-blue-600" />
+                                <h3 className="text-lg font-semibold text-blue-900">Vous faites partie d'une organisation ?</h3>
+                              </div>
+                              <p className="text-sm text-blue-700">
+                                Rejoignez votre école ou entreprise pour bénéficier de leurs avantages :
+                              </p>
+                              <ul className="text-sm text-blue-600 space-y-1 ml-6 list-disc">
+                                <li>Cours illimités</li>
+                                <li>30 exercices par mois</li>
+                                <li>30 fiches de révision par mois</li>
+                                <li>60 minutes IA par mois</li>
+                              </ul>
+                            </div>
+                            <Button
+                              onClick={() => setShowOrgCodeDialog(true)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+                            >
+                              <Building2 className="w-4 h-4 mr-2" />
+                              Rejoindre une organisation
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <SubscriptionCard />
+                  </>
                 )}
               </TabsContent>
             </Tabs>

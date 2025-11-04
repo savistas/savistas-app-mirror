@@ -22,31 +22,57 @@ export type ResourceType = 'course' | 'exercise' | 'fiche' | 'ai_minutes';
 /**
  * Hook to get current usage and check limits
  *
+ * CRITICAL: Checks if user is in an organization and queries the correct table:
+ * - Organization members: queries organization_monthly_usage via get_or_create_org_usage_period
+ * - Individual users: queries monthly_usage via get_or_create_usage_period
+ *
  * @returns Usage data, remaining limits, and ability to check if user can create resources
  */
 export function useUsageLimits() {
   const { user } = useAuth();
-  const { subscription, limits } = useSubscription();
+  const { subscription, limits, isOrganizationMember, organizationId } = useSubscription();
 
   // Get current usage period
   const { data: usage, isLoading, error, refetch } = useQuery({
-    queryKey: ['monthly-usage', user?.id, subscription?.current_period_start],
+    queryKey: ['monthly-usage', user?.id, subscription?.current_period_start, isOrganizationMember, organizationId],
     queryFn: async () => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
 
-      // Call PostgreSQL function to get or create usage period
-      const { data, error } = await supabase.rpc('get_or_create_usage_period', {
-        p_user_id: user.id,
-      });
+      // Check if user is in an organization
+      if (isOrganizationMember && organizationId) {
+        // Query organization_monthly_usage table
+        const { data, error } = await supabase.rpc('get_or_create_org_usage_period', {
+          p_organization_id: organizationId,
+          p_user_id: user.id,
+        });
 
-      if (error) {
-        console.error('Error fetching usage:', error);
-        throw error;
+        if (error) {
+          console.error('Error fetching organization usage:', error);
+          throw error;
+        }
+
+        // Map organization usage to MonthlyUsage interface
+        return {
+          courses_created: data.courses_created,
+          exercises_created: data.exercises_created,
+          fiches_created: data.fiches_created,
+          ai_minutes_used: data.ai_minutes_used,
+        } as MonthlyUsage;
+      } else {
+        // Query individual monthly_usage table
+        const { data, error } = await supabase.rpc('get_or_create_usage_period', {
+          p_user_id: user.id,
+        });
+
+        if (error) {
+          console.error('Error fetching individual usage:', error);
+          throw error;
+        }
+
+        return data as MonthlyUsage;
       }
-
-      return data as MonthlyUsage;
     },
     enabled: !!user?.id && !!subscription,
     staleTime: 1000 * 30, // 30 seconds
