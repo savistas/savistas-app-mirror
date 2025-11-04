@@ -36,6 +36,11 @@ import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE, formatFileSize, getFileTypeLabel } f
 import { createCourseWithRevisionSheet } from '@/services/revisionSheetService';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { incrementUsage } from '@/services/usageService';
+import { LimitReachedDialog } from '@/components/subscription/LimitReachedDialog';
 
 const NEW_SUBJECT_VALUE = '__NEW_SUBJECT__';
 
@@ -63,9 +68,13 @@ interface CreateSheetModalProps {
 
 export function CreateSheetModal({ open, onOpenChange }: CreateSheetModalProps) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { subscription } = useSubscription();
+  const { canCreate, getLimitInfo } = useUsageLimits();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [options, setOptions] = useState({
@@ -79,7 +88,12 @@ export function CreateSheetModal({ open, onOpenChange }: CreateSheetModalProps) 
 
   const createMutation = useMutation({
     mutationFn: createCourseWithRevisionSheet,
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Increment usage counter after successful fiche creation
+      if (user?.id) {
+        await incrementUsage(user.id, 'fiche', 1);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['revision-sheets'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['user-documents'] });
@@ -159,6 +173,12 @@ export function CreateSheetModal({ open, onOpenChange }: CreateSheetModalProps) 
 
       if (!ALLOWED_FILE_TYPES.includes(selectedFile.type as any)) {
         form.setError('root', { message: 'Type de fichier non supporté' });
+        return;
+      }
+
+      // Check subscription limits before creating fiche
+      if (!canCreate('fiche')) {
+        setShowLimitDialog(true);
         return;
       }
 
@@ -463,6 +483,16 @@ export function CreateSheetModal({ open, onOpenChange }: CreateSheetModalProps) 
           </form>
         </Form>
       </DialogContent>
+
+      {/* Limit Reached Dialog */}
+      <LimitReachedDialog
+        open={showLimitDialog}
+        onClose={() => setShowLimitDialog(false)}
+        resourceType="fiche"
+        currentPlan={subscription?.plan || 'basic'}
+        current={getLimitInfo('fiche').current}
+        limit={getLimitInfo('fiche').limit}
+      />
     </Dialog>
   );
 }

@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { PlanDetailsDialog } from "@/components/subscription/PlanDetailsDialog";
 
 const subscriptions = [
   {
@@ -48,6 +50,20 @@ interface SubscriptionStepProps {
 }
 
 export const SubscriptionStep = ({ selectedSubscription, onSubscriptionSelect }: SubscriptionStepProps) => {
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<'premium' | 'pro'>('premium');
+
+  const handlePlanClick = (subscription: typeof subscriptions[0]) => {
+    if (subscription.price === "Gratuit") {
+      // Free plan: just select it
+      onSubscriptionSelect(subscription.id);
+    } else {
+      // Paid plan: open upgrade dialog
+      setSelectedPlanForUpgrade(subscription.id as 'premium' | 'pro');
+      setShowUpgradeDialog(true);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -64,14 +80,13 @@ export const SubscriptionStep = ({ selectedSubscription, onSubscriptionSelect }:
           <Card 
             key={subscription.id}
             className={cn(
-              "rounded-2xl hover-scale transition-all duration-300 hover:shadow-xl hover:scale-105 border-2 relative flex flex-col",
-              subscription.price === "Gratuit" ? "cursor-pointer group" : "cursor-not-allowed opacity-50", // Disable cursor and add opacity for paid plans, add group only for free plan
-              selectedSubscription === subscription.id 
-                ? 'border-primary bg-primary/5 shadow-lg' 
+              "rounded-2xl hover-scale transition-all duration-300 hover:shadow-xl hover:scale-105 border-2 relative flex flex-col cursor-pointer group",
+              selectedSubscription === subscription.id
+                ? 'border-primary bg-primary/5 shadow-lg'
                 : 'border-border hover:border-primary/50 hover:bg-primary/5',
               subscription.popular && "ring-2 ring-primary ring-opacity-20"
             )}
-            onClick={() => subscription.price === "Gratuit" && onSubscriptionSelect(subscription.id)} // Only allow click for free plan
+            onClick={() => handlePlanClick(subscription)}
           >
             {subscription.popular && (
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -115,18 +130,30 @@ export const SubscriptionStep = ({ selectedSubscription, onSubscriptionSelect }:
                 </li>
               </ul>
               
-              <Button 
+              <Button
                 variant={selectedSubscription === subscription.id ? "default" : "outline"}
                 className="w-full"
-                onClick={() => onSubscriptionSelect(subscription.id)}
-                disabled={subscription.price !== "Gratuit"} // Disable button for paid plans
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePlanClick(subscription);
+                }}
               >
-                {subscription.price !== "Gratuit" ? "Bientôt disponible" : (selectedSubscription === subscription.id ? "Sélectionné" : "Choisir")}
+                {subscription.price === "Gratuit"
+                  ? (selectedSubscription === subscription.id ? "Sélectionné" : "Choisir")
+                  : "Souscrire"
+                }
               </Button>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Plan Details Dialog for Premium/Pro plans */}
+      <PlanDetailsDialog
+        open={showUpgradeDialog}
+        onClose={() => setShowUpgradeDialog(false)}
+        plan={selectedPlanForUpgrade}
+      />
     </div>
   );
 };
