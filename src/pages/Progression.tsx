@@ -13,36 +13,17 @@ import { ProgressionChart } from '@/components/progression/ProgressionChart';
 import { ErrorResolutionPanel } from '@/components/progression/ErrorResolutionPanel';
 import { EmptyState } from '@/components/progression/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
-import BottomNav from '@/components/BottomNav';
 import BurgerMenu from '@/components/BurgerMenu';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Progression() {
   const { user } = useAuth();
-  const [displayName, setDisplayName] = useState<string>("");
+  const displayName = useDisplayName();
   const [period, setPeriod] = useState<TimePeriod>('week');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedSubjectName, setSelectedSubjectName] = useState<string>('');
-
-  // Fetch user profile for display name
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileData) {
-        setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
-      }
-    };
-
-    loadProfile();
-  }, [user]);
 
   // Fetch progression data
   const { data: subjects = [], isLoading: isLoadingSubjects } = useProgressionData(period);
@@ -92,7 +73,6 @@ export default function Progression() {
 
         {/* Bottom Navigation */}
         <div className="relative z-50">
-          <BottomNav />
         </div>
       </div>
     );
@@ -179,7 +159,6 @@ export default function Progression() {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
   );

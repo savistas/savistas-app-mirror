@@ -22,6 +22,13 @@ export interface ErrorRevisionUploadData {
 
 export type ErrorRevisionStatus = 'generating' | 'completed' | 'error';
 
+export interface ErrorRevisionAnalysisItem {
+  question: string;
+  justification: string;
+  correct_answer: string;
+  student_answer: string;
+}
+
 export interface ErrorRevision {
   id: string;
   user_id: string;
@@ -32,7 +39,11 @@ export interface ErrorRevision {
   course_name: string;
   user_message?: string | null;
   status: ErrorRevisionStatus;
-  analysis_response?: Record<string, any> | null;
+  // Support des deux formats: array direct ou objet avec items
+  analysis_response?: ErrorRevisionAnalysisItem[] | {
+    items?: ErrorRevisionAnalysisItem[];
+  } | null;
+  global_recommandation?: string | null;
   created_at: string;
   updated_at: string;
 }

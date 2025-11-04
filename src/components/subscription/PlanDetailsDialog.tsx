@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, CreditCard, ArrowRight } from 'lucide-react';
+import { Check, Loader2, CreditCard, ArrowRight, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -64,6 +64,7 @@ const PLAN_DETAILS = {
 export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDetailsDialogProps) {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+
   const planDetails = PLAN_DETAILS[plan];
 
   // Determine if this is an upgrade or downgrade
@@ -110,9 +111,11 @@ export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDeta
 
         // Trigger a page reload to refresh subscription data
         setTimeout(() => window.location.reload(), 1000);
+
       } else if (data?.checkoutUrl) {
         // New subscription - redirect to Stripe Checkout in same tab
         window.location.href = data.checkoutUrl;
+
       } else {
         throw new Error('No checkout URL returned');
       }
@@ -126,7 +129,14 @@ export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDeta
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="w-[90%] sm:max-w-[500px] rounded-2xl">
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10"
+          >
+            <X className="h-5 w-5" />
+            <span className="sr-only">Fermer</span>
+          </button>
           <DialogHeader>
             <DialogTitle className="text-2xl">
               {isDowngrade ? `Passer au plan ${planDetails.name}` : `Plan ${planDetails.name}`}
@@ -141,8 +151,14 @@ export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDeta
 
           <div className="space-y-6 py-4">
             {/* Price */}
-            <div className="text-center py-4 bg-primary/5 rounded-lg border border-primary/20">
-              <div className="text-4xl font-bold text-primary">
+            <div className={`text-center py-4 rounded-lg border ${
+              plan === 'pro'
+                ? 'bg-purple-50 border-purple-200'
+                : 'bg-primary/5 border-primary/20'
+            }`}>
+              <div className={`text-4xl font-bold ${
+                plan === 'pro' ? 'text-purple-600' : 'text-primary'
+              }`}>
                 {planDetails.price}
                 <span className="text-lg font-normal text-muted-foreground">/mois</span>
               </div>
@@ -165,12 +181,22 @@ export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDeta
             </div>
 
             {/* Benefits */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 text-sm text-blue-900">Avantages</h3>
+            <div className={`rounded-lg p-4 border ${
+              plan === 'pro'
+                ? 'bg-purple-50 border-purple-200'
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+              <h3 className={`font-semibold mb-2 text-sm ${
+                plan === 'pro' ? 'text-purple-900' : 'text-blue-900'
+              }`}>Avantages</h3>
               <ul className="space-y-1">
                 {planDetails.benefits.map((benefit, index) => (
-                  <li key={index} className="flex items-center gap-2 text-sm text-blue-800">
-                    <Check className="w-4 h-4 text-blue-600" />
+                  <li key={index} className={`flex items-center gap-2 text-sm ${
+                    plan === 'pro' ? 'text-purple-800' : 'text-blue-800'
+                  }`}>
+                    <Check className={`w-4 h-4 ${
+                      plan === 'pro' ? 'text-purple-600' : 'text-blue-600'
+                    }`} />
                     {benefit}
                   </li>
                 ))}
@@ -192,7 +218,11 @@ export function PlanDetailsDialog({ open, onClose, plan, currentPlan }: PlanDeta
               type="button"
               onClick={handleProceedToPayment}
               disabled={isProcessing}
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className={`w-full sm:w-auto ${
+                plan === 'pro'
+                  ? 'bg-purple-600 hover:bg-purple-700'
+                  : 'bg-primary hover:bg-primary/90'
+              }`}
             >
               {isProcessing ? (
                 <>

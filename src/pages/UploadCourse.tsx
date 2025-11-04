@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import { SubjectCombobox } from "@/components/SubjectCombobox";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -526,7 +525,6 @@ const UploadCourse = () => {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
     </>

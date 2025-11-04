@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import {
   User,
@@ -345,7 +344,6 @@ const Calendar = () => {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
   );

@@ -7,11 +7,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, Crown, Bot, Loader2 } from "lucide-react";
+import { Check, Crown, Bot, Loader2, X } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
 
 interface UpgradeDialogProps {
   open: boolean;
@@ -61,6 +60,7 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
       // Redirect to Stripe Checkout in same tab
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
+
       }
     } catch (error: any) {
       console.error('Error:', error);
@@ -78,7 +78,14 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[90%] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10"
+          >
+            <X className="h-5 w-5" />
+            <span className="sr-only">Fermer</span>
+          </button>
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
               {showOnlyAIMinutes ? (

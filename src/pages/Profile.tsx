@@ -12,7 +12,6 @@ import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2 }
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
-import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import ProfileQuestionEditModal from "@/components/ProfileQuestionEditModal";
 import InformationSurveyDialog from "@/components/InformationSurveyDialog";
@@ -1517,7 +1516,6 @@ const Profile = () => {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
   );

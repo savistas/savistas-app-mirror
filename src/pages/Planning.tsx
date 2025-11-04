@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import BottomNav from "@/components/BottomNav";
 import { 
   User, 
   Power, 
@@ -192,7 +191,6 @@ const Planning = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 };

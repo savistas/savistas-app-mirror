@@ -12,39 +12,21 @@ import { Search, ArrowLeft, BookMarked } from 'lucide-react';
 import { RevisionSheetsByCourse as GroupedSheets } from '@/types/revisionSheet';
 import { toast } from 'sonner';
 import BurgerMenu from '@/components/BurgerMenu';
-import BottomNav from '@/components/BottomNav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function StudentRevisionSheets() {
   const { role } = useParams<{ role: string }>();
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const displayName = useDisplayName();
   const { data: sheets, isLoading } = useRevisionSheets();
   const { downloadFile, getSignedUrl } = useDownloadFile();
-  const [displayName, setDisplayName] = useState<string>('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileData) {
-        setDisplayName(profileData.full_name || user.user_metadata?.full_name || profileData.email || user.email || 'Mon profil');
-      }
-    };
-
-    loadProfile();
-  }, [user]);
 
   // Group sheets by course
   const groupedSheets = useMemo((): GroupedSheets[] => {
@@ -125,7 +107,6 @@ export default function StudentRevisionSheets() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
-        {isMobile && <BottomNav />}
       </div>
     );
   }
@@ -196,7 +177,6 @@ export default function StudentRevisionSheets() {
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
-        <BottomNav />
       </div>
     </div>
   );
