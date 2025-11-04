@@ -15,13 +15,20 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import BottomNav from "@/components/BottomNav";
 import BurgerMenu from "@/components/BurgerMenu";
 import { SubjectCombobox } from "@/components/SubjectCombobox";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useUsageLimits } from "@/hooks/useUsageLimits";
+import { incrementUsage } from "@/services/usageService";
+import { LimitReachedDialog } from "@/components/subscription/LimitReachedDialog";
 
 const UploadCourse = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { subscription } = useSubscription();
+  const { canCreate, getLimitInfo } = useUsageLimits();
   const [step, setStep] = useState(1);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [formData, setFormData] = useState({
     subject: "",
     lesson: "",
@@ -120,6 +127,12 @@ const UploadCourse = () => {
       return;
     }
 
+    // Check subscription limits before creating course
+    if (!canCreate('course')) {
+      setShowLimitDialog(true);
+      return;
+    }
+
     try {
       setCreating(true);
       let finalCourseId: string | undefined;
@@ -201,6 +214,11 @@ const UploadCourse = () => {
         if (insertError) throw insertError;
 
         finalCourseId = data?.[0]?.id;
+
+        // Increment usage counter after successful course creation
+        if (finalCourseId) {
+          await incrementUsage(user.id, 'course', 1);
+        }
       }
 
       if (finalCourseId && user.id) {
@@ -480,6 +498,16 @@ const UploadCourse = () => {
         </div>
       </DialogContent>
     </Dialog>
+
+      {/* Limit Reached Dialog */}
+      <LimitReachedDialog
+        open={showLimitDialog}
+        onClose={() => setShowLimitDialog(false)}
+        resourceType="course"
+        currentPlan={subscription?.plan || 'basic'}
+        current={getLimitInfo('course').current}
+        limit={getLimitInfo('course').limit}
+      />
 
       {/* Bottom Navigation */}
       <div className="relative z-50">
