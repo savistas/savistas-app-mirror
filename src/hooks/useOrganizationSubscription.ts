@@ -2,11 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrganizationSubscription, createOrgCheckoutSession, cancelOrganizationSubscription } from '@/services/organizationSubscriptionService';
 import { supabase } from '@/integrations/supabase/client';
 import { OrganizationSubscription, OrganizationWithSubscription, CreateOrgCheckoutSessionParams } from '@/types/organizationSubscription';
-import { OrganizationPlanType, ORGANIZATION_PLANS, OrganizationPlanConfig } from '@/constants/organizationPlans';
-import { getSeatLimitForPlan } from '@/utils/organizationPlanHelpers';
 
 /**
  * Hook for managing organization subscriptions
+ *
+ * Note: With the new seat-based pricing model, all organizations
+ * use progressive tier pricing. There are no plan tiers (PRO/MAX/ULTRA).
+ * Seat limits are managed directly on the organization record.
  */
 export const useOrganizationSubscription = (organizationId: string | undefined) => {
   const queryClient = useQueryClient();
@@ -28,7 +30,7 @@ export const useOrganizationSubscription = (organizationId: string | undefined) 
     refetchInterval: 60 * 1000, // Refetch every minute
   });
 
-  // Fetch organization details (for plan, seat_limit, active_members_count)
+  // Fetch organization details (for seat_limit, active_members_count)
   const {
     data: organization,
     isLoading: organizationLoading,
@@ -66,7 +68,7 @@ export const useOrganizationSubscription = (organizationId: string | undefined) 
 
   // Cancel subscription mutation
   const cancelSubscription = useMutation({
-    mutationFn: async ({ immediateCancel }: { immediateCancel?: boolean }) => {
+    mutationFn: async ({ immediateCancel }: { immediateCancel?: boolean } = {}) => {
       if (!organizationId) throw new Error('No organization ID');
       return await cancelOrganizationSubscription(organizationId, immediateCancel);
     },
@@ -78,9 +80,7 @@ export const useOrganizationSubscription = (organizationId: string | undefined) 
   });
 
   // Compute derived values
-  const planType: OrganizationPlanType | null = organization?.subscription_plan || null;
-  const plan: OrganizationPlanConfig | null = planType ? ORGANIZATION_PLANS[planType] : null;
-  const seatLimit = organization?.seat_limit || (planType ? getSeatLimitForPlan(planType) : 0);
+  const seatLimit = organization?.seat_limit || 0;
   const activeMembersCount = organization?.active_members_count || 0;
   const isActive = subscription?.status === 'active' || subscription?.status === 'trialing';
 
@@ -88,7 +88,6 @@ export const useOrganizationSubscription = (organizationId: string | undefined) 
     // Data
     subscription,
     organization,
-    plan,
     seatLimit,
     activeMembersCount,
     isActive,
@@ -102,7 +101,7 @@ export const useOrganizationSubscription = (organizationId: string | undefined) 
     isCreatingCheckout: createCheckout.isPending,
     createCheckoutError: createCheckout.error,
 
-    cancelSubscription: cancelSubscription.mutate,
+    cancelSubscription,
     isCanceling: cancelSubscription.isPending,
     cancelError: cancelSubscription.error,
 

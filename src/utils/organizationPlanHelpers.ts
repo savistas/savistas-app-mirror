@@ -1,45 +1,15 @@
-import {
-  OrganizationPlanType,
-  ORGANIZATION_PLANS,
-  getRequiredPlanForMemberCount,
-  needsPlanUpgrade,
-  shouldPlanDowngrade,
-  getNextPlan,
-  getPreviousPlan,
-} from '@/constants/organizationPlans';
+import { MIN_SEATS, MAX_SEATS } from '@/constants/organizationPlans';
 import { OrganizationSubscriptionStatus } from '@/types/organizationSubscription';
 
 /**
- * Organization Plan Helper Utilities
+ * Organization Seat & Capacity Helper Utilities
  *
- * Provides utility functions for organization plan management,
- * seat calculations, and capacity checking
+ * Provides utility functions for seat-based organization management,
+ * capacity checking, and subscription status formatting
+ *
+ * Note: With the new seat-based model, there are no plan tiers.
+ * All organizations use the same progressive pricing based on seat count.
  */
-
-/**
- * Calculate seat limit based on plan type
- * Returns the included seats for the plan (free seats that come with subscription)
- */
-export const getSeatLimitForPlan = (plan: OrganizationPlanType | null): number => {
-  if (!plan) return 0;
-  return ORGANIZATION_PLANS[plan].includedSeats;
-};
-
-/**
- * Get the included seats for a plan (seats that come free with the plan)
- */
-export const getIncludedSeatsForPlan = (plan: OrganizationPlanType | null): number => {
-  if (!plan) return 0;
-  return ORGANIZATION_PLANS[plan].includedSeats;
-};
-
-/**
- * Get the maximum possible seats for a plan (including purchasable seats)
- */
-export const getMaxSeatsForPlan = (plan: OrganizationPlanType | null): number => {
-  if (!plan) return 0;
-  return ORGANIZATION_PLANS[plan].seatRange.max;
-};
 
 /**
  * Calculate remaining seats
@@ -171,125 +141,64 @@ export const isSubscriptionActive = (status: OrganizationSubscriptionStatus): bo
 };
 
 /**
- * Check if organization needs to upgrade for new member count
+ * Check if organization needs more seats
  */
-export const checkUpgradeRequired = (
-  currentPlan: OrganizationPlanType,
-  newMemberCount: number
-): {
-  required: boolean;
-  suggestedPlan?: OrganizationPlanType;
-  message?: string;
-} => {
-  const { needed, suggestedPlan } = needsPlanUpgrade(currentPlan, newMemberCount);
+export const needsMoreSeats = (
+  activeMembersCount: number,
+  seatLimit: number
+): { needed: boolean; message?: string } => {
+  const remaining = calculateRemainingSeats(activeMembersCount, seatLimit);
+  const status = getCapacityStatus(activeMembersCount, seatLimit);
 
-  if (needed && suggestedPlan) {
-    const suggestedPlanConfig = ORGANIZATION_PLANS[suggestedPlan];
+  if (status === 'full') {
+    if (seatLimit >= MAX_SEATS) {
+      return {
+        needed: true,
+        message: `Vous avez atteint la capacité maximale de ${MAX_SEATS} sièges.`,
+      };
+    }
     return {
-      required: true,
-      suggestedPlan,
-      message: `Votre organisation doit passer au plan ${suggestedPlanConfig.displayName} pour accueillir ${newMemberCount} membres.`,
+      needed: true,
+      message: 'Capacité maximale atteinte. Achetez plus de sièges pour ajouter des membres.',
     };
   }
 
-  return { required: false };
-};
-
-/**
- * Check if organization should downgrade for new member count
- */
-export const checkDowngradeRecommended = (
-  currentPlan: OrganizationPlanType,
-  newMemberCount: number
-): {
-  recommended: boolean;
-  suggestedPlan?: OrganizationPlanType;
-  message?: string;
-} => {
-  const { should, suggestedPlan } = shouldPlanDowngrade(currentPlan, newMemberCount);
-
-  if (should && suggestedPlan) {
-    const suggestedPlanConfig = ORGANIZATION_PLANS[suggestedPlan];
+  if (status === 'high') {
     return {
-      recommended: true,
-      suggestedPlan,
-      message: `Avec ${newMemberCount} membres, votre organisation peut passer au plan ${suggestedPlanConfig.displayName} et économiser sur votre abonnement.`,
+      needed: false,
+      message: `Attention : seulement ${remaining} siège(s) restant(s). Envisagez d'acheter plus de sièges.`,
     };
   }
 
-  return { recommended: false };
+  return { needed: false };
 };
 
 /**
- * Get plan comparison info (for upgrades/downgrades)
+ * Check if seat count is within limits
  */
-export const getPlanComparison = (
-  fromPlan: OrganizationPlanType,
-  toPlan: OrganizationPlanType
-): {
-  isUpgrade: boolean;
-  priceDifference: number;
-  seatDifference: number;
-} => {
-  const fromConfig = ORGANIZATION_PLANS[fromPlan];
-  const toConfig = ORGANIZATION_PLANS[toPlan];
-
-  const planOrder: OrganizationPlanType[] = ['b2b_pro', 'b2b_max', 'b2b_ultra'];
-  const isUpgrade = planOrder.indexOf(toPlan) > planOrder.indexOf(fromPlan);
-
-  return {
-    isUpgrade,
-    priceDifference: toConfig.priceMonthly - fromConfig.priceMonthly,
-    seatDifference: toConfig.seatRange.max - fromConfig.seatRange.max,
-  };
-};
-
-/**
- * Generate upgrade message
- */
-export const generateUpgradeMessage = (
-  currentPlan: OrganizationPlanType,
-  targetPlan: OrganizationPlanType
-): string => {
-  const currentConfig = ORGANIZATION_PLANS[currentPlan];
-  const targetConfig = ORGANIZATION_PLANS[targetPlan];
-  const { priceDifference } = getPlanComparison(currentPlan, targetPlan);
-
-  return `Passer de ${currentConfig.displayName} à ${targetConfig.displayName} pour ${priceDifference}€ supplémentaires par mois. Vous pourrez accueillir jusqu'à ${targetConfig.seatRange.max} membres.`;
-};
-
-/**
- * Generate downgrade message
- */
-export const generateDowngradeMessage = (
-  currentPlan: OrganizationPlanType,
-  targetPlan: OrganizationPlanType
-): string => {
-  const currentConfig = ORGANIZATION_PLANS[currentPlan];
-  const targetConfig = ORGANIZATION_PLANS[targetPlan];
-  const { priceDifference } = getPlanComparison(currentPlan, targetPlan);
-
-  return `Passer de ${currentConfig.displayName} à ${targetConfig.displayName} pour économiser ${Math.abs(priceDifference)}€ par mois. Limite de ${targetConfig.seatRange.max} membres.`;
-};
-
-/**
- * Validate if downgrade is possible (member count check)
- */
-export const canDowngradeToPlan = (
-  targetPlan: OrganizationPlanType,
-  currentMemberCount: number
-): { possible: boolean; message?: string } => {
-  const targetConfig = ORGANIZATION_PLANS[targetPlan];
-
-  if (currentMemberCount > targetConfig.seatRange.max) {
-    const excess = currentMemberCount - targetConfig.seatRange.max;
+export const isValidSeatCount = (seatCount: number): { valid: boolean; message?: string } => {
+  if (seatCount < MIN_SEATS) {
     return {
-      possible: false,
-      message: `Vous devez d'abord retirer ${excess} membre(s) pour passer au plan ${targetConfig.displayName} (limite: ${targetConfig.seatRange.max} membres).`,
+      valid: false,
+      message: `Le nombre de sièges doit être au moins ${MIN_SEATS}.`,
     };
   }
 
-  return { possible: true };
+  if (seatCount > MAX_SEATS) {
+    return {
+      valid: false,
+      message: `Le nombre maximum de sièges est ${MAX_SEATS}.`,
+    };
+  }
+
+  if (!Number.isInteger(seatCount)) {
+    return {
+      valid: false,
+      message: 'Le nombre de sièges doit être un nombre entier.',
+    };
+  }
+
+  return { valid: true };
 };
 
 /**
@@ -297,48 +206,55 @@ export const canDowngradeToPlan = (
  */
 export const getSuggestedActions = (
   activeMembersCount: number,
-  seatLimit: number,
-  currentPlan: OrganizationPlanType
+  seatLimit: number
 ): string[] => {
   const remaining = calculateRemainingSeats(activeMembersCount, seatLimit);
   const status = getCapacityStatus(activeMembersCount, seatLimit);
   const actions: string[] = [];
 
   if (status === 'full') {
-    const nextPlan = getNextPlan(currentPlan);
-    if (nextPlan) {
-      const nextConfig = ORGANIZATION_PLANS[nextPlan];
-      actions.push(`Passez au plan ${nextConfig.displayName} pour ajouter plus de membres`);
+    if (seatLimit >= MAX_SEATS) {
+      actions.push(`Vous avez atteint la capacité maximale de ${MAX_SEATS} sièges`);
     } else {
-      actions.push('Vous avez atteint la capacité maximale (100 membres)');
+      actions.push('Achetez plus de sièges pour ajouter de nouveaux membres');
     }
   } else if (status === 'high') {
     actions.push(`Seulement ${remaining} place(s) restante(s)`);
-    const nextPlan = getNextPlan(currentPlan);
-    if (nextPlan) {
-      actions.push(`Envisagez une mise à niveau vers ${ORGANIZATION_PLANS[nextPlan].displayName}`);
-    }
-  }
-
-  // Check for downgrade opportunity
-  if (status === 'low') {
-    const previousPlan = getPreviousPlan(currentPlan);
-    if (previousPlan) {
-      const { recommended } = checkDowngradeRecommended(currentPlan, activeMembersCount);
-      if (recommended) {
-        actions.push(`Vous pourriez économiser en passant au plan ${ORGANIZATION_PLANS[previousPlan].displayName}`);
-      }
-    }
+    actions.push('Envisagez d\'acheter plus de sièges pour anticiper la croissance');
+  } else if (status === 'low' && remaining > seatLimit * 0.5) {
+    // If using less than 50% of seats, suggest optimizing
+    actions.push('Vous avez beaucoup de sièges disponibles');
   }
 
   return actions;
 };
 
-// Re-export from constants for convenience
-export {
-  getRequiredPlanForMemberCount,
-  needsPlanUpgrade,
-  shouldPlanDowngrade,
-  getNextPlan,
-  getPreviousPlan,
+/**
+ * Calculate recommended seat purchase
+ * Suggests how many additional seats to buy based on current usage
+ */
+export const getRecommendedSeatPurchase = (
+  activeMembersCount: number,
+  seatLimit: number,
+  expectedGrowth: number = 0
+): number => {
+  const remaining = calculateRemainingSeats(activeMembersCount, seatLimit);
+  const needed = Math.max(0, expectedGrowth - remaining);
+
+  // Add 20% buffer for safety
+  const recommended = Math.ceil(needed * 1.2);
+
+  // Ensure we don't exceed max seats
+  const maxAdditional = MAX_SEATS - seatLimit;
+  return Math.min(recommended, maxAdditional);
 };
+
+// Legacy compatibility exports (deprecated)
+/** @deprecated Use seatLimit from organization directly */
+export const getSeatLimitForPlan = (): number => 0;
+
+/** @deprecated No longer applicable in seat-based model */
+export const getIncludedSeatsForPlan = (): number => 0;
+
+/** @deprecated Use MAX_SEATS constant instead */
+export const getMaxSeatsForPlan = (): number => MAX_SEATS;

@@ -86,7 +86,7 @@ export function MemberJoinBlockedModal({
                   Contactez l'administrateur de <strong>{organizationName}</strong> et demandez-lui de :
                 </p>
                 <ul className="list-disc list-inside text-sm mt-2 space-y-1 ml-2">
-                  <li>Passer à un plan supérieur pour augmenter la capacité</li>
+                  <li>Acheter plus de sièges pour augmenter la capacité</li>
                   <li>Ou libérer un siège en retirant un membre inactif</li>
                 </ul>
               </AlertDescription>

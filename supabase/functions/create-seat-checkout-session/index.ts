@@ -12,25 +12,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to get included seats for a plan
-function getIncludedSeatsForPlan(plan: string): number {
-  switch (plan) {
-    case 'b2b_pro': return 0;
-    case 'b2b_max': return 20;
-    case 'b2b_ultra': return 50;
-    default: return 0;
-  }
-}
+/**
+ * Progressive Tier Pricing (per seat per month):
+ * - Tier 1 (1-20 seats): €35/seat
+ * - Tier 2 (21-50 seats): €32/seat
+ * - Tier 3 (51-100 seats): €29/seat
+ */
 
-// Helper to get max purchasable seats for a plan
-function getMaxPurchasableSeats(plan: string): number {
-  const maxTotal: Record<string, number> = {
-    'b2b_pro': 20,
-    'b2b_max': 50,
-    'b2b_ultra': 100,
-  };
-  const included = getIncludedSeatsForPlan(plan);
-  return (maxTotal[plan] || 0) - included;
+// Stripe Price IDs for each tier
+const TIER_PRICE_IDS = {
+  monthly: {
+    tier_1: 'price_1SPt4237eeTawvFRmxg2xSQv', // €35/seat/month
+    tier_2: 'price_1SPt4537eeTawvFRskKJeO4a', // €32/seat/month
+    tier_3: 'price_1SPt4837eeTawvFRKF3WzGwQ', // €29/seat/month
+  },
+  yearly: {
+    tier_1: 'price_1SPt4437eeTawvFRlhZCxm5m', // €420/seat/year
+    tier_2: 'price_1SPt4637eeTawvFRoo51e4k5', // €384/seat/year
+    tier_3: 'price_1SPt4937eeTawvFRCLFRUNOG', // €348/seat/year
+  },
+};
+
+// Calculate tier breakdown for progressive pricing
+function calculateTierBreakdown(totalSeats: number): {
+  tier_1: number;
+  tier_2: number;
+  tier_3: number;
+} {
+  if (totalSeats < 1 || totalSeats > 100) {
+    throw new Error(`Seat count must be between 1 and 100, got: ${totalSeats}`);
+  }
+
+  const tier_1 = Math.min(totalSeats, 20); // First 20 seats
+  const tier_2 = Math.min(Math.max(totalSeats - 20, 0), 30); // Seats 21-50
+  const tier_3 = Math.max(totalSeats - 50, 0); // Seats 51-100
+
+  return { tier_1, tier_2, tier_3 };
 }
 
 serve(async (req) => {
@@ -82,8 +99,8 @@ serve(async (req) => {
       throw new Error('Invalid billing period. Must be "monthly" or "yearly"');
     }
 
-    if (seatCount < 1) {
-      throw new Error('Seat count must be at least 1');
+    if (seatCount < 1 || seatCount > 100) {
+      throw new Error('Seat count must be between 1 and 100');
     }
 
     // Get organization with subscription
@@ -110,46 +127,13 @@ serve(async (req) => {
       throw new Error('Organization must be approved before purchasing seats');
     }
 
-    // Get organization plan
-    const plan = organization.subscription_plan;
-    if (!plan) {
-      throw new Error('Organization must have an active subscription plan before purchasing seats');
-    }
-
     console.log('✅ Organization validated:', {
-      plan,
-      currentSeats: organization.seat_limit,
+      currentSeats: organization.seat_limit || 0,
     });
 
-    // Validate seat count against plan limits
-    const maxPurchasable = getMaxPurchasableSeats(plan);
-    if (seatCount > maxPurchasable) {
-      throw new Error(
-        `Cannot purchase ${seatCount} seats for ${plan.toUpperCase()} plan. ` +
-        `Maximum purchasable: ${maxPurchasable} (plan includes ${getIncludedSeatsForPlan(plan)} free seats)`
-      );
-    }
-
-    // Map plan to seat price IDs
-    const seatPriceIds: Record<string, { monthly: string; yearly: string }> = {
-      b2b_pro: {
-        monthly: 'price_1SPt4237eeTawvFRmxg2xSQv',  // 35€/seat/month
-        yearly: 'price_1SPt4437eeTawvFRlhZCxm5m',    // 420€/seat/year
-      },
-      b2b_max: {
-        monthly: 'price_1SPt4537eeTawvFRskKJeO4a',  // 32€/seat/month
-        yearly: 'price_1SPt4637eeTawvFRoo51e4k5',    // 384€/seat/year
-      },
-      b2b_ultra: {
-        monthly: 'price_1SPt4837eeTawvFRKF3WzGwQ',  // 29€/seat/month
-        yearly: 'price_1SPt4937eeTawvFRCLFRUNOG',    // 348€/seat/year
-      },
-    };
-
-    const priceId = seatPriceIds[plan]?.[billingPeriod];
-    if (!priceId) {
-      throw new Error(`Invalid plan or billing period: ${plan} / ${billingPeriod}`);
-    }
+    // Calculate tier breakdown for progressive pricing
+    const tierBreakdown = calculateTierBreakdown(seatCount);
+    console.log('📊 Tier breakdown:', tierBreakdown);
 
     // Get or create Stripe customer
     const orgSubscriptions = organization.organization_subscriptions as any[];
@@ -177,61 +161,94 @@ serve(async (req) => {
 
       customerId = customer.id;
 
-      // Update organization subscription with customer ID
-      if (orgSubscriptions?.[0]?.id) {
+      // Create or update organization subscription record
+      if (orgSubscriptions?.length > 0) {
         await supabaseClient
           .from('organization_subscriptions')
           .update({ stripe_customer_id: customerId })
           .eq('id', orgSubscriptions[0].id);
+      } else {
+        await supabaseClient
+          .from('organization_subscriptions')
+          .insert({
+            organization_id: organizationId,
+            stripe_customer_id: customerId,
+            status: 'incomplete',
+          });
       }
     }
 
-    // Check if organization already has a seat subscription
-    const existingSeatSubscriptionId = orgSubscriptions?.[0]?.stripe_seat_subscription_id;
+    // Check if organization already has an active seat subscription
+    const existingSubscriptionId = orgSubscriptions?.[0]?.stripe_subscription_id;
 
-    if (existingSeatSubscriptionId) {
-      // UPDATE existing subscription quantity (Stripe handles proration automatically)
+    if (existingSubscriptionId) {
+      // UPDATE existing subscription (handles seat increase/decrease)
       console.log('🔄 Updating existing seat subscription:', {
-        subscriptionId: existingSeatSubscriptionId,
-        newQuantity: seatCount,
+        subscriptionId: existingSubscriptionId,
+        newSeatCount: seatCount,
       });
 
       try {
         // Retrieve the existing subscription
-        const subscription = await stripe.subscriptions.retrieve(existingSeatSubscriptionId);
+        const subscription = await stripe.subscriptions.retrieve(existingSubscriptionId);
 
         // Verify subscription is active
         if (subscription.status !== 'active' && subscription.status !== 'trialing') {
           throw new Error(`Cannot update subscription with status: ${subscription.status}`);
         }
 
-        // Get the subscription item ID
-        const subscriptionItemId = subscription.items.data[0]?.id;
-        if (!subscriptionItemId) {
-          throw new Error('Subscription item not found');
+        // Build new line items for tier breakdown
+        const lineItems: Stripe.SubscriptionUpdateParams.Item[] = [];
+
+        // Find existing items by price ID
+        const existingItems = subscription.items.data;
+        const priceIds = TIER_PRICE_IDS[billingPeriod as 'monthly' | 'yearly'];
+
+        // Tier 1
+        const tier1Item = existingItems.find(item => item.price.id === priceIds.tier_1);
+        if (tierBreakdown.tier_1 > 0) {
+          lineItems.push({
+            id: tier1Item?.id,
+            price: priceIds.tier_1,
+            quantity: tierBreakdown.tier_1,
+          });
+        } else if (tier1Item) {
+          lineItems.push({ id: tier1Item.id, deleted: true });
         }
 
-        // Verify billing period matches (prevent switching between monthly/yearly via this endpoint)
-        const currentPriceId = subscription.items.data[0]?.price.id;
-        if (currentPriceId !== priceId) {
-          throw new Error(
-            'Cannot change billing period when updating seat count. ' +
-            'Please cancel current seat subscription and create a new one with the desired billing period.'
-          );
+        // Tier 2
+        const tier2Item = existingItems.find(item => item.price.id === priceIds.tier_2);
+        if (tierBreakdown.tier_2 > 0) {
+          lineItems.push({
+            id: tier2Item?.id,
+            price: priceIds.tier_2,
+            quantity: tierBreakdown.tier_2,
+          });
+        } else if (tier2Item) {
+          lineItems.push({ id: tier2Item.id, deleted: true });
         }
 
-        // Update subscription quantity (Stripe auto-prorates)
-        const updatedSubscription = await stripe.subscriptions.update(existingSeatSubscriptionId, {
-          items: [{
-            id: subscriptionItemId,
-            quantity: seatCount,
-          }],
-          proration_behavior: 'create_prorations', // Create prorated invoice immediately
+        // Tier 3
+        const tier3Item = existingItems.find(item => item.price.id === priceIds.tier_3);
+        if (tierBreakdown.tier_3 > 0) {
+          lineItems.push({
+            id: tier3Item?.id,
+            price: priceIds.tier_3,
+            quantity: tierBreakdown.tier_3,
+          });
+        } else if (tier3Item) {
+          lineItems.push({ id: tier3Item.id, deleted: true });
+        }
+
+        // Update subscription with proration
+        const updatedSubscription = await stripe.subscriptions.update(existingSubscriptionId, {
+          items: lineItems,
+          proration_behavior: 'create_prorations', // Immediate billing for increases
         });
 
         console.log('✅ Subscription updated successfully:', {
           subscriptionId: updatedSubscription.id,
-          newQuantity: seatCount,
+          newSeatCount: seatCount,
           status: updatedSubscription.status,
         });
 
@@ -239,8 +256,11 @@ serve(async (req) => {
         await supabaseClient
           .from('organization_subscriptions')
           .update({
-            purchased_seats: seatCount,
-            seat_billing_period: billingPeriod,
+            total_seats: seatCount,
+            tier_1_seats: tierBreakdown.tier_1,
+            tier_2_seats: tierBreakdown.tier_2,
+            tier_3_seats: tierBreakdown.tier_3,
+            billing_period: billingPeriod,
           })
           .eq('id', orgSubscriptions[0].id);
 
@@ -266,28 +286,51 @@ serve(async (req) => {
     // FIRST-TIME seat purchase: Create checkout session
     console.log('💳 Creating Stripe checkout session (first-time purchase):', {
       customerId,
-      priceId,
-      quantity: seatCount,
+      seatCount,
+      tierBreakdown,
     });
+
+    // Build line items for each tier
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+    const priceIds = TIER_PRICE_IDS[billingPeriod as 'monthly' | 'yearly'];
+
+    if (tierBreakdown.tier_1 > 0) {
+      lineItems.push({
+        price: priceIds.tier_1,
+        quantity: tierBreakdown.tier_1,
+      });
+    }
+
+    if (tierBreakdown.tier_2 > 0) {
+      lineItems.push({
+        price: priceIds.tier_2,
+        quantity: tierBreakdown.tier_2,
+      });
+    }
+
+    if (tierBreakdown.tier_3 > 0) {
+      lineItems.push({
+        price: priceIds.tier_3,
+        quantity: tierBreakdown.tier_3,
+      });
+    }
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
-      line_items: [
-        {
-          price: priceId,
-          quantity: seatCount,
-        },
-      ],
+      line_items: lineItems,
       success_url: successUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:8080'}/dashboard-organization?seat-checkout=success`,
       cancel_url: cancelUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:8080'}/dashboard-organization?seat-checkout=canceled`,
-      allow_promotion_codes: true, // Enable Stripe's built-in coupon field in checkout
+      allow_promotion_codes: true,
       metadata: {
         organization_id: organizationId,
         user_id: user.id,
         seat_count: seatCount.toString(),
         billing_period: billingPeriod,
         checkout_type: 'seat_purchase',
+        tier_1_seats: tierBreakdown.tier_1.toString(),
+        tier_2_seats: tierBreakdown.tier_2.toString(),
+        tier_3_seats: tierBreakdown.tier_3.toString(),
       },
       subscription_data: {
         metadata: {

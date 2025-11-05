@@ -35,9 +35,6 @@ import { useUserOrganizationStatus } from "@/hooks/useUserOrganizationStatus";
 import { UserOrganizationBanner } from "@/components/organization/UserOrganizationBanner";
 import { useOrganization } from "@/hooks/useOrganization";
 import { OrganizationSubscriptionCard } from "@/components/organization/OrganizationSubscriptionCard";
-import { OrganizationPlanSelection } from "@/components/organization/OrganizationPlanSelection";
-import { BillingPeriod, OrganizationPlanType } from "@/constants/organizationPlans";
-import { createOrgCheckoutSession } from "@/services/organizationSubscriptionService";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -49,7 +46,6 @@ const Profile = () => {
   const {
     isInOrganization,
     organization,
-    organizationPlan,
     canPurchaseIndividualPlan,
   } = useUserOrganizationStatus(user?.id);
 
@@ -1271,41 +1267,6 @@ const Profile = () => {
                           organizationId={adminOrganization.id}
                           onManage={() => navigate(`/${role}/dashboard-organization`)}
                         />
-
-                        {/* Show plan selection inline like students */}
-                        <OrganizationPlanSelection
-                          currentPlan={adminOrganization.subscription_plan}
-                          organizationId={adminOrganization.id}
-                          onSelectPlan={async (priceId: string, planType: OrganizationPlanType, billingPeriod: BillingPeriod) => {
-                          try {
-                            const result = await createOrgCheckoutSession({
-                              organizationId: adminOrganization.id,
-                              priceId,
-                              mode: 'subscription',
-                              successUrl: `${window.location.origin}${window.location.pathname}?checkout=success`,
-                              cancelUrl: `${window.location.origin}${window.location.pathname}?checkout=canceled`,
-                            });
-
-                            // Redirect to Stripe checkout
-                            if (result.checkoutUrl) {
-                              window.location.href = result.checkoutUrl;
-                            } else if (result.message) {
-                              // Subscription was updated directly (upgrade/downgrade)
-                              toast({
-                                title: "Abonnement mis à jour",
-                                description: result.message,
-                              });
-                              window.location.reload();
-                            }
-                          } catch (error: any) {
-                            toast({
-                              title: "Erreur",
-                              description: error.message || "Impossible de créer la session de paiement",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                      />
                       </>
                     ) : (
                       /* No organization created yet - show message */
@@ -1332,7 +1293,6 @@ const Profile = () => {
                   organization ? (
                     <UserOrganizationBanner
                       organizationName={organization.name}
-                      organizationPlan={organizationPlan}
                     />
                   ) : (
                     /* Organization data still loading */

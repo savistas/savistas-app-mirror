@@ -25,10 +25,9 @@ export const getOrganizationSubscription = async (
     .from('organization_subscriptions')
     .select('*')
     .eq('organization_id', organizationId)
-    .single();
+    .maybeSingle();  // Returns null if not found, no 406 error
 
-  if (error && error.code !== 'PGRST116') {
-    // PGRST116 is "not found", which is ok
+  if (error) {
     console.error('Error fetching organization subscription:', error);
     throw error;
   }
@@ -178,29 +177,12 @@ export const incrementOrganizationUsage = async (
 };
 
 /**
- * Check if organization plan should be adjusted
+ * @deprecated No longer applicable in seat-based billing model.
+ * Organizations now purchase seats directly instead of selecting from fixed plans.
  */
 export const checkOrganizationPlanAdjustment = async (organizationId: string) => {
-  const { data, error } = await supabase.rpc('check_organization_plan_adjustment', {
-    p_organization_id: organizationId,
-  });
-
-  if (error) {
-    console.error('Error checking plan adjustment:', error);
-    throw error;
-  }
-
-  if (!data || data.length === 0) {
-    return null;
-  }
-
-  return {
-    should_adjust: data[0].should_adjust,
-    current_plan: data[0].current_plan,
-    suggested_plan: data[0].suggested_plan,
-    current_members: data[0].current_members,
-    reason: data[0].reason,
-  };
+  console.warn('checkOrganizationPlanAdjustment is deprecated - seat-based billing does not use plan adjustments');
+  return null;
 };
 
 /**

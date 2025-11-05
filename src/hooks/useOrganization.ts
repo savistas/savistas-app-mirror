@@ -14,8 +14,7 @@ interface Organization {
   website: string | null;
   validated_at: string | null;
   validated_by: string | null;
-  // B2B subscription fields (added in migration 20251104000002)
-  subscription_plan: 'b2b_pro' | 'b2b_max' | 'b2b_ultra' | null;
+  // B2B seat-based billing fields
   active_members_count: number;
   seat_limit: number | null;
 }

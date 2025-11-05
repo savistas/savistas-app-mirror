@@ -1,11 +1,9 @@
 import { AlertCircle, Building2, Check } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { ORGANIZATION_PLANS } from '@/constants/organizationPlans';
+import { B2B_STUDENT_LIMITS } from '@/constants/organizationPlans';
 
 interface UserOrganizationBannerProps {
   organizationName: string;
-  organizationPlan: 'b2b_pro' | 'b2b_max' | 'b2b_ultra' | null;
   className?: string;
 }
 
@@ -13,25 +11,17 @@ interface UserOrganizationBannerProps {
  * Banner to inform users they're in an organization and
  * cannot purchase individual subscriptions
  *
- * Shows organization benefits and plan details
+ * Shows organization benefits (same for all B2B members)
  */
 export function UserOrganizationBanner({
   organizationName,
-  organizationPlan,
   className = '',
 }: UserOrganizationBannerProps) {
-  const planConfig = organizationPlan ? ORGANIZATION_PLANS[organizationPlan] : null;
-
   return (
     <Alert className={`border-blue-200 bg-blue-50 ${className}`}>
       <Building2 className="h-5 w-5 text-blue-600" />
       <AlertTitle className="text-blue-900 font-semibold flex items-center gap-2">
         Membre d'une organisation
-        {planConfig && (
-          <Badge variant="secondary" className="ml-2">
-            {planConfig.displayName}
-          </Badge>
-        )}
       </AlertTitle>
       <AlertDescription className="text-blue-800 space-y-3">
         <p>
@@ -39,39 +29,37 @@ export function UserOrganizationBanner({
           déjà d'un abonnement d'organisation.
         </p>
 
-        {planConfig && (
-          <div className="mt-3 space-y-2">
-            <p className="font-semibold text-sm">Vos avantages inclus :</p>
-            <ul className="space-y-1 text-sm">
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>
-                  <strong>{planConfig.perStudentLimits.exercisesPerMonth} exercices</strong> par mois
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>
-                  <strong>{planConfig.perStudentLimits.fichesPerMonth} fiches de révision</strong> par
-                  mois
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>
-                  <strong>{planConfig.perStudentLimits.aiMinutesPerMonth} minutes Avatar IA</strong> par
-                  mois
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>
-                  <strong>Création de cours illimitée</strong>
-                </span>
-              </li>
-            </ul>
-          </div>
-        )}
+        <div className="mt-3 space-y-2">
+          <p className="font-semibold text-sm">Vos avantages inclus :</p>
+          <ul className="space-y-1 text-sm">
+            <li className="flex items-start gap-2">
+              <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <span>
+                <strong>{B2B_STUDENT_LIMITS.exercisesPerMonth} exercices</strong> par mois
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <span>
+                <strong>{B2B_STUDENT_LIMITS.fichesPerMonth} fiches de révision</strong> par
+                mois
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <span>
+                <strong>{B2B_STUDENT_LIMITS.aiMinutesPerMonth} minutes Avatar IA</strong> par
+                mois
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <span>
+                <strong>Création de cours illimitée</strong>
+              </span>
+            </li>
+          </ul>
+        </div>
 
         <div className="flex items-start gap-2 mt-4 pt-3 border-t border-blue-200">
           <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />

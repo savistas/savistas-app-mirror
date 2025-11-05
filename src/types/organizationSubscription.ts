@@ -20,8 +20,14 @@ export interface OrganizationSubscription {
   organization_id: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
-  plan: OrganizationPlanType;
   status: OrganizationSubscriptionStatus;
+  total_seats: number;
+  tier_1_seats: number;
+  tier_2_seats: number;
+  tier_3_seats: number;
+  billing_period: 'monthly' | 'yearly' | null;
+  next_billing_date: string | null;
+  seats_pending_decrease: number;
   current_period_start: string;
   current_period_end: string;
   cancel_at_period_end: boolean;
@@ -73,12 +79,7 @@ export interface OrganizationResourceCheck {
   remaining: number | null;
 }
 
-export interface OrganizationPlanAdjustment {
-  downgraded: boolean;
-  old_plan: OrganizationPlanType | null;
-  new_plan: OrganizationPlanType | null;
-  reason?: string;
-}
+// OrganizationPlanAdjustment interface removed - no longer needed with seat-based billing
 
 export interface CreateOrgCheckoutSessionParams {
   organizationId: string;
@@ -115,7 +116,6 @@ export interface OrganizationWithSubscription {
   type: 'school' | 'company';
   max_members: number;
   validation_status: 'pending' | 'approved' | 'rejected';
-  subscription_plan: OrganizationPlanType | null;
   active_members_count: number;
   seat_limit: number | null;
   website: string | null;

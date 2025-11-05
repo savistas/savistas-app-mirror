@@ -249,10 +249,10 @@ export const StudentProfileForm = ({
 
         if (!existingMembership) {
           // CRITICAL: Check if organization can accept new members BEFORE creating request
-          // 1. Check if org has a subscription plan
+          // 1. Check if org has purchased seats
           const { data: org, error: orgError } = await supabase
             .from('organizations')
-            .select('subscription_plan, seat_limit, active_members_count')
+            .select('seat_limit, active_members_count')
             .eq('id', organizationId)
             .single();
 
@@ -261,10 +261,11 @@ export const StudentProfileForm = ({
             throw new Error('Impossible de vérifier les informations de l\'organisation');
           }
 
-          if (!org.subscription_plan) {
+          // Check if organization has purchased any seats
+          if (!org.seat_limit || org.seat_limit === 0) {
             throw new Error(
-              `L'organisation ${organizationName || 'sélectionnée'} n'a pas encore souscrit à un plan d'abonnement. ` +
-              'Contactez l\'administrateur de l\'organisation pour qu\'il souscrive à un plan avant de pouvoir rejoindre.'
+              `L'organisation ${organizationName || 'sélectionnée'} n'a pas encore acheté de sièges. ` +
+              'Contactez l\'administrateur de l\'organisation pour qu\'il achète des sièges avant de pouvoir rejoindre.'
             );
           }
 
@@ -276,7 +277,7 @@ export const StudentProfileForm = ({
             throw new Error(
               `L'organisation ${organizationName || 'sélectionnée'} a atteint sa capacité maximale ` +
               `(${currentMembers}/${seatLimit} membres). ` +
-              'L\'organisation doit passer à un plan supérieur pour accepter de nouveaux membres.'
+              'L\'organisation doit acheter plus de sièges pour accepter de nouveaux membres.'
             );
           }
 

@@ -31,13 +31,6 @@ interface ApproveMemberResult {
 
 interface RemoveMemberResult {
   error: Error | null;
-  autoDowngradeTriggered?: boolean;
-  adjustmentInfo?: {
-    old_plan: string;
-    new_plan: string;
-    current_members: number;
-    new_seat_limit: number;
-  };
 }
 
 interface RejectMemberResult {
@@ -104,24 +97,25 @@ export const useOrganizationMembers = (organizationId: string | null) => {
     }
 
     try {
-      // CRITICAL: Check if organization has an active subscription plan
+      // CRITICAL: Check if organization has purchased seats
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
-        .select('subscription_plan')
+        .select('seat_limit')
         .eq('id', organizationId)
         .single();
 
       if (orgError || !organization) {
         return {
-          error: new Error('Impossible de vérifier l\'abonnement de l\'organisation'),
+          error: new Error('Impossible de vérifier les informations de l\'organisation'),
         };
       }
 
-      if (!organization.subscription_plan) {
+      // Check if organization has purchased any seats (seat_limit > 0)
+      if (!organization.seat_limit || organization.seat_limit === 0) {
         return {
           error: new Error(
-            'Vous devez souscrire à un plan d\'abonnement avant d\'ajouter des membres. ' +
-            'Rendez-vous dans la section Abonnement de votre profil pour choisir un plan.'
+            'Vous devez acheter des sièges avant d\'ajouter des membres. ' +
+            'Rendez-vous dans le tableau de bord de votre organisation pour acheter des sièges.'
           ),
           noSubscription: true,
         };
@@ -133,7 +127,7 @@ export const useOrganizationMembers = (organizationId: string | null) => {
         return {
           error: new Error(
             `Capacité maximale atteinte. Votre organisation a ${capacityCheck.current_members} membres ` +
-            `sur ${capacityCheck.seat_limit} autorisés. Passez à un plan supérieur pour ajouter ce membre.`
+            `sur ${capacityCheck.seat_limit} autorisés. Achetez plus de sièges pour ajouter ce membre.`
           ),
           capacityExceeded: true,
           capacityInfo: capacityCheck,
@@ -180,31 +174,7 @@ export const useOrganizationMembers = (organizationId: string | null) => {
 
     if (!error) {
       await fetchMembers();
-
-      // Check if plan adjustment is needed after member removal
-      // The database triggers will update active_members_count automatically
-      // The check_organization_plan_adjustment() function will determine if downgrade is needed
-      if (organizationId) {
-        try {
-          const { data: adjustmentCheck } = await supabase
-            .rpc('check_organization_plan_adjustment', {
-              org_id: organizationId,
-            });
-
-          // If adjustment is needed, the result will indicate required action
-          // This can be used to show AutoDowngradeNotification component
-          if (adjustmentCheck) {
-            return {
-              error: null,
-              autoDowngradeTriggered: true,
-              adjustmentInfo: adjustmentCheck
-            };
-          }
-        } catch (adjustmentError) {
-          console.error('Error checking plan adjustment:', adjustmentError);
-          // Don't fail the member removal if adjustment check fails
-        }
-      }
+      // Database triggers update active_members_count automatically
     }
 
     return { error };

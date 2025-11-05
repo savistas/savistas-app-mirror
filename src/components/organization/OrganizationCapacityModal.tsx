@@ -6,19 +6,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Users, ArrowRight, Building2 } from 'lucide-react';
+import { AlertTriangle, Users, Building2, ShoppingCart } from 'lucide-react';
 import { useOrganizationSubscription } from '@/hooks/useOrganizationSubscription';
 import { useOrganizationCapacity } from '@/hooks/useOrganizationCapacity';
-import { getOrganizationPlansArray, formatOrgPlanPrice, OrganizationPlanType } from '@/constants/organizationPlans';
-import { useState } from 'react';
+import { formatPrice, calculateSeatCost, MAX_SEATS, MIN_SEATS } from '@/constants/organizationPlans';
 
 interface OrganizationCapacityModalProps {
   organizationId: string;
   open: boolean;
   onClose: () => void;
-  onUpgrade?: (planType: OrganizationPlanType) => void;
+  onBuySeats?: () => void;
 }
 
 /**
@@ -26,8 +24,8 @@ interface OrganizationCapacityModalProps {
  *
  * Displays:
  * - Current capacity status
- * - Available upgrade options
- * - Call to action to upgrade plan
+ * - Suggested seat purchase
+ * - Call to action to buy more seats
  *
  * Triggered when admin tries to add member beyond seat limit
  */
@@ -35,10 +33,9 @@ export function OrganizationCapacityModal({
   organizationId,
   open,
   onClose,
-  onUpgrade,
+  onBuySeats,
 }: OrganizationCapacityModalProps) {
   const {
-    plan,
     seatLimit,
     activeMembersCount,
   } = useOrganizationSubscription(organizationId);
@@ -46,48 +43,38 @@ export function OrganizationCapacityModal({
   const {
     currentMembers,
     capacityPercentage,
-    isFull,
   } = useOrganizationCapacity(organizationId);
 
-  const [selectedPlan, setSelectedPlan] = useState<OrganizationPlanType | null>(null);
+  // Suggest buying 20% more seats than current limit (rounded up)
+  // If no seats yet (seatLimit = 0), suggest 10 seats as starting point
+  const suggestedSeats = Math.max(
+    MIN_SEATS,
+    Math.min(
+      Math.ceil((seatLimit || 10) * 1.2),
+      MAX_SEATS
+    )
+  );
 
-  const plans = getOrganizationPlansArray();
-  const currentPlanIndex = plans.findIndex(p => p.id === plan?.id);
+  const estimatedCost = calculateSeatCost(suggestedSeats, 'monthly');
+  const canBuyMore = seatLimit < MAX_SEATS;
 
-  // Get upgrade options (plans with higher capacity than current)
-  const upgradeOptions = plans.filter((p, index) => index > currentPlanIndex);
-
-  const handleUpgrade = () => {
-    if (selectedPlan && onUpgrade) {
-      onUpgrade(selectedPlan);
+  const handleBuySeats = () => {
+    if (onBuySeats) {
+      onBuySeats();
     }
     onClose();
   };
 
-  const getPlanBadgeColor = (planType: OrganizationPlanType) => {
-    switch (planType) {
-      case 'b2b_pro':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'b2b_max':
-        return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'b2b_ultra':
-        return 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-900 border-purple-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-6 h-6 text-orange-500" />
             <DialogTitle className="text-xl">Capacité maximale atteinte</DialogTitle>
           </div>
           <DialogDescription>
-            Votre organisation a atteint la limite de son plan actuel. Passez à un plan supérieur
-            pour ajouter plus de membres.
+            Votre organisation a atteint sa limite de sièges. Achetez plus de sièges pour ajouter des membres.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,16 +84,8 @@ export function OrganizationCapacityModal({
             <Building2 className="h-4 w-4" />
             <AlertDescription>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Plan actuel</span>
-                  {plan && (
-                    <Badge className={getPlanBadgeColor(plan.id)}>
-                      {plan.displayName}
-                    </Badge>
-                  )}
-                </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span>Utilisation des sièges</span>
+                  <span className="font-medium">Utilisation des sièges</span>
                   <span className="font-mono font-bold">
                     {currentMembers} / {seatLimit}
                   </span>
@@ -114,79 +93,51 @@ export function OrganizationCapacityModal({
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-orange-500 h-2 rounded-full transition-all"
-                    style={{ width: `${capacityPercentage}%` }}
+                    style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Tous vos sièges sont utilisés. Achetez-en plus pour continuer à ajouter des membres.
+                </p>
               </div>
             </AlertDescription>
           </Alert>
 
-          {/* Upgrade Options */}
-          {upgradeOptions.length > 0 ? (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm text-muted-foreground">
-                Plans disponibles
-              </h3>
-              <div className="space-y-2">
-                {upgradeOptions.map((upgradePlan) => (
-                  <button
-                    key={upgradePlan.id}
-                    onClick={() => setSelectedPlan(upgradePlan.id)}
-                    className={`w-full p-4 border-2 rounded-lg text-left transition-all hover:border-purple-300 hover:bg-purple-50/50 ${
-                      selectedPlan === upgradePlan.id
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Badge className={getPlanBadgeColor(upgradePlan.id)}>
-                          {upgradePlan.displayName}
-                        </Badge>
-                        {upgradePlan.popular && (
-                          <Badge variant="secondary" className="text-xs">
-                            Populaire
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg">
-                          {formatOrgPlanPrice(upgradePlan.pricing.monthly.price)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">par mois</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        <span>
-                          {upgradePlan.seatRange.min} à {upgradePlan.seatRange.max} utilisateurs
-                        </span>
-                      </div>
-                      {plan && (
-                        <div className="flex items-center gap-1 text-green-600 font-medium">
-                          <ArrowRight className="w-4 h-4" />
-                          <span>
-                            +{upgradePlan.seatRange.max - seatLimit} sièges
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
+          {/* Suggested Purchase */}
+          {canBuyMore ? (
+            <div className="p-4 border-2 border-blue-200 rounded-lg bg-blue-50/50">
+              <div className="flex items-start gap-3">
+                <ShoppingCart className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-1">
+                    Suggestion : {suggestedSeats} sièges
+                  </h4>
+                  <p className="text-sm text-blue-700 mb-2">
+                    +{suggestedSeats - seatLimit} sièges supplémentaires pour anticiper la croissance
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-blue-900">
+                      {formatPrice(estimatedCost)}
+                    </span>
+                    <span className="text-sm text-blue-600">/mois</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tarification progressive : plus vous achetez, moins vous payez par siège
+                  </p>
+                </div>
               </div>
             </div>
           ) : (
-            <Alert>
+            <Alert variant="destructive">
               <AlertDescription>
-                Vous êtes déjà au plan maximum. Contactez-nous pour des besoins personnalisés.
+                Vous avez atteint la capacité maximale de {MAX_SEATS} sièges.
+                Contactez-nous pour des besoins personnalisés.
               </AlertDescription>
             </Alert>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <Button
               variant="outline"
               onClick={onClose}
@@ -195,11 +146,12 @@ export function OrganizationCapacityModal({
               Annuler
             </Button>
             <Button
-              onClick={handleUpgrade}
-              disabled={!selectedPlan}
-              className="flex-1"
+              onClick={handleBuySeats}
+              disabled={!canBuyMore}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              Passer au plan sélectionné
+              <Users className="w-4 h-4 mr-2" />
+              Acheter des sièges
             </Button>
           </div>
         </div>

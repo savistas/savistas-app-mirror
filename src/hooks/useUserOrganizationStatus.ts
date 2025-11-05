@@ -26,7 +26,6 @@ export const useUserOrganizationStatus = (userId: string | undefined) => {
           organization:organizations(
             id,
             name,
-            subscription_plan,
             seat_limit,
             active_members_count
           )
@@ -54,7 +53,6 @@ export const useUserOrganizationStatus = (userId: string | undefined) => {
   const isInOrganization = !!organizationMembership;
   const organizationId = organizationMembership?.organization_id || null;
   const organization = organizationMembership?.organization || null;
-  const organizationPlan = organization?.subscription_plan || null;
 
   // Check if user can purchase individual subscriptions
   const canPurchaseIndividualPlan = !isInOrganization;
@@ -67,7 +65,6 @@ export const useUserOrganizationStatus = (userId: string | undefined) => {
     // Computed values
     isInOrganization,
     organizationId,
-    organizationPlan,
     canPurchaseIndividualPlan,
 
     // Status

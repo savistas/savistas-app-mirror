@@ -2,15 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus, CreditCard } from 'lucide-react';
 import { useOrganizationSubscription } from '@/hooks/useOrganizationSubscription';
 import { useOrganizationCapacity } from '@/hooks/useOrganizationCapacity';
-import { ORGANIZATION_PLANS, OrganizationPlanType, BillingPeriod } from '@/constants/organizationPlans';
+import { B2B_STUDENT_LIMITS, BillingPeriod, formatPrice, calculateSeatCost } from '@/constants/organizationPlans';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
-import { OrganizationPlanSelection } from './OrganizationPlanSelection';
 import { SeatPurchaseModal } from './SeatPurchaseModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
@@ -20,36 +18,30 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface OrganizationSubscriptionCardProps {
   organizationId: string;
-  onUpgrade?: () => void;
   onManage?: () => void;
 }
 
 /**
- * Displays organization subscription information and management options
+ * Displays organization subscription information - Seat-based model only
  *
  * Shows:
- * - Current plan and status
- * - Seat usage and capacity
+ * - Current seat count and usage
  * - Renewal date
- * - Per-student limits
- * - Upgrade/manage/cancel options
+ * - Per-student limits (same for all B2B)
+ * - Seat purchase and billing management
  */
 export function OrganizationSubscriptionCard({
   organizationId,
-  onUpgrade,
   onManage,
 }: OrganizationSubscriptionCardProps) {
   const { user, session } = useAuth();
   const {
     subscription,
     organization,
-    plan,
     seatLimit,
     activeMembersCount,
     isActive,
     isLoading,
-    createCheckout,
-    isCreatingCheckout,
     cancelSubscription,
   } = useOrganizationSubscription(organizationId);
 
@@ -62,7 +54,6 @@ export function OrganizationSubscriptionCard({
     isFull,
   } = useOrganizationCapacity(organizationId);
 
-  const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [showSeatPurchase, setShowSeatPurchase] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -82,11 +73,12 @@ export function OrganizationSubscriptionCard({
         .eq('user_id', user.id)
         .eq('organization_id', organizationId)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();  // Returns null if 0 rows, no error
 
       if (!error && data) {
         setIsAdmin(data.role === 'admin');
       } else {
+        // User is not a member - might be the creator viewing their own org
         setIsAdmin(false);
       }
     };
@@ -144,7 +136,7 @@ export function OrganizationSubscriptionCard({
     );
   }
 
-  if (!subscription || !organization || !plan) {
+  if (!subscription || !organization) {
     return (
       <Card>
         <CardHeader>
@@ -152,26 +144,32 @@ export function OrganizationSubscriptionCard({
             <Building2 className="w-5 h-5 text-blue-500" />
             Abonnement Organisation
           </CardTitle>
+          <CardDescription>
+            Démarrez avec un abonnement basé sur le nombre de sièges
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Aucun abonnement actif. Choisissez un plan ci-dessous pour commencer.</p>
+        <CardContent className="space-y-4">
+          <Alert className="border-blue-200 bg-blue-50">
+            <AlertDescription className="text-sm text-blue-900">
+              <div className="font-semibold mb-2">Tarification progressive :</div>
+              <div className="space-y-1">
+                <div>• 1-20 sièges : 35€/siège/mois</div>
+                <div>• 21-50 sièges : 32€/siège/mois</div>
+                <div>• 51-100 sièges : 29€/siège/mois</div>
+              </div>
+            </AlertDescription>
+          </Alert>
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            onClick={() => setShowSeatPurchase(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Acheter des sièges
+          </Button>
         </CardContent>
       </Card>
     );
   }
-
-  const getPlanBadgeColor = (planType: string) => {
-    switch (planType) {
-      case 'b2b_pro':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'b2b_max':
-        return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'b2b_ultra':
-        return 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-900 border-purple-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
 
   const getCapacityColor = (status: string) => {
     switch (status) {
@@ -205,32 +203,7 @@ export function OrganizationSubscriptionCard({
     }
   };
 
-  const handleSelectPlan = async (priceId: string, planType: OrganizationPlanType, billingPeriod: BillingPeriod) => {
-    try {
-      // Create checkout session for the selected plan
-      createCheckout({
-        organizationId,
-        priceId,
-        mode: 'subscription',
-        successUrl: `${window.location.origin}${window.location.pathname}?checkout=success`,
-        cancelUrl: `${window.location.origin}${window.location.pathname}?checkout=canceled`,
-      });
-
-      setShowPlanSelection(false);
-
-      // Note: User will be redirected to Stripe checkout, so no need to call onUpgrade here
-    } catch (error: any) {
-      console.error('Error creating checkout session:', error);
-      toast.error(error.message || 'Erreur lors de la création de la session de paiement');
-    }
-  };
-
   const handlePurchaseSeats = async (seatCount: number, billingPeriod: BillingPeriod) => {
-    if (!plan) {
-      toast.error('Plan non trouvé');
-      return;
-    }
-
     try {
       const result = await createSeatCheckoutSession({
         organizationId,
@@ -255,7 +228,7 @@ export function OrganizationSubscriptionCard({
           }
         );
         // Close modal and refresh page to show updated seat count
-        setShowSeatModal(false);
+        setShowSeatPurchase(false);
         setTimeout(() => window.location.reload(), 1500);
       }
     } catch (error: any) {
@@ -264,6 +237,9 @@ export function OrganizationSubscriptionCard({
     }
   };
 
+  // Calculate estimated monthly cost based on current seats
+  const estimatedMonthlyCost = seatLimit ? calculateSeatCost(seatLimit, 'monthly') : 0;
+
   return (
     <>
       <Card className="border-2">
@@ -271,32 +247,72 @@ export function OrganizationSubscriptionCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-blue-500" />
-              <CardTitle>Abonnement Organisation</CardTitle>
+              <CardTitle>Abonnement Organisation B2B</CardTitle>
             </div>
-            <Badge className={getPlanBadgeColor(plan.id)}>
-              {plan.displayName}
+            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+              {seatLimit} siège{seatLimit > 1 ? 's' : ''}
             </Badge>
           </div>
           <CardDescription>
-            Gérez l'abonnement de votre organisation et consultez les limites
+            Tarification progressive basée sur le nombre de sièges
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Status Badge */}
-          {subscription.status !== 'active' && (
+          {/* Status Badge - Only show if there are actual seats */}
+          {subscription.status !== 'active' && seatLimit > 0 && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Abonnement {subscription.status === 'canceled' ? 'annulé' : 'inactif'}
-                {subscription.current_period_end && (
-                  <span>
-                    {' '}- Actif jusqu'au{' '}
-                    {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
-                  </span>
-                )}
+                <div className="space-y-1">
+                  <div className="font-semibold">
+                    {subscription.status === 'canceled'
+                      ? 'Abonnement aux sièges annulé'
+                      : 'Abonnement inactif'}
+                  </div>
+                  {subscription.current_period_end && subscription.status === 'canceled' && (
+                    <>
+                      <div className="text-sm">
+                        Vos {seatLimit} siège{seatLimit > 1 ? 's' : ''} restent actifs jusqu'au{' '}
+                        <span className="font-medium">
+                          {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
+                        </span>
+                      </div>
+                      <div className="text-sm text-red-700 mt-2">
+                        ⚠️ Après cette date, tous les membres perdront l'accès aux fonctionnalités B2B
+                      </div>
+                    </>
+                  )}
+                  {subscription.current_period_end && subscription.status !== 'canceled' && (
+                    <div className="text-sm">
+                      Contactez le support pour réactiver votre abonnement
+                    </div>
+                  )}
+                </div>
               </AlertDescription>
             </Alert>
+          )}
+
+          {/* Current Cost */}
+          {isActive && estimatedMonthlyCost > 0 && (
+            <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-600">Coût actuel</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Basé sur {seatLimit} siège{seatLimit > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatPrice(estimatedMonthlyCost)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">par mois</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Renewal Date */}
@@ -339,7 +355,7 @@ export function OrganizationSubscriptionCard({
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Capacité maximale atteinte. Passez à un plan supérieur pour ajouter plus de membres.
+                  Capacité maximale atteinte. Achetez plus de sièges pour ajouter des membres.
                 </AlertDescription>
               </Alert>
             )}
@@ -359,7 +375,7 @@ export function OrganizationSubscriptionCard({
                   <span className="text-xs font-medium text-blue-700">Exercices</span>
                 </div>
                 <p className="text-lg font-bold text-blue-900">
-                  {plan.perStudentLimits.exercisesPerMonth}
+                  {B2B_STUDENT_LIMITS.exercisesPerMonth}
                 </p>
                 <p className="text-xs text-blue-600">par mois</p>
               </div>
@@ -370,7 +386,7 @@ export function OrganizationSubscriptionCard({
                   <span className="text-xs font-medium text-purple-700">Fiches</span>
                 </div>
                 <p className="text-lg font-bold text-purple-900">
-                  {plan.perStudentLimits.fichesPerMonth}
+                  {B2B_STUDENT_LIMITS.fichesPerMonth}
                 </p>
                 <p className="text-xs text-purple-600">par mois</p>
               </div>
@@ -381,7 +397,7 @@ export function OrganizationSubscriptionCard({
                   <span className="text-xs font-medium text-orange-700">Minutes IA</span>
                 </div>
                 <p className="text-lg font-bold text-orange-900">
-                  {plan.perStudentLimits.aiMinutesPerMonth}
+                  {B2B_STUDENT_LIMITS.aiMinutesPerMonth}
                 </p>
                 <p className="text-xs text-orange-600">par mois</p>
               </div>
@@ -409,16 +425,7 @@ export function OrganizationSubscriptionCard({
               onClick={() => setShowSeatPurchase(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Acheter des sièges
-            </Button>
-
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => setShowPlanSelection(true)}
-              disabled={isCreatingCheckout}
-            >
-              {isCreatingCheckout ? 'Création de la session...' : 'Changer de plan'}
+              Acheter / Modifier les sièges
             </Button>
 
             {/* Manage Billing Button - Only for admins with active subscription */}
@@ -464,38 +471,15 @@ export function OrganizationSubscriptionCard({
       </Card>
 
       {/* Seat Purchase Modal */}
-      {showSeatPurchase && plan && (
+      {showSeatPurchase && (
         <SeatPurchaseModal
           open={showSeatPurchase}
           onClose={() => setShowSeatPurchase(false)}
           organizationId={organizationId}
-          currentPlan={plan.id}
           currentSeats={seatLimit}
           onPurchaseSeats={handlePurchaseSeats}
         />
       )}
-
-      {/* Plan Selection Dialog */}
-      <Dialog open={showPlanSelection} onOpenChange={(open) => !open && setShowPlanSelection(false)}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2 text-2xl">
-              <Building2 className="w-6 h-6 text-blue-600" />
-              Changer de plan
-            </DialogTitle>
-            <DialogDescription>
-              Sélectionnez le plan qui convient le mieux à votre organisation
-            </DialogDescription>
-          </DialogHeader>
-          <div className="px-6 pb-6">
-            <OrganizationPlanSelection
-              currentPlan={plan.id}
-              organizationId={organizationId}
-              onSelectPlan={handleSelectPlan}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

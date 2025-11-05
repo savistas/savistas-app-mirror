@@ -11,11 +11,9 @@ import { OrganizationSettings } from '@/components/OrganizationSettings';
 import { OnboardingOrganizationDialog } from '@/components/OnboardingOrganizationDialog';
 import { OrganizationSubscriptionCard } from '@/components/organization/OrganizationSubscriptionCard';
 import { OrganizationCapacityModal } from '@/components/organization/OrganizationCapacityModal';
-import { AutoDowngradeNotification } from '@/components/organization/AutoDowngradeNotification';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
-import { OrganizationPlanType } from '@/constants/organizationPlans';
 
 const DashboardOrganization = () => {
   const { user } = useAuth();
@@ -35,8 +33,6 @@ const DashboardOrganization = () => {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
-  const [showDowngradeNotification, setShowDowngradeNotification] = useState(false);
-  const [downgradeInfo, setDowngradeInfo] = useState<any>(null);
 
   // Vérifier que l'utilisateur a le bon rôle
   useEffect(() => {
@@ -82,7 +78,7 @@ const DashboardOrganization = () => {
     }
   };
 
-  // Wrapper pour removeMember avec gestion auto-downgrade
+  // Wrapper pour removeMember
   const handleRemoveMember = async (memberId: string) => {
     const result = await removeMember(memberId);
 
@@ -92,18 +88,6 @@ const DashboardOrganization = () => {
     }
 
     toast.success('Membre retiré avec succès');
-
-    if (result.autoDowngradeTriggered) {
-      setDowngradeInfo(result.adjustmentInfo);
-      setShowDowngradeNotification(true);
-    }
-  };
-
-  const handleUpgradeFromCapacity = (planType: OrganizationPlanType) => {
-    // This would trigger the checkout flow
-    console.log('Upgrading to plan:', planType);
-    toast.info('Mise à niveau du plan en cours...');
-    // TODO: Integrate with checkout flow
   };
 
   if (roleLoading || orgLoading) {
@@ -203,42 +187,22 @@ const DashboardOrganization = () => {
             </Alert>
           )}
 
-          {/* Alert pour absence d'abonnement */}
-          {organization.validation_status === 'approved' && !organization.subscription_plan && (
+          {/* Alert pour absence de sièges */}
+          {organization.validation_status === 'approved' && (!organization.seat_limit || organization.seat_limit === 0) && (
             <Alert variant="default" className="border-blue-200 bg-blue-50">
               <AlertCircle className="h-5 w-5 text-blue-600" />
               <AlertTitle className="text-blue-900 font-semibold">
-                Abonnement requis pour ajouter des membres
+                Achat de sièges requis pour ajouter des membres
               </AlertTitle>
               <AlertDescription className="text-blue-800">
-                Votre organisation est validée mais vous devez souscrire à un plan d'abonnement
-                pour pouvoir ajouter et gérer des membres. Consultez la section Abonnement ci-dessous
-                ou rendez-vous sur votre{' '}
-                <button
-                  onClick={() => navigate(`/${role}/profile`)}
-                  className="underline font-medium hover:text-blue-950"
-                >
-                  page de profil
-                </button>
-                {' '}pour choisir un plan.
+                Votre organisation est validée mais vous devez acheter des sièges
+                pour pouvoir ajouter et gérer des membres. Consultez la section "Gestion de l'abonnement" ci-dessous
+                pour acheter des sièges.
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Auto-Downgrade Notification */}
-          {showDowngradeNotification && downgradeInfo && (
-            <AutoDowngradeNotification
-              oldPlan={downgradeInfo.old_plan}
-              newPlan={downgradeInfo.new_plan}
-              currentMembers={downgradeInfo.current_members}
-              newSeatLimit={downgradeInfo.new_seat_limit}
-              onDismiss={() => setShowDowngradeNotification(false)}
-              onUpgrade={() => {
-                setShowDowngradeNotification(false);
-                // TODO: Open upgrade flow
-              }}
-            />
-          )}
+          {/* Note: Auto-downgrade removed - seat-based model doesn't require it */}
 
           {/* Subscription Management */}
           {organization.validation_status === 'approved' && (
@@ -313,8 +277,8 @@ const DashboardOrganization = () => {
                     requestedAt={member.requested_at}
                     onApprove={handleApproveMember}
                     onReject={rejectMember}
-                    disableApprove={!organization.subscription_plan}
-                    disableReason={!organization.subscription_plan ? 'Abonnement requis' : undefined}
+                    disableApprove={!organization.seat_limit || organization.seat_limit === 0}
+                    disableReason={!organization.seat_limit || organization.seat_limit === 0 ? 'Sièges requis' : undefined}
                   />
                 ))}
               </CardContent>
@@ -365,7 +329,6 @@ const DashboardOrganization = () => {
           organizationId={organization.id}
           open={showCapacityModal}
           onClose={() => setShowCapacityModal(false)}
-          onUpgrade={handleUpgradeFromCapacity}
         />
       )}
     </div>
