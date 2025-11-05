@@ -130,7 +130,7 @@ export const SubscriptionCard = () => {
 
     setReactivateLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reactivate-subscription', {
+      const { error } = await supabase.functions.invoke('reactivate-subscription', {
         body: {
           subscription_id: subscription.stripe_subscription_id,
         },
