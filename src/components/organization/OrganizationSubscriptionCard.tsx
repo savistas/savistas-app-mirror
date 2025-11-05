@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus } from 'lucide-react';
 import { useOrganizationSubscription } from '@/hooks/useOrganizationSubscription';
 import { useOrganizationCapacity } from '@/hooks/useOrganizationCapacity';
@@ -389,29 +390,26 @@ export function OrganizationSubscriptionCard({
       )}
 
       {/* Plan Selection Dialog */}
-      {showPlanSelection && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Changer de plan</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowPlanSelection(false)}
-                >
-                  ✕
-                </Button>
-              </div>
-              <OrganizationPlanSelection
-                currentPlan={plan.id}
-                organizationId={organizationId}
-                onSelectPlan={handleSelectPlan}
-              />
-            </div>
+      <Dialog open={showPlanSelection} onOpenChange={(open) => !open && setShowPlanSelection(false)}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Building2 className="w-6 h-6 text-blue-600" />
+              Changer de plan
+            </DialogTitle>
+            <DialogDescription>
+              Sélectionnez le plan qui convient le mieux à votre organisation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-6 pb-6">
+            <OrganizationPlanSelection
+              currentPlan={plan.id}
+              organizationId={organizationId}
+              onSelectPlan={handleSelectPlan}
+            />
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

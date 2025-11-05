@@ -77,7 +77,7 @@ export function OrganizationPlanSelection({
   return (
     <div className={className}>
       {/* Billing Period Toggle */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-6">
         <Tabs value={billingPeriod} onValueChange={(v) => setBillingPeriod(v as BillingPeriod)}>
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="monthly" className="relative">
@@ -85,9 +85,9 @@ export function OrganizationPlanSelection({
             </TabsTrigger>
             <TabsTrigger value="yearly" className="relative">
               Annuel
-              {totalYearlySavings > 0 && (
+              {billingPeriod === 'yearly' && (
                 <Badge className="ml-2 bg-green-500 text-white text-xs">
-                  Économisez jusqu'à {formatOrgPlanPrice(totalYearlySavings)}/an
+                  -20%
                 </Badge>
               )}
             </TabsTrigger>
@@ -96,24 +96,23 @@ export function OrganizationPlanSelection({
       </div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {plans.map((plan) => {
           const price = getPlanPrice(plan.id, billingPeriod);
           const priceId = getStripePriceId(plan.id, billingPeriod);
           const isCurrentPlan = currentPlan === plan.id;
-          const yearlySavings = calculateYearlySavings(plan.id);
 
           return (
             <Card
               key={plan.id}
-              className={`relative ${
-                plan.popular ? 'border-purple-500 border-2 shadow-lg' : 'border-gray-200'
+              className={`relative flex flex-col ${
+                plan.popular ? 'border-purple-500 border-2' : 'border-gray-200'
               } ${isCurrentPlan ? 'ring-2 ring-blue-500' : ''}`}
             >
               {/* Popular Badge */}
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-purple-500 text-white flex items-center gap-1">
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                  <Badge className="bg-purple-500 text-white text-xs flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     Populaire
                   </Badge>
@@ -122,62 +121,62 @@ export function OrganizationPlanSelection({
 
               {/* Current Plan Badge */}
               {isCurrentPlan && (
-                <div className="absolute -top-3 right-4">
-                  <Badge className="bg-blue-500 text-white">Plan actuel</Badge>
+                <div className="absolute -top-2 right-3">
+                  <Badge className="bg-blue-500 text-white text-xs">Actuel</Badge>
                 </div>
               )}
 
-              <CardHeader className="text-center pb-4">
-                <Badge className={`${getPlanBadgeColor(plan.id)} w-fit mx-auto mb-2`}>
+              <CardHeader className="text-center pb-3 pt-5">
+                <Badge className={`${getPlanBadgeColor(plan.id)} w-fit mx-auto mb-2 text-xs`}>
                   {plan.name}
                 </Badge>
-                <CardTitle className="text-2xl">{plan.displayName}</CardTitle>
-                <CardDescription className="text-sm">{plan.description}</CardDescription>
+                <CardTitle className="text-xl">{plan.displayName}</CardTitle>
 
                 {/* Price */}
-                <div className="mt-4">
-                  <div className="text-4xl font-bold text-gray-900">
+                <div className="mt-3">
+                  <div className="text-3xl font-bold text-gray-900">
                     {formatOrgPlanPrice(price)}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     {billingPeriod === 'monthly' ? 'par mois' : 'par an'}
                   </div>
                   {billingPeriod === 'yearly' && (
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="text-xs text-green-600 font-medium mt-1">
                       Soit {formatOrgPlanPrice(price / 12)}/mois
                     </div>
-                  )}
-                  {billingPeriod === 'yearly' && yearlySavings > 0 && (
-                    <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
-                      Économisez {formatOrgPlanPrice(yearlySavings)}/an
-                    </Badge>
                   )}
                 </div>
 
                 {/* Seat Range */}
-                <div className="flex items-center justify-center gap-2 mt-4 text-sm font-semibold text-gray-700">
-                  <Users className="w-4 h-4" />
+                <div className="flex items-center justify-center gap-1 mt-3 text-xs font-medium text-gray-600">
+                  <Users className="w-3 h-3" />
                   <span>
-                    {plan.seatRange.min} à {plan.seatRange.max} utilisateurs
+                    {plan.seatRange.min}-{plan.seatRange.max} utilisateurs
                   </span>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-3 pt-0">
-                {/* Features List */}
-                <div className="space-y-2">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-700">{feature}</span>
+              <CardContent className="space-y-2 pt-0 pb-3 flex-1">
+                {/* Key Features - Show only first 3 */}
+                <div className="space-y-1.5">
+                  {plan.features.slice(0, 3).map((feature, index) => (
+                    <div key={index} className="flex items-start gap-2 text-xs">
+                      <Check className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-gray-600 leading-tight">{feature}</span>
                     </div>
                   ))}
+                  {plan.features.length > 3 && (
+                    <div className="text-xs text-muted-foreground text-center pt-1">
+                      + {plan.features.length - 3} autres fonctionnalités
+                    </div>
+                  )}
                 </div>
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="pt-3">
                 <Button
                   className="w-full"
+                  size="sm"
                   variant={isCurrentPlan ? 'outline' : plan.popular ? 'default' : 'secondary'}
                   disabled={isCurrentPlan}
                   onClick={() => onSelectPlan(priceId, plan.id, billingPeriod)}
@@ -191,16 +190,14 @@ export function OrganizationPlanSelection({
       </div>
 
       {/* Billing Period Info */}
-      <div className="mt-8 text-center text-sm text-muted-foreground">
+      <div className="mt-4 text-center text-xs text-muted-foreground">
         {billingPeriod === 'yearly' ? (
           <p>
-            Les abonnements annuels sont facturés en une seule fois et se renouvellent
-            automatiquement chaque année.
+            Abonnement annuel facturé en une fois • Renouvellement automatique • Annulation à tout moment
           </p>
         ) : (
           <p>
-            Les abonnements mensuels se renouvellent automatiquement chaque mois. Vous pouvez
-            annuler à tout moment.
+            Abonnement mensuel • Renouvellement automatique • Annulation à tout moment
           </p>
         )}
       </div>
