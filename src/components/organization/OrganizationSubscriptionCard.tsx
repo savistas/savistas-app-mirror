@@ -136,36 +136,15 @@ export function OrganizationSubscriptionCard({
     );
   }
 
-  if (!subscription || !organization) {
+  // Always show detailed view - even with no subscription or 0 seats
+  if (!organization) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-500" />
-            Abonnement Organisation
-          </CardTitle>
-          <CardDescription>
-            Démarrez avec un abonnement basé sur le nombre de sièges
-          </CardDescription>
+          <CardTitle>Abonnement Organisation</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert className="border-blue-200 bg-blue-50">
-            <AlertDescription className="text-sm text-blue-900">
-              <div className="font-semibold mb-2">Tarification progressive :</div>
-              <div className="space-y-1">
-                <div>• 1-20 sièges : 35€/siège/mois</div>
-                <div>• 21-50 sièges : 32€/siège/mois</div>
-                <div>• 51-100 sièges : 29€/siège/mois</div>
-              </div>
-            </AlertDescription>
-          </Alert>
-          <Button
-            className="w-full bg-blue-600 hover:bg-blue-700"
-            onClick={() => setShowSeatPurchase(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Acheter des sièges
-          </Button>
+        <CardContent>
+          <p className="text-muted-foreground">Organisation introuvable</p>
         </CardContent>
       </Card>
     );
@@ -260,7 +239,7 @@ export function OrganizationSubscriptionCard({
 
         <CardContent className="space-y-6">
           {/* Status Badge - Only show if there are actual seats */}
-          {subscription.status !== 'active' && seatLimit > 0 && (
+          {subscription && subscription.status !== 'active' && seatLimit > 0 && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -294,7 +273,7 @@ export function OrganizationSubscriptionCard({
           )}
 
           {/* Current Cost */}
-          {isActive && estimatedMonthlyCost > 0 && (
+          {subscription && isActive && estimatedMonthlyCost > 0 && (
             <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
@@ -316,7 +295,7 @@ export function OrganizationSubscriptionCard({
           )}
 
           {/* Renewal Date */}
-          {subscription.current_period_end && isActive && (
+          {subscription && subscription.current_period_end && isActive && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
               <span>
@@ -456,7 +435,7 @@ export function OrganizationSubscriptionCard({
               </Button>
             )}
 
-            {isActive && (
+            {subscription && isActive && (
               <Button
                 className="w-full"
                 variant="ghost"

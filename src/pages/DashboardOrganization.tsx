@@ -9,7 +9,6 @@ import { MemberRequestCard } from '@/components/MemberRequestCard';
 import { MembersTable } from '@/components/MembersTable';
 import { OrganizationSettings } from '@/components/OrganizationSettings';
 import { OnboardingOrganizationDialog } from '@/components/OnboardingOrganizationDialog';
-import { OrganizationSubscriptionCard } from '@/components/organization/OrganizationSubscriptionCard';
 import { OrganizationCapacityModal } from '@/components/organization/OrganizationCapacityModal';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -203,17 +202,6 @@ const DashboardOrganization = () => {
           )}
 
           {/* Note: Auto-downgrade removed - seat-based model doesn't require it */}
-
-          {/* Subscription Management */}
-          {organization.validation_status === 'approved' && (
-            <OrganizationSubscriptionCard
-              organizationId={organization.id}
-              onManage={() => {
-                // Scroll to members section
-                document.getElementById('members-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            />
-          )}
 
           {/* Statistiques */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
