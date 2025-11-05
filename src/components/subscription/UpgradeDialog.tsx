@@ -220,9 +220,8 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
             </div>
             )}
 
-            {/* AI Minutes Packs */}
-            {(showOnlyAIMinutes || currentPlan === 'premium' || currentPlan === 'pro') && (
-              <div>
+            {/* AI Minutes Packs - Available for all plans */}
+            <div>
                 {!showOnlyAIMinutes && (
                   <>
                     <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
@@ -304,8 +303,7 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
                     </div>
                   </Card>
                 </div>
-              </div>
-            )}
+            </div>
 
             {/* Current plan message */}
             {!showOnlyAIMinutes && currentPlan === 'pro' && (

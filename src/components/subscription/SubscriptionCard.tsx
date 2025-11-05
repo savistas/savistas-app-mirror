@@ -206,17 +206,15 @@ export const SubscriptionCard = () => {
             </div>
           </div>
 
-          {/* Buy AI Minutes Button */}
-          {(subscription.plan === 'premium' || subscription.plan === 'pro') && (
-            <Button
-              onClick={() => setShowUpgradeDialog(true)}
-              variant="outline"
-              className="w-full"
-            >
-              <Bot className="w-4 h-4 mr-2" />
-              Acheter des minutes IA
-            </Button>
-          )}
+          {/* Buy AI Minutes Button - Available for all plans */}
+          <Button
+            onClick={() => setShowUpgradeDialog(true)}
+            variant="outline"
+            className="w-full"
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            Acheter des minutes IA
+          </Button>
         </CardContent>
       </Card>
 
