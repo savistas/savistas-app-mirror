@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Crown, Calendar, TrendingUp, BookOpen, FileText, Bot, Clock, CreditCard } from "lucide-react";
+import { Crown, Calendar, TrendingUp, BookOpen, FileText, Bot, Clock, CreditCard, AlertCircle, RotateCcw } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUsageLimits } from "@/hooks/useUsageLimits";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ import { useState } from "react";
 import { PlanSelectionCards } from "./PlanSelectionCards";
 import { UpgradeDialog } from "./UpgradeDialog";
 import { formatTime } from "@/hooks/useConversationTimeLimit";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const SubscriptionCard = () => {
   const { subscription, limits, isLoading, refetch } = useSubscription();
@@ -22,6 +23,7 @@ export const SubscriptionCard = () => {
   const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
 
   if (isLoading) {
     return (
@@ -116,6 +118,45 @@ export const SubscriptionCard = () => {
     }
   };
 
+  const handleReactivateSubscription = async () => {
+    if (!session || !subscription?.stripe_subscription_id) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de réactiver l'abonnement",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setReactivateLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reactivate-subscription', {
+        body: {
+          subscription_id: subscription.stripe_subscription_id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Votre abonnement a été réactivé avec succès",
+      });
+
+      // Refetch subscription data
+      refetch();
+    } catch (error: any) {
+      console.error('Error reactivating subscription:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de réactiver l'abonnement",
+        variant: "destructive",
+      });
+    } finally {
+      setReactivateLoading(false);
+    }
+  };
+
   return (
     <>
       <Card className="border-2">
@@ -135,12 +176,40 @@ export const SubscriptionCard = () => {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* Cancellation Warning */}
+          {subscription.cancel_at_period_end && subscription.current_period_end && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <p className="font-semibold mb-1">
+                  Votre abonnement se termine le{' '}
+                  {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
+                </p>
+                <p className="text-sm">
+                  Vous conservez l'accès à votre plan {getPlanName(subscription.plan)} jusqu'à cette date.
+                  Après, vous serez rétrogradé vers le forfait Basic.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Renewal Date */}
-          {subscription.current_period_end && (
+          {subscription.current_period_end && !subscription.cancel_at_period_end && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
               <span>
                 Prochain renouvellement le{' '}
+                {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
+              </span>
+            </div>
+          )}
+
+          {/* Active Until Date (for cancelled subscriptions) */}
+          {subscription.cancel_at_period_end && subscription.current_period_end && (
+            <div className="flex items-center gap-2 text-sm text-orange-600 font-medium">
+              <Calendar className="w-4 h-4" />
+              <span>
+                Actif jusqu'au{' '}
                 {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
               </span>
             </div>
@@ -272,6 +341,18 @@ export const SubscriptionCard = () => {
             <Bot className="w-4 h-4 mr-2" />
             Acheter des minutes IA
           </Button>
+
+          {/* Reactivate Subscription Button - Only shown when subscription is cancelled */}
+          {subscription.cancel_at_period_end && subscription.plan !== 'basic' && (
+            <Button
+              onClick={handleReactivateSubscription}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={reactivateLoading}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {reactivateLoading ? 'Réactivation...' : 'Réactiver mon abonnement'}
+            </Button>
+          )}
 
           {/* Manage Billing Button - Only for paid subscriptions */}
           {subscription.plan !== 'basic' && subscription.stripe_customer_id && (
