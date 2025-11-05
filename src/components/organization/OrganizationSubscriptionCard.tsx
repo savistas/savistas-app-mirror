@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp } from 'lucide-react';
+import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus } from 'lucide-react';
 import { useOrganizationSubscription } from '@/hooks/useOrganizationSubscription';
 import { useOrganizationCapacity } from '@/hooks/useOrganizationCapacity';
 import { ORGANIZATION_PLANS, OrganizationPlanType, BillingPeriod } from '@/constants/organizationPlans';
@@ -10,8 +10,10 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useState } from 'react';
 import { OrganizationPlanSelection } from './OrganizationPlanSelection';
+import { SeatPurchaseModal } from './SeatPurchaseModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { createSeatCheckoutSession } from '@/services/organizationSubscriptionService';
 
 interface OrganizationSubscriptionCardProps {
   organizationId: string;
@@ -57,6 +59,7 @@ export function OrganizationSubscriptionCard({
   } = useOrganizationCapacity(organizationId);
 
   const [showPlanSelection, setShowPlanSelection] = useState(false);
+  const [showSeatPurchase, setShowSeatPurchase] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
 
   if (isLoading) {
@@ -150,6 +153,31 @@ export function OrganizationSubscriptionCard({
     } catch (error: any) {
       console.error('Error creating checkout session:', error);
       toast.error(error.message || 'Erreur lors de la création de la session de paiement');
+    }
+  };
+
+  const handlePurchaseSeats = async (seatCount: number, billingPeriod: BillingPeriod) => {
+    if (!plan) {
+      toast.error('Plan non trouvé');
+      return;
+    }
+
+    try {
+      const result = await createSeatCheckoutSession({
+        organizationId,
+        seatCount,
+        billingPeriod,
+        successUrl: `${window.location.origin}${window.location.pathname}?seat-checkout=success`,
+        cancelUrl: `${window.location.origin}${window.location.pathname}?seat-checkout=canceled`,
+      });
+
+      // Redirect to Stripe checkout
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      }
+    } catch (error: any) {
+      console.error('Error creating seat checkout session:', error);
+      throw error; // Re-throw so modal can handle it
     }
   };
 
@@ -293,12 +321,21 @@ export function OrganizationSubscriptionCard({
           {/* Action Buttons */}
           <div className="space-y-2 pt-4">
             <Button
-              className="w-full"
+              className="w-full bg-blue-600 hover:bg-blue-700"
               variant="default"
+              onClick={() => setShowSeatPurchase(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Acheter des sièges
+            </Button>
+
+            <Button
+              className="w-full"
+              variant="outline"
               onClick={() => setShowPlanSelection(true)}
               disabled={isCreatingCheckout}
             >
-              {isCreatingCheckout ? 'Création de la session...' : 'Améliorer le plan'}
+              {isCreatingCheckout ? 'Création de la session...' : 'Changer de plan'}
             </Button>
 
             {onManage && (
@@ -324,6 +361,18 @@ export function OrganizationSubscriptionCard({
           </div>
         </CardContent>
       </Card>
+
+      {/* Seat Purchase Modal */}
+      {showSeatPurchase && plan && (
+        <SeatPurchaseModal
+          open={showSeatPurchase}
+          onClose={() => setShowSeatPurchase(false)}
+          organizationId={organizationId}
+          currentPlan={plan.id}
+          currentSeats={seatLimit}
+          onPurchaseSeats={handlePurchaseSeats}
+        />
+      )}
 
       {/* Plan Selection Dialog */}
       {showPlanSelection && (

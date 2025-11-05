@@ -101,6 +101,9 @@ const Profile = () => {
     role: "",
     subscription: "basic",
     ai_level: "",
+    link_code: "",
+    link_relation: "",
+    ent: "",
     troubles_detection_completed: false,
     learning_styles_completed: false,
   });
@@ -255,7 +258,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name,email,phone,country,city,postal_code,education_level,classes,subjects,subscription,profile_photo_url')
+        .select('full_name,email,phone,country,city,postal_code,education_level,classes,subjects,role,subscription,link_code,link_relation,ent,ai_level,troubles_detection_completed,learning_styles_completed,profile_photo_url')
         .eq('user_id', user.id)
         .maybeSingle();
       if (!active) return;
@@ -472,21 +475,32 @@ const Profile = () => {
       setAvatarUrl(publicUrl);
 
       // Ensure profile exists, then update
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (checkError) throw checkError;
+
       if (existing) {
-        await supabase.from('profiles').update({ profile_photo_url: publicUrl }).eq('user_id', user.id);
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ profile_photo_url: publicUrl })
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
       } else {
-        await supabase.from('profiles').insert({
-          user_id: user.id,
-          email: user.email,
-          full_name: form.full_name,
-          profile_photo_url: publicUrl,
-        });
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            full_name: form.full_name,
+            profile_photo_url: publicUrl,
+          });
+
+        if (insertError) throw insertError;
       }
 
       toast({ title: "Photo mise à jour", description: "Votre photo de profil a été enregistrée" });
@@ -690,19 +704,54 @@ const Profile = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const { data: existing } = await supabase
+
+      // Only include editable fields in the update payload
+      // Exclude: role, subscription, completion flags (these are managed elsewhere)
+      const editableFields = {
+        full_name: form.full_name,
+        phone: form.phone,
+        country: form.country,
+        city: form.city,
+        postal_code: form.postal_code,
+        education_level: form.education_level,
+        classes: form.classes,
+        subjects: form.subjects,
+        link_code: form.link_code,
+        link_relation: form.link_relation,
+        ent: form.ent,
+        ai_level: form.ai_level,
+      };
+
+      const { data: existing, error: checkError } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (checkError) throw checkError;
+
       if (existing) {
-        await supabase.from('profiles').update(form).eq('user_id', user.id);
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(editableFields)
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
       } else {
-        await supabase.from('profiles').insert({ ...form, user_id: user.id });
+        // If profile doesn't exist (shouldn't happen), we need to include required fields
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            ...editableFields,
+            user_id: user.id,
+            email: user.email,
+          });
+
+        if (insertError) throw insertError;
       }
       toast({ title: "Profil enregistré", description: "Vos informations ont été mises à jour" });
     } catch (e: any) {
+      console.error('Profile save error:', e);
       toast({ title: "Erreur", description: e.message ?? "Impossible d'enregistrer", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -862,22 +911,79 @@ const Profile = () => {
   const handleOrgCodeSuccess = async (organizationId: string, organizationName: string, code: string) => {
     if (!user) return;
 
-    // Stocker dans le localStorage pour persister entre les renders
-    // L'ajout à organization_members se fera lors de la soumission du formulaire
-    localStorage.setItem('validated_org_id', organizationId);
-    localStorage.setItem('validated_org_name', organizationName);
-    localStorage.setItem('validated_org_code', code);
+    // Check if profile is already complete
+    const profileComplete = !isProfileIncomplete && form.country && form.education_level && form.classes && form.subjects && form.subscription;
 
-    setValidatedOrgId(organizationId);
-    setValidatedOrgName(organizationName);
-    setValidatedOrgCode(code);
-    setOrganizationValidated(true);
+    if (profileComplete) {
+      // Profile is complete - create organization membership immediately
+      try {
+        const { data: existingMembership } = await supabase
+          .from('organization_members')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!existingMembership) {
+          const { error: memberError } = await supabase
+            .from('organization_members')
+            .insert({
+              organization_id: organizationId,
+              user_id: user.id,
+              status: 'pending',
+              role: 'student',
+              requested_at: new Date().toISOString(),
+            });
+
+          if (memberError) {
+            console.error('Error creating organization membership:', memberError);
+            toast({
+              title: "Erreur",
+              description: "Impossible de rejoindre l'organisation",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Demande envoyée !",
+              description: `Votre demande a été envoyée à ${organizationName}. Vous recevrez une notification une fois votre demande approuvée.`,
+            });
+
+            // Reload the page to update the UI
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          }
+        } else {
+          toast({
+            title: "Déjà membre",
+            description: "Vous faites déjà partie d'une organisation.",
+          });
+        }
+      } catch (error) {
+        console.error('Organization membership error:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de rejoindre l'organisation",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Profile is incomplete - store in localStorage for later (during profile completion)
+      localStorage.setItem('validated_org_id', organizationId);
+      localStorage.setItem('validated_org_name', organizationName);
+      localStorage.setItem('validated_org_code', code);
+
+      setValidatedOrgId(organizationId);
+      setValidatedOrgName(organizationName);
+      setValidatedOrgCode(code);
+      setOrganizationValidated(true);
+
+      toast({
+        title: "Code validé !",
+        description: `Complétez votre profil pour rejoindre ${organizationName}.`,
+      });
+    }
+
     setShowOrgCodeDialog(false);
-
-    toast({
-      title: "Code validé !",
-      description: `Complétez votre profil pour rejoindre ${organizationName}.`,
-    });
   };
 
   const handleOrgCodeSkip = () => {

@@ -31,12 +31,30 @@ export interface OrganizationPlanPricing {
   };
 }
 
+/**
+ * Seat-based pricing configuration for organization plans
+ * Organizations purchase seats as subscriptions to unlock member capacity
+ */
+export interface SeatPricing {
+  monthly: {
+    pricePerSeat: number; // in euros per seat per month
+    stripePriceId: string;
+    stripeProductId: string;
+  };
+  yearly: {
+    pricePerSeat: number; // in euros per seat per year
+    stripePriceId: string;
+    stripeProductId: string;
+  };
+}
+
 export interface OrganizationPlanConfig {
   id: OrganizationPlanType;
   name: string;
   displayName: string;
   description: string;
   pricing: OrganizationPlanPricing;
+  seatPricing: SeatPricing; // Per-seat subscription pricing
   seatRange: {
     min: number;
     max: number;
@@ -69,6 +87,18 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
         stripePriceId: 'price_1SNu6I37eeTawvFR5qEIYme2',
         stripeProductId: 'prod_TKZERNkKTiGW4k',
         monthlySavings: 0, // 14400/12 = 1200, no discount
+      },
+    },
+    seatPricing: {
+      monthly: {
+        pricePerSeat: 35,
+        stripePriceId: 'price_1SPt4237eeTawvFRmxg2xSQv',
+        stripeProductId: 'prod_TMcFeLhPKrQqhe',
+      },
+      yearly: {
+        pricePerSeat: 420, // 35€ * 12
+        stripePriceId: 'price_1SPt4437eeTawvFRlhZCxm5m',
+        stripeProductId: 'prod_TMcFoSQbqXRkZx',
       },
     },
     seatRange: {
@@ -110,6 +140,18 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
         stripePriceId: 'price_1SNu6G37eeTawvFR4qXvQVbL',
         stripeProductId: 'prod_TKZEGlgJJhRX20',
         monthlySavings: 0, // 36000/12 = 3000, no discount
+      },
+    },
+    seatPricing: {
+      monthly: {
+        pricePerSeat: 32,
+        stripePriceId: 'price_1SPt4537eeTawvFRskKJeO4a',
+        stripeProductId: 'prod_TMcFldyhZIpeqt',
+      },
+      yearly: {
+        pricePerSeat: 384, // 32€ * 12
+        stripePriceId: 'price_1SPt4637eeTawvFRoo51e4k5',
+        stripeProductId: 'prod_TMcFTcRVB9TMIZ',
       },
     },
     seatRange: {
@@ -155,6 +197,18 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
         monthlySavings: 0, // 60000/12 = 5000, no discount
       },
     },
+    seatPricing: {
+      monthly: {
+        pricePerSeat: 29,
+        stripePriceId: 'price_1SPt4837eeTawvFRKF3WzGwQ',
+        stripeProductId: 'prod_TMcFSZsOLXiBNo',
+      },
+      yearly: {
+        pricePerSeat: 348, // 29€ * 12
+        stripePriceId: 'price_1SPt4937eeTawvFRCLFRUNOG',
+        stripeProductId: 'prod_TMcFl0jWJoP2C6',
+      },
+    },
     seatRange: {
       min: 51,
       max: 100,
@@ -185,17 +239,25 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
 
 /**
  * Maps Stripe product IDs to organization plan types
- * Includes both monthly and yearly product IDs
+ * Includes both monthly and yearly product IDs (flat-rate and seat-based)
  */
 export const STRIPE_PRODUCT_TO_ORG_PLAN: Record<string, OrganizationPlanType> = {
-  // Monthly products
+  // Flat-rate monthly products
   'prod_TKZEnwNiSwAjiu': 'b2b_pro',
   'prod_TKZEg8FhoYWpQp': 'b2b_max',
   'prod_TKZEwBnUONQnHD': 'b2b_ultra',
-  // Yearly products
+  // Flat-rate yearly products
   'prod_TKZERNkKTiGW4k': 'b2b_pro',
   'prod_TKZEGlgJJhRX20': 'b2b_max',
   'prod_TKZE2ydWNgjoR6': 'b2b_ultra',
+  // Seat-based monthly products
+  'prod_TMcFeLhPKrQqhe': 'b2b_pro',
+  'prod_TMcFldyhZIpeqt': 'b2b_max',
+  'prod_TMcFSZsOLXiBNo': 'b2b_ultra',
+  // Seat-based yearly products
+  'prod_TMcFoSQbqXRkZx': 'b2b_pro',
+  'prod_TMcFTcRVB9TMIZ': 'b2b_max',
+  'prod_TMcFl0jWJoP2C6': 'b2b_ultra',
 };
 
 /**
@@ -324,4 +386,51 @@ export const formatOrgPlanPrice = (priceInEuros: number): string => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(priceInEuros);
+};
+
+/**
+ * Get seat price for a plan based on billing period
+ */
+export const getSeatPrice = (planType: OrganizationPlanType, billingPeriod: BillingPeriod): number => {
+  const plan = ORGANIZATION_PLANS[planType];
+  return plan.seatPricing[billingPeriod].pricePerSeat;
+};
+
+/**
+ * Get Stripe price ID for seat subscription based on billing period
+ */
+export const getSeatPriceId = (planType: OrganizationPlanType, billingPeriod: BillingPeriod): string => {
+  const plan = ORGANIZATION_PLANS[planType];
+  return plan.seatPricing[billingPeriod].stripePriceId;
+};
+
+/**
+ * Calculate total cost for purchasing seats
+ */
+export const calculateSeatCost = (
+  planType: OrganizationPlanType,
+  billingPeriod: BillingPeriod,
+  seatCount: number
+): number => {
+  const pricePerSeat = getSeatPrice(planType, billingPeriod);
+  return pricePerSeat * seatCount;
+};
+
+/**
+ * Get monthly equivalent cost per seat (for comparison)
+ */
+export const getMonthlySeatCost = (planType: OrganizationPlanType, billingPeriod: BillingPeriod): number => {
+  const plan = ORGANIZATION_PLANS[planType];
+  if (billingPeriod === 'monthly') {
+    return plan.seatPricing.monthly.pricePerSeat;
+  }
+  return plan.seatPricing.yearly.pricePerSeat / 12;
+};
+
+/**
+ * Check if seat count is within plan limits
+ */
+export const isValidSeatCount = (planType: OrganizationPlanType, seatCount: number): boolean => {
+  const plan = ORGANIZATION_PLANS[planType];
+  return seatCount >= plan.seatRange.min && seatCount <= plan.seatRange.max;
 };

@@ -303,3 +303,41 @@ export const getOrganizationMembersUsage = async (
 
   return data || [];
 };
+
+/**
+ * Create seat checkout session for organization
+ * Allows organizations to purchase seats via Stripe subscription
+ */
+export const createSeatCheckoutSession = async (params: {
+  organizationId: string;
+  seatCount: number;
+  billingPeriod: 'monthly' | 'yearly';
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<CreateOrgCheckoutSessionResponse> => {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('No active session');
+  }
+
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL || 'https://vvmkbpkoccxpmfpxhacv.supabase.co'}/functions/v1/create-seat-checkout-session`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(params),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create seat checkout session: ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+};
