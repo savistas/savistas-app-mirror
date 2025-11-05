@@ -2,19 +2,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Crown, Calendar, TrendingUp, BookOpen, FileText, Bot, Clock } from "lucide-react";
+import { Crown, Calendar, TrendingUp, BookOpen, FileText, Bot, Clock, CreditCard } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUsageLimits } from "@/hooks/useUsageLimits";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState } from "react";
 import { PlanSelectionCards } from "./PlanSelectionCards";
 import { UpgradeDialog } from "./UpgradeDialog";
+import { formatTime } from "@/hooks/useConversationTimeLimit";
 
 export const SubscriptionCard = () => {
   const { subscription, limits, isLoading, refetch } = useSubscription();
   const { usage, remaining } = useUsageLimits();
+  const { session } = useAuth();
+  const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   if (isLoading) {
     return (
@@ -68,6 +75,45 @@ export const SubscriptionCard = () => {
   const calculatePercentage = (current: number, limit: number) => {
     if (limit === 0) return 0;
     return Math.min((current / limit) * 100, 100);
+  };
+
+  const handleManageBilling = async () => {
+    if (!session || !subscription?.stripe_customer_id) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'accéder au portail de facturation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
+        body: {
+          context: 'individual',
+          return_url: window.location.href,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Redirect to Stripe Customer Portal
+        window.location.href = data.url;
+      } else {
+        throw new Error('No portal URL returned');
+      }
+    } catch (error: any) {
+      console.error('Error opening billing portal:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'ouvrir le portail de facturation",
+        variant: "destructive",
+      });
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   return (
@@ -171,27 +217,38 @@ export const SubscriptionCard = () => {
             </div>
 
             {/* AI Minutes */}
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-sm text-orange-700">
                 <Bot className="w-4 h-4" />
-                <span className="font-medium">Minutes Avatar IA</span>
+                <span className="font-medium">Minutes de conversation avec l'Avatar IA</span>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-orange-600">
-                  {remaining?.aiMinutes || 0}
-                </span>
-                <span className="text-sm text-orange-700">
-                  {remaining?.aiMinutes === 1 ? 'minute restante' : 'minutes restantes'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-orange-600">
-                <span>
-                  {usage?.ai_minutes_used || 0} utilisées sur {limits.aiMinutes} disponibles
-                </span>
-                {subscription.ai_minutes_purchased > 0 && (
-                  <span className="font-medium">
-                    +{subscription.ai_minutes_purchased} min achetées
+              <p className="text-xs text-orange-700/80">
+                Utilisez ces minutes pour discuter avec votre professeur virtuel personnalisé
+              </p>
+              <div className="space-y-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-orange-600">
+                    {formatTime((remaining?.aiMinutes || 0) * 60)}
                   </span>
+                  <span className="text-sm text-orange-700 font-medium">
+                    sur {formatTime(limits.aiMinutes * 60)}
+                  </span>
+                </div>
+                <p className="text-xs text-orange-700/90">
+                  Temps de conversation disponible
+                </p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-orange-600">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Utilisées: {formatTime((usage?.ai_minutes_used || 0) * 60)} / {formatTime(limits.aiMinutes * 60)}
+                  </span>
+                </div>
+                {subscription.ai_minutes_purchased > 0 && (
+                  <div className="text-xs text-orange-700 font-medium bg-orange-100/50 px-2 py-1 rounded">
+                    + {formatTime(subscription.ai_minutes_purchased * 60)} achetées (ne se réinitialisent pas)
+                  </div>
                 )}
               </div>
             </div>
@@ -215,6 +272,19 @@ export const SubscriptionCard = () => {
             <Bot className="w-4 h-4 mr-2" />
             Acheter des minutes IA
           </Button>
+
+          {/* Manage Billing Button - Only for paid subscriptions */}
+          {subscription.plan !== 'basic' && subscription.stripe_customer_id && (
+            <Button
+              onClick={handleManageBilling}
+              variant="outline"
+              className="w-full"
+              disabled={portalLoading}
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              {portalLoading ? 'Chargement...' : 'Gérer ma facturation'}
+            </Button>
+          )}
         </CardContent>
       </Card>
 

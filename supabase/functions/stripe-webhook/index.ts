@@ -36,6 +36,9 @@ const AI_MINUTES_PRODUCTS: Record<string, number> = {
   'prod_TKZE9LG0MXrH1i': 60,  // Avatar IA - 60min
 };
 
+// NOTE: Invoice emails are handled by Stripe automatic emails
+// Configure in Stripe Dashboard → Settings → Emails → "Successful payments"
+
 // Helper to determine seat limit from plan (returns included/free seats)
 function getSeatLimitForPlan(plan: string): number {
   switch (plan) {
@@ -157,6 +160,9 @@ serve(async (req) => {
             console.log('👤 Individual renewal');
             await handleRenewal(supabase, invoice);
           }
+
+          // NOTE: Invoice emails are sent automatically by Stripe
+          // No manual email sending needed
         }
         break;
       }

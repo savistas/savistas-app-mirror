@@ -3,18 +3,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus } from 'lucide-react';
+import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus, CreditCard } from 'lucide-react';
 import { useOrganizationSubscription } from '@/hooks/useOrganizationSubscription';
 import { useOrganizationCapacity } from '@/hooks/useOrganizationCapacity';
 import { ORGANIZATION_PLANS, OrganizationPlanType, BillingPeriod } from '@/constants/organizationPlans';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OrganizationPlanSelection } from './OrganizationPlanSelection';
 import { SeatPurchaseModal } from './SeatPurchaseModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { createSeatCheckoutSession } from '@/services/organizationSubscriptionService';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrganizationSubscriptionCardProps {
   organizationId: string;
@@ -37,6 +39,7 @@ export function OrganizationSubscriptionCard({
   onUpgrade,
   onManage,
 }: OrganizationSubscriptionCardProps) {
+  const { user, session } = useAuth();
   const {
     subscription,
     organization,
@@ -62,6 +65,71 @@ export function OrganizationSubscriptionCard({
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [showSeatPurchase, setShowSeatPurchase] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  // Check if current user is admin of the organization
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user || !organizationId) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+        .single();
+
+      if (!error && data) {
+        setIsAdmin(data.role === 'admin');
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user, organizationId]);
+
+  const handleManageBilling = async () => {
+    if (!session || !subscription?.stripe_customer_id) {
+      toast.error('Impossible d\'accéder au portail de facturation');
+      return;
+    }
+
+    if (!isAdmin) {
+      toast.error('Seuls les administrateurs peuvent gérer la facturation');
+      return;
+    }
+
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
+        body: {
+          context: 'organization',
+          organization_id: organizationId,
+          return_url: window.location.href,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Redirect to Stripe Customer Portal
+        window.location.href = data.url;
+      } else {
+        throw new Error('No portal URL returned');
+      }
+    } catch (error: any) {
+      console.error('Error opening billing portal:', error);
+      toast.error(error.message || 'Impossible d\'ouvrir le portail de facturation');
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -352,6 +420,24 @@ export function OrganizationSubscriptionCard({
             >
               {isCreatingCheckout ? 'Création de la session...' : 'Changer de plan'}
             </Button>
+
+            {/* Manage Billing Button - Only for admins with active subscription */}
+            {subscription?.stripe_customer_id && (
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={handleManageBilling}
+                disabled={!isAdmin || portalLoading}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                {portalLoading
+                  ? 'Chargement...'
+                  : !isAdmin
+                    ? 'Gérer la facturation (Admin uniquement)'
+                    : 'Gérer la facturation'
+                }
+              </Button>
+            )}
 
             {onManage && (
               <Button

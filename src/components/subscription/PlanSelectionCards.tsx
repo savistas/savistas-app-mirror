@@ -143,7 +143,7 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
             return (
               <Card
                 key={plan.id}
-                className={`relative transition-all ${getCardBorderColor(plan.id, plan.color)} border-2`}
+                className={`relative transition-all flex flex-col ${getCardBorderColor(plan.id, plan.color)} border-2`}
               >
                 {plan.popular && !isCurrentPlan && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -172,8 +172,8 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
                   </CardDescription>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2 mb-6">
+                <CardContent className="flex flex-col flex-grow space-y-4">
+                  <ul className="space-y-2 flex-grow">
                     {plan.features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-2 text-sm">
                         <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
@@ -186,7 +186,7 @@ export const PlanSelectionCards = ({ currentPlan }: PlanSelectionCardsProps) => 
                     onClick={() => handlePlanClick(plan.id)}
                     disabled={plan.id === currentPlan}
                     variant={plan.id === 'basic' && currentPlan !== 'basic' ? "destructive" : "default"}
-                    className={`w-full ${plan.id !== 'basic' && plan.id !== currentPlan ? getButtonColor(plan.color) : ''}`}
+                    className={`w-full mt-auto ${plan.id !== 'basic' && plan.id !== currentPlan ? getButtonColor(plan.color) : ''}`}
                   >
                     {getButtonText(plan.id)}
                   </Button>

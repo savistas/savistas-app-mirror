@@ -5,7 +5,7 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mic, Phone, MessageSquare, History, Clock, AlertCircle } from 'lucide-react';
+import { Mic, Phone, MessageSquare, History, Clock, AlertCircle, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,6 +39,7 @@ import { useUserExercises } from '@/hooks/useUserExercises';
 import { useAllErrors } from '@/hooks/useAllErrors';
 import { useConversationTimeLimit, formatTime } from '@/hooks/useConversationTimeLimit';
 import type { ConversationType } from '@/components/virtual-teacher/types';
+import { UpgradeDialog } from '@/components/subscription/UpgradeDialog';
 
 export default function ProfesseurParticulierVirtuel() {
   const { toast } = useToast();
@@ -66,6 +67,7 @@ export default function ProfesseurParticulierVirtuel() {
   const [pendingReferenceId, setPendingReferenceId] = useState<string | null>(null);
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
   const [isPrefilledFromUrl, setIsPrefilledFromUrl] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   // Traiter les paramètres URL au chargement
   useEffect(() => {
@@ -651,19 +653,28 @@ export default function ProfesseurParticulierVirtuel() {
                     </Alert>
                   )}
 
-                  <Button
-                    onClick={startConversation}
-                    disabled={isCreatingSession || isLimitReached}
-                    size="lg"
-                    className="w-full text-base font-semibold h-12"
-                  >
-                    <Mic className="h-5 w-5 mr-2" />
-                    {isCreatingSession
-                      ? 'Création de votre professeur...'
-                      : isLimitReached
-                      ? 'Limite atteinte - Passez au plan supérieur'
-                      : 'Démarrer la conversation'}
-                  </Button>
+                  {isLimitReached ? (
+                    <Button
+                      onClick={() => setShowUpgradeDialog(true)}
+                      size="lg"
+                      className="w-full text-base font-semibold h-12 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Bot className="h-5 w-5 mr-2" />
+                      Acheter des minutes IA
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={startConversation}
+                      disabled={isCreatingSession}
+                      size="lg"
+                      className="w-full text-base font-semibold h-12"
+                    >
+                      <Mic className="h-5 w-5 mr-2" />
+                      {isCreatingSession
+                        ? 'Création de votre professeur...'
+                        : 'Démarrer la conversation'}
+                    </Button>
+                  )}
                 </>
               )}
 
@@ -726,6 +737,14 @@ export default function ProfesseurParticulierVirtuel() {
       <TimeUpDialog
         open={showTimeUpDialog}
         onClose={() => setShowTimeUpDialog(false)}
+      />
+
+      {/* Dialog d'achat de minutes IA */}
+      <UpgradeDialog
+        open={showUpgradeDialog}
+        onClose={() => setShowUpgradeDialog(false)}
+        currentPlan={subscription || 'basic'}
+        showOnlyAIMinutes={true}
       />
 
     </>
