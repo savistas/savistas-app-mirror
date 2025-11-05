@@ -18,8 +18,25 @@ import { OrganizationSubscriptionStatus } from '@/types/organizationSubscription
 
 /**
  * Calculate seat limit based on plan type
+ * Returns the included seats for the plan (free seats that come with subscription)
  */
 export const getSeatLimitForPlan = (plan: OrganizationPlanType | null): number => {
+  if (!plan) return 0;
+  return ORGANIZATION_PLANS[plan].includedSeats;
+};
+
+/**
+ * Get the included seats for a plan (seats that come free with the plan)
+ */
+export const getIncludedSeatsForPlan = (plan: OrganizationPlanType | null): number => {
+  if (!plan) return 0;
+  return ORGANIZATION_PLANS[plan].includedSeats;
+};
+
+/**
+ * Get the maximum possible seats for a plan (including purchasable seats)
+ */
+export const getMaxSeatsForPlan = (plan: OrganizationPlanType | null): number => {
   if (!plan) return 0;
   return ORGANIZATION_PLANS[plan].seatRange.max;
 };

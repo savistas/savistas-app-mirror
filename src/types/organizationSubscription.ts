@@ -88,10 +88,20 @@ export interface CreateOrgCheckoutSessionParams {
   cancelUrl: string;
 }
 
-export interface CreateOrgCheckoutSessionResponse {
-  checkoutUrl: string;
-  sessionId: string;
-}
+export type CreateOrgCheckoutSessionResponse =
+  // First-time purchase: redirect to Stripe checkout
+  | {
+      checkoutUrl: string;
+      sessionId: string;
+    }
+  // Existing subscription update: immediate success with proration
+  | {
+      success: true;
+      message: string;
+      subscriptionId: string;
+      quantity: number;
+      prorated: true;
+    };
 
 /**
  * Extended organization type with subscription fields

@@ -22,14 +22,14 @@ CREATE INDEX IF NOT EXISTS idx_organizations_subscription_plan
 CREATE INDEX IF NOT EXISTS idx_organizations_active_members_count
   ON public.organizations(active_members_count);
 
--- Function to calculate seat limit based on plan
+-- Function to calculate seat limit based on plan (returns included/free seats)
 CREATE OR REPLACE FUNCTION public.get_seat_limit_for_plan(p_plan TEXT)
 RETURNS INTEGER AS $$
 BEGIN
   CASE p_plan
-    WHEN 'b2b_pro' THEN RETURN 20;
-    WHEN 'b2b_max' THEN RETURN 50;
-    WHEN 'b2b_ultra' THEN RETURN 100;
+    WHEN 'b2b_pro' THEN RETURN 0;    -- PRO: 0 included, must purchase 1-20
+    WHEN 'b2b_max' THEN RETURN 20;   -- MAX: 20 included, can purchase up to 50 total
+    WHEN 'b2b_ultra' THEN RETURN 50; -- ULTRA: 50 included, can purchase up to 100 total
     ELSE RETURN 0;
   END CASE;
 END;

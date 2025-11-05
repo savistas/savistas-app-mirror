@@ -36,12 +36,12 @@ const AI_MINUTES_PRODUCTS: Record<string, number> = {
   'prod_TKZE9LG0MXrH1i': 60,  // Avatar IA - 60min
 };
 
-// Helper to determine seat limit from plan
+// Helper to determine seat limit from plan (returns included/free seats)
 function getSeatLimitForPlan(plan: string): number {
   switch (plan) {
-    case 'b2b_pro': return 20;
-    case 'b2b_max': return 50;
-    case 'b2b_ultra': return 100;
+    case 'b2b_pro': return 0;    // PRO: 0 included, must purchase 1-20
+    case 'b2b_max': return 20;   // MAX: 20 included, can purchase up to 50 total
+    case 'b2b_ultra': return 50; // ULTRA: 50 included, can purchase up to 100 total
     default: return 0;
   }
 }
@@ -77,10 +77,13 @@ serve(async (req) => {
         });
 
         if (session.mode === 'subscription') {
+          // Check if this is a seat purchase (has checkout_type: 'seat_purchase')
+          if (session.metadata?.checkout_type === 'seat_purchase') {
+            console.log('🪑 Seat purchase detected');
+            await handleSeatPurchase(supabase, session);
+          }
           // Check if this is an organization subscription
-          const organizationId = session.metadata?.organization_id;
-
-          if (organizationId) {
+          else if (session.metadata?.organization_id) {
             console.log('🏢 Organization subscription detected');
             await handleOrgSubscriptionCreated(supabase, session);
           } else {
@@ -99,10 +102,13 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('🔄 Subscription updated:', subscription.id);
 
+        // Check if this is a seat subscription update (quantity change, etc.)
+        if (subscription.metadata?.checkout_type === 'seat_purchase' || subscription.metadata?.seat_count) {
+          console.log('🪑 Seat subscription update');
+          await handleSeatSubscriptionUpdated(supabase, subscription);
+        }
         // Check if organization subscription
-        const organizationId = subscription.metadata?.organization_id;
-
-        if (organizationId) {
+        else if (subscription.metadata?.organization_id) {
           console.log('🏢 Organization subscription update');
           await handleOrgSubscriptionUpdated(supabase, subscription);
         } else {
@@ -117,10 +123,13 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('❌ Subscription deleted:', subscription.id);
 
+        // Check if this is a seat subscription cancellation
+        if (subscription.metadata?.checkout_type === 'seat_purchase' || subscription.metadata?.seat_count) {
+          console.log('🪑 Seat subscription cancellation');
+          await handleSeatSubscriptionDeleted(supabase, subscription);
+        }
         // Check if organization subscription
-        const organizationId = subscription.metadata?.organization_id;
-
-        if (organizationId) {
+        else if (subscription.metadata?.organization_id) {
           console.log('🏢 Organization subscription deletion');
           await handleOrgSubscriptionDeleted(supabase, subscription);
         } else {
@@ -511,12 +520,9 @@ async function handleOrgSubscriptionCreated(supabase: any, session: Stripe.Check
     return;
   }
 
-  const seatLimit = getSeatLimitForPlan(plan);
-
   console.log('📦 Organization product details:', {
     productId,
     plan,
-    seatLimit,
     status: subscription.status,
     currentPeriodStart: subscription.current_period_start,
     currentPeriodEnd: subscription.current_period_end
@@ -543,12 +549,11 @@ async function handleOrgSubscriptionCreated(supabase: any, session: Stripe.Check
     throw error;
   }
 
-  // Update organization with plan and seat limit
+  // Update organization with plan (seat_limit will be set by database trigger)
   const { error: orgError } = await supabase
     .from('organizations')
     .update({
       subscription_plan: plan,
-      seat_limit: seatLimit,
     })
     .eq('id', organizationId);
 
@@ -577,8 +582,6 @@ async function handleOrgSubscriptionUpdated(supabase: any, subscription: Stripe.
     return;
   }
 
-  const seatLimit = getSeatLimitForPlan(plan);
-
   // Update organization subscription
   const { error } = await supabase
     .from('organization_subscriptions')
@@ -597,12 +600,11 @@ async function handleOrgSubscriptionUpdated(supabase: any, subscription: Stripe.
     throw error;
   }
 
-  // Update organization
+  // Update organization plan (seat_limit will be recalculated by database trigger)
   const { error: orgError } = await supabase
     .from('organizations')
     .update({
       subscription_plan: plan,
-      seat_limit: seatLimit,
     })
     .eq('id', organizationId);
 
@@ -716,4 +718,112 @@ async function handleOrgPaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   }
 
   console.log(`⚠️ Payment failed for organization ${organizationId}`);
+}
+
+// ============================================================================
+// SEAT PURCHASE HANDLERS
+// ============================================================================
+
+// Handle new seat purchase
+async function handleSeatPurchase(supabase: any, session: Stripe.Checkout.Session) {
+  const organizationId = session.metadata?.organization_id;
+  const seatCount = parseInt(session.metadata?.seat_count || '0', 10);
+  const billingPeriod = session.metadata?.billing_period;
+  const subscriptionId = session.subscription as string;
+
+  if (!organizationId || !seatCount) {
+    console.error('❌ Missing organization_id or seat_count in metadata');
+    return;
+  }
+
+  console.log('🪑 Processing seat purchase:', {
+    organizationId,
+    seatCount,
+    billingPeriod,
+    subscriptionId,
+  });
+
+  // Update organization subscription with purchased seats
+  // The database trigger will automatically calculate: seat_limit = included + purchased
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      stripe_seat_subscription_id: subscriptionId,
+      purchased_seats: seatCount,
+      seat_billing_period: billingPeriod,
+    })
+    .eq('organization_id', organizationId);
+
+  if (error) {
+    console.error('❌ Error updating purchased seats:', error);
+    throw error;
+  }
+
+  console.log(`✅ Purchased ${seatCount} seats for organization ${organizationId}`);
+}
+
+// Handle seat subscription update (quantity change, etc.)
+async function handleSeatSubscriptionUpdated(supabase: any, subscription: Stripe.Subscription) {
+  const organizationId = subscription.metadata?.organization_id;
+  const seatCount = subscription.items.data[0]?.quantity || 0;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in seat subscription metadata');
+    return;
+  }
+
+  console.log('🪑 Updating seat subscription:', {
+    organizationId,
+    newSeatCount: seatCount,
+    subscriptionId: subscription.id,
+  });
+
+  // Update purchased seats (trigger will recalculate total seat_limit)
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      purchased_seats: seatCount,
+      status: subscription.status,
+      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      cancel_at_period_end: subscription.cancel_at_period_end,
+    })
+    .eq('stripe_seat_subscription_id', subscription.id);
+
+  if (error) {
+    console.error('❌ Error updating seat subscription:', error);
+    throw error;
+  }
+
+  console.log(`✅ Updated seat count to ${seatCount} for organization ${organizationId}`);
+}
+
+// Handle seat subscription cancellation
+async function handleSeatSubscriptionDeleted(supabase: any, subscription: Stripe.Subscription) {
+  const organizationId = subscription.metadata?.organization_id;
+
+  if (!organizationId) {
+    console.error('❌ No organization_id in seat subscription metadata');
+    return;
+  }
+
+  console.log('🪑 Canceling seat subscription for organization:', organizationId);
+
+  // Reset purchased seats to 0 (organization keeps included seats only)
+  // The database trigger will recalculate: seat_limit = included + 0
+  const { error } = await supabase
+    .from('organization_subscriptions')
+    .update({
+      stripe_seat_subscription_id: null,
+      purchased_seats: 0,
+      seat_billing_period: null,
+    })
+    .eq('organization_id', organizationId);
+
+  if (error) {
+    console.error('❌ Error canceling seat subscription:', error);
+    throw error;
+  }
+
+  console.log(`✅ Seat subscription canceled for organization ${organizationId} - reverted to included seats only`);
 }

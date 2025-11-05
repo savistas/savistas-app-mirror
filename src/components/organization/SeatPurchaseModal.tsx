@@ -36,8 +36,13 @@ export function SeatPurchaseModal({
   onPurchaseSeats,
 }: SeatPurchaseModalProps) {
   const plan = ORGANIZATION_PLANS[currentPlan];
+
+  // Calculate purchasable seat range (total capacity - included seats)
+  const maxPurchasable = plan.seatRange.max - plan.includedSeats;
+  const minPurchasable = 1; // Always at least 1 seat to purchase
+
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
-  const [seatCount, setSeatCount] = useState<number>(Math.max(1, plan.seatRange.min));
+  const [seatCount, setSeatCount] = useState<number>(minPurchasable);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Calculate pricing
@@ -47,8 +52,8 @@ export function SeatPurchaseModal({
 
   // Handle seat purchase
   const handlePurchase = async () => {
-    if (seatCount < plan.seatRange.min || seatCount > plan.seatRange.max) {
-      toast.error(`Le nombre de sièges doit être entre ${plan.seatRange.min} et ${plan.seatRange.max} pour le plan ${plan.name}`);
+    if (seatCount < minPurchasable || seatCount > maxPurchasable) {
+      toast.error(`Le nombre de sièges doit être entre ${minPurchasable} et ${maxPurchasable} pour le plan ${plan.name}`);
       return;
     }
 
@@ -70,7 +75,7 @@ export function SeatPurchaseModal({
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
@@ -81,12 +86,23 @@ export function SeatPurchaseModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-5 py-3">
           {/* Current Status */}
           <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-blue-700">Sièges actuels</span>
+                <span className="text-blue-700">Sièges inclus</span>
+                <span className="font-bold text-blue-900">{plan.includedSeats}</span>
+              </div>
+              {currentSeats > plan.includedSeats && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-700">Sièges achetés</span>
+                  <span className="font-bold text-blue-900">{currentSeats - plan.includedSeats}</span>
+                </div>
+              )}
+              <div className="h-px bg-blue-300" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-blue-700 font-semibold">Total actuel</span>
                 <span className="font-bold text-blue-900">{currentSeats}</span>
               </div>
             </CardContent>
@@ -148,16 +164,21 @@ export function SeatPurchaseModal({
             <Slider
               value={[seatCount]}
               onValueChange={(values) => setSeatCount(values[0])}
-              min={plan.seatRange.min}
-              max={plan.seatRange.max}
+              min={minPurchasable}
+              max={maxPurchasable}
               step={1}
               className="w-full"
             />
 
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Min: {plan.seatRange.min}</span>
-              <span>Max: {plan.seatRange.max}</span>
+              <span>Min: {minPurchasable}</span>
+              <span>Max: {maxPurchasable} (+ {plan.includedSeats} inclus)</span>
             </div>
+            {plan.includedSeats > 0 && (
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Votre plan inclut {plan.includedSeats} sièges gratuits. Total après achat: {plan.includedSeats + seatCount} sièges
+              </p>
+            )}
           </div>
 
           {/* Cost Breakdown */}
@@ -203,33 +224,6 @@ export function SeatPurchaseModal({
               )}
             </CardContent>
           </Card>
-
-          {/* Benefits */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <div className="font-semibold text-sm mb-3">Ce que vous obtenez :</div>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span><strong>{seatCount} sièges</strong> pour vos membres</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span><strong>{plan.perStudentLimits.exercisesPerMonth} exercices</strong> par étudiant/mois</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span><strong>{plan.perStudentLimits.fichesPerMonth} fiches</strong> par étudiant/mois</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span><strong>{plan.perStudentLimits.aiMinutesPerMonth} min IA</strong> par étudiant/mois</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span><strong>Cours illimités</strong></span>
-              </div>
-            </div>
-          </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">

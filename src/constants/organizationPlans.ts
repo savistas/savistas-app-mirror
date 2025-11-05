@@ -55,6 +55,7 @@ export interface OrganizationPlanConfig {
   description: string;
   pricing: OrganizationPlanPricing;
   seatPricing: SeatPricing; // Per-seat subscription pricing
+  includedSeats: number; // Number of free seats included with the plan
   seatRange: {
     min: number;
     max: number;
@@ -101,6 +102,7 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
         stripeProductId: 'prod_TMcFoSQbqXRkZx',
       },
     },
+    includedSeats: 0, // No free seats, must purchase 1-20
     seatRange: {
       min: 1,
       max: 20,
@@ -113,7 +115,7 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
       maxDaysPerCourse: 10,
     },
     features: [
-      '1 à 20 utilisateurs',
+      'Achat de sièges requis (1 à 20)',
       '30 exercices par étudiant/mois',
       '30 fiches de révision par étudiant/mois',
       '60 minutes Avatar IA par étudiant/mois',
@@ -154,6 +156,7 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
         stripeProductId: 'prod_TMcFTcRVB9TMIZ',
       },
     },
+    includedSeats: 20, // 20 free seats included, can purchase more
     seatRange: {
       min: 21,
       max: 50,
@@ -166,7 +169,7 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
       maxDaysPerCourse: 10,
     },
     features: [
-      '21 à 50 utilisateurs',
+      '20 sièges inclus + achat possible jusqu\'à 50',
       '30 exercices par étudiant/mois',
       '30 fiches de révision par étudiant/mois',
       '60 minutes Avatar IA par étudiant/mois',
@@ -209,6 +212,7 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
         stripeProductId: 'prod_TMcFl0jWJoP2C6',
       },
     },
+    includedSeats: 50, // 50 free seats included, can purchase more
     seatRange: {
       min: 51,
       max: 100,
@@ -221,7 +225,7 @@ export const ORGANIZATION_PLANS: Record<OrganizationPlanType, OrganizationPlanCo
       maxDaysPerCourse: 10,
     },
     features: [
-      '51 à 100 utilisateurs',
+      '50 sièges inclus + achat possible jusqu\'à 100',
       '30 exercices par étudiant/mois',
       '30 fiches de révision par étudiant/mois',
       '60 minutes Avatar IA par étudiant/mois',

@@ -171,9 +171,23 @@ export function OrganizationSubscriptionCard({
         cancelUrl: `${window.location.origin}${window.location.pathname}?seat-checkout=canceled`,
       });
 
-      // Redirect to Stripe checkout
-      if (result.checkoutUrl) {
+      // Check response type
+      if ('checkoutUrl' in result) {
+        // First-time purchase: redirect to Stripe checkout
         window.location.href = result.checkoutUrl;
+      } else if ('success' in result && result.success) {
+        // Existing subscription updated: show success and refresh
+        toast.success(
+          result.message || 'Sièges mis à jour avec succès',
+          {
+            description: result.prorated
+              ? `${result.quantity} siège${result.quantity > 1 ? 's' : ''} au total. Montant proratisé appliqué.`
+              : undefined
+          }
+        );
+        // Close modal and refresh page to show updated seat count
+        setShowSeatModal(false);
+        setTimeout(() => window.location.reload(), 1500);
       }
     } catch (error: any) {
       console.error('Error creating seat checkout session:', error);
