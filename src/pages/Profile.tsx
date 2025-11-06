@@ -358,20 +358,27 @@ const Profile = () => {
         } else {
           toast({
             title: "Paiement réussi!",
-            description: "Votre abonnement a été mis à jour avec succès.",
+            description: "Votre abonnement a été mis à jour avec succès. Actualisation en cours...",
           });
         }
 
-        // Refetch subscription data to update UI
-        // Add delay to allow webhook to process (race condition fix)
-        setTimeout(() => {
-          refetchSubscription();
+        // Remove the query parameters from URL first
+        searchParams.delete('checkout');
+        searchParams.delete('type');
+        setSearchParams(searchParams, { replace: true });
 
-          // Retry after 3 seconds to ensure data is updated
+        // For subscriptions, reload the page after a delay to ensure webhook has processed
+        // This is more reliable than multiple refetches
+        if (purchaseType === 'subscription') {
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+        } else {
+          // For AI minutes, just refetch
           setTimeout(() => {
             refetchSubscription();
-          }, 3000);
-        }, 2000);
+          }, 2000);
+        }
       } else if (checkoutStatus === 'canceled') {
         // Clear the checkout session from localStorage
         clearCheckoutSession();
@@ -382,12 +389,12 @@ const Profile = () => {
           description: "Vous avez annulé le processus de paiement.",
           variant: "default",
         });
-      }
 
-      // Remove the query parameters from URL
-      searchParams.delete('checkout');
-      searchParams.delete('type');
-      setSearchParams(searchParams, { replace: true });
+        // Remove the query parameters from URL
+        searchParams.delete('checkout');
+        searchParams.delete('type');
+        setSearchParams(searchParams, { replace: true });
+      }
     }
   }, [searchParams, setSearchParams, toast, refetchSubscription]);
 
@@ -991,26 +998,19 @@ const Profile = () => {
     if (!user) return;
 
     try {
-      // Step 1: Delete all user data from database using RPC function
-      console.log('Step 1: Deleting user data from database...');
-      const { data: deleteResult, error: rpcError } = await supabase.rpc('delete_user_account');
+      // Call the delete-account Edge Function which handles:
+      // 1. Deleting all user data from database (via RPC function)
+      // 2. Deleting user files from storage
+      // 3. Deleting the auth user
+      console.log('🗑️ Deleting user account...');
 
-      if (rpcError) {
-        console.error('RPC Error:', rpcError);
-        throw new Error(`Failed to delete user data: ${rpcError.message}`);
-      }
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      console.log('User data deleted:', deleteResult);
-
-      // Step 2: Delete auth user and storage files using Edge Function
-      console.log('Step 2: Deleting auth account...');
-      const { data, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !data?.session) {
+      if (sessionError || !sessionData?.session) {
         throw new Error('No active session');
       }
 
-      const session = data.session;
+      const session = sessionData.session;
 
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/delete-account`,
@@ -1026,12 +1026,12 @@ const Profile = () => {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to delete auth account');
+        throw new Error(result.error || 'Failed to delete account');
       }
 
-      console.log('Auth account deleted successfully');
+      console.log('✅ Account deleted successfully');
 
-      // Sign out (account is deleted, but let's clean up the local session)
+      // Sign out (account is already deleted, but let's clean up the local session)
       await supabase.auth.signOut();
 
       toast({
@@ -1042,7 +1042,7 @@ const Profile = () => {
       // Redirect to auth page
       navigate('/auth');
     } catch (e: any) {
-      console.error('Error deleting account:', e);
+      console.error('❌ Error deleting account:', e);
       toast({
         title: "Erreur",
         description: e.message ?? "Impossible de supprimer le compte",
@@ -1122,13 +1122,12 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Section profil normal (grisée uniquement si profil incomplet, pas si en attente) */}
-        <div className={isProfileIncomplete ? "opacity-50 pointer-events-none" : ""}>
+        {/* Section profil normal (seuls les onglets du profil sont grisés si incomplet) */}
         <Card className="border-border">
           <CardHeader>
             <CardTitle className="text-2xl">Mon profil</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className={isProfileIncomplete ? "opacity-50 pointer-events-none" : ""}>
             {/* Photo et nom utilisateur */}
             <div className="flex items-center space-x-4 mb-6 pb-6 border-b">
               <Avatar className="w-16 h-16">
@@ -1371,6 +1370,8 @@ const Profile = () => {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Security and Account Management sections - Always accessible even with incomplete profile */}
 
         {/* Section Styles d'apprentissage - affichée uniquement si pas complété et pas d'infos ET pas une organisation ET pas en attente d'approbation */}
         {!roleLoading && role !== 'school' && role !== 'company' && !pendingOrgApproval && !form.learning_styles_completed && (!profilesInfos || !Object.values(profilesInfos).some(value => value)) && (
@@ -1714,8 +1715,6 @@ const Profile = () => {
           onConfirm={handleDeleteAccount}
           userEmail={form.email}
         />
-        </div>
-        {/* Fin de la section profil normal */}
         </div>
       </div>
 

@@ -29,10 +29,16 @@ const PRICE_IDS = {
 
 export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = false }: UpgradeDialogProps) => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
+
+  // Reset loading state when dialog closes
+  const handleClose = () => {
+    setLoadingPriceId(null);
+    onClose();
+  };
 
   const handleUpgrade = async (priceId: string, mode: 'subscription' | 'payment') => {
-    setLoading(true);
+    setLoadingPriceId(priceId);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -69,18 +75,16 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
         description: error.message || 'Une erreur est survenue lors de la création de la session de paiement',
         variant: 'destructive',
       });
-
-    } finally {
-      setLoading(false);
+      setLoadingPriceId(null);
     }
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="w-[90%] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10"
           >
             <X className="h-5 w-5" />
@@ -151,13 +155,13 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
 
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.premium, 'subscription')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         className="w-full"
                       >
-                        {loading ? (
+                        {loadingPriceId === PRICE_IDS.premium ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Chargement...
+                            Redirection vers Stripe...
                           </>
                         ) : (
                           'Passer à Premium'
@@ -201,13 +205,13 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
 
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.pro, 'subscription')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         className="w-full bg-purple-600 hover:bg-purple-700"
                       >
-                        {loading ? (
+                        {loadingPriceId === PRICE_IDS.pro ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Chargement...
+                            Redirection vers Stripe...
                           </>
                         ) : (
                           'Passer à Pro'
@@ -245,12 +249,15 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
                       <p className="text-3xl font-bold text-orange-600">5€</p>
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.ai_10min, 'payment')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         variant="outline"
                         className="w-full"
                       >
-                        {loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {loadingPriceId === PRICE_IDS.ai_10min ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Redirection...
+                          </>
                         ) : (
                           'Acheter'
                         )}
@@ -268,11 +275,14 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
                       <p className="text-3xl font-bold text-orange-600">15€</p>
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.ai_30min, 'payment')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         className="w-full bg-orange-600 hover:bg-orange-700"
                       >
-                        {loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {loadingPriceId === PRICE_IDS.ai_30min ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Redirection...
+                          </>
                         ) : (
                           'Acheter'
                         )}
@@ -290,12 +300,15 @@ export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = 
                       <p className="text-3xl font-bold text-orange-600">20€</p>
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.ai_60min, 'payment')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         variant="outline"
                         className="w-full"
                       >
-                        {loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {loadingPriceId === PRICE_IDS.ai_60min ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Redirection...
+                          </>
                         ) : (
                           'Acheter'
                         )}
