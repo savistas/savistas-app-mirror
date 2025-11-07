@@ -177,6 +177,88 @@ serve(async (req) => {
         break;
       }
 
+      // Subscription schedule created (seat reduction scheduled)
+      case 'subscription_schedule.created':
+      case 'subscription_schedule.updated': {
+        const schedule = event.data.object as Stripe.SubscriptionSchedule;
+        console.log('📅 Subscription schedule event:', event.type, schedule.id);
+
+        // Get subscription metadata to find organization
+        const subscription = await stripe.subscriptions.retrieve(schedule.subscription as string);
+        const organizationId = subscription.metadata?.organization_id;
+
+        if (organizationId) {
+          console.log('🏢 Organization seat schedule update:', {
+            organizationId,
+            scheduleId: schedule.id,
+            phases: schedule.phases.length,
+          });
+
+          // Calculate seats pending decrease by comparing current and future phases
+          if (schedule.phases.length >= 2) {
+            const currentPhase = schedule.phases[0];
+            const futurePhase = schedule.phases[1];
+
+            const currentSeats = currentPhase.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+            const futureSeats = futurePhase.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+            const seatsPendingDecrease = Math.max(0, currentSeats - futureSeats);
+
+            // Update database with schedule info
+            await supabase
+              .from('organization_subscriptions')
+              .update({
+                stripe_schedule_id: schedule.id,
+                seats_pending_decrease: seatsPendingDecrease,
+              })
+              .eq('organization_id', organizationId);
+
+            console.log('✅ Updated organization subscription with schedule:', {
+              scheduleId: schedule.id,
+              currentSeats,
+              futureSeats,
+              seatsPendingDecrease,
+            });
+          }
+        }
+        break;
+      }
+
+      // Subscription schedule released (scheduled change canceled)
+      case 'subscription_schedule.released': {
+        const schedule = event.data.object as Stripe.SubscriptionSchedule;
+        console.log('🔓 Subscription schedule released (canceled):', schedule.id);
+
+        // Clear schedule info from database
+        await supabase
+          .from('organization_subscriptions')
+          .update({
+            stripe_schedule_id: null,
+            seats_pending_decrease: 0,
+          })
+          .eq('stripe_schedule_id', schedule.id);
+
+        console.log('✅ Cleared schedule from organization subscription');
+        break;
+      }
+
+      // Subscription schedule completed (scheduled change applied)
+      case 'subscription_schedule.completed': {
+        const schedule = event.data.object as Stripe.SubscriptionSchedule;
+        console.log('✅ Subscription schedule completed:', schedule.id);
+
+        // Clear schedule info (subscription.updated will handle the seat count change)
+        await supabase
+          .from('organization_subscriptions')
+          .update({
+            stripe_schedule_id: null,
+            seats_pending_decrease: 0,
+          })
+          .eq('stripe_schedule_id', schedule.id);
+
+        console.log('✅ Cleared completed schedule');
+        break;
+      }
+
       default:
         console.log('ℹ️ Unhandled event type:', event.type);
     }
@@ -511,7 +593,7 @@ function calculateTierBreakdown(totalSeats: number): { tier_1: number; tier_2: n
 // Extract total seats from Stripe subscription items
 function getTotalSeatsFromSubscription(subscription: Stripe.Subscription): number {
   // Sum up all line items (they represent different tiers)
-  return subscription.items.data.reduce((total, item) => total + (item.quantity || 0), 0);
+  return subscription.items.data.reduce((total: number, item: any) => total + (item.quantity || 0), 0);
 }
 
 // Handle new seat purchase
@@ -593,11 +675,17 @@ async function handleSeatSubscriptionUpdated(supabase: any, subscription: Stripe
   // Determine plan based on seat count (legacy field, required for backward compatibility)
   const plan = totalSeats <= 20 ? 'b2b_pro' : totalSeats <= 50 ? 'b2b_max' : 'b2b_ultra';
 
+  // Extract billing period from subscription items
+  const firstItem = subscription.items.data[0];
+  const billingInterval = firstItem?.price?.recurring?.interval;
+  const billingPeriod = billingInterval === 'year' ? 'yearly' : 'monthly';
+
   console.log('🪑 Updating seat subscription:', {
     organizationId,
     totalSeats,
     tierBreakdown,
     plan,
+    billingPeriod,
     subscriptionId: subscription.id,
   });
 
@@ -613,6 +701,7 @@ async function handleSeatSubscriptionUpdated(supabase: any, subscription: Stripe
       tier_1_seats: tierBreakdown.tier_1,
       tier_2_seats: tierBreakdown.tier_2,
       tier_3_seats: tierBreakdown.tier_3,
+      billing_period: billingPeriod,
       status: subscription.status,
       current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),

@@ -198,6 +198,173 @@ serve(async (req) => {
           throw new Error(`Cannot update subscription with status: ${subscription.status}`);
         }
 
+        // Calculate current total seats from subscription
+        const currentTotalSeats = subscription.items.data.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const isReducing = seatCount < currentTotalSeats;
+
+        // ====================================================================
+        // SEAT REDUCTION: Use Stripe Subscription Schedules
+        // ====================================================================
+        // For seat reductions, we MUST use Subscription Schedules to schedule
+        // the change for the next billing period. This prevents gaming the system
+        // where users could repeatedly reduce seats to avoid payment.
+        //
+        // The 'applyImmediately' parameter is IGNORED for reductions.
+        // ====================================================================
+        if (isReducing) {
+          console.log('⏳ Seat reduction detected - using Subscription Schedule:', {
+            currentSeats: currentTotalSeats,
+            newSeats: seatCount,
+            reductionAmount: currentTotalSeats - seatCount,
+          });
+
+          // CRITICAL VALIDATION: Cannot reduce below active members count
+          // This prevents users from scheduling a reduction that would kick out active members
+          const activeMembersCount = organization.active_members_count || 0;
+          if (seatCount < activeMembersCount) {
+            throw new Error(
+              `Impossible de réduire à ${seatCount} siège${seatCount > 1 ? 's' : ''}. ` +
+              `Vous avez ${activeMembersCount} membre${activeMembersCount > 1 ? 's' : ''} actif${activeMembersCount > 1 ? 's' : ''}. ` +
+              `Veuillez d'abord retirer ${activeMembersCount - seatCount} membre${activeMembersCount - seatCount > 1 ? 's' : ''} ` +
+              `de votre organisation avant de réduire le nombre de sièges.`
+            );
+          }
+
+          // Build new line items for reduced seats
+          const priceIds = TIER_PRICE_IDS[billingPeriod as 'monthly' | 'yearly'];
+          const newPhaseItems: Stripe.SubscriptionScheduleUpdateParams.Phase['items'] = [];
+
+          if (tierBreakdown.tier_1 > 0) {
+            newPhaseItems.push({
+              price: priceIds.tier_1,
+              quantity: tierBreakdown.tier_1,
+            });
+          }
+
+          if (tierBreakdown.tier_2 > 0) {
+            newPhaseItems.push({
+              price: priceIds.tier_2,
+              quantity: tierBreakdown.tier_2,
+            });
+          }
+
+          if (tierBreakdown.tier_3 > 0) {
+            newPhaseItems.push({
+              price: priceIds.tier_3,
+              quantity: tierBreakdown.tier_3,
+            });
+          }
+
+          // Check if subscription already has a schedule
+          if (subscription.schedule) {
+            console.log('📅 Updating existing subscription schedule:', subscription.schedule);
+
+            // Retrieve the existing schedule
+            const existingSchedule = await stripe.subscriptionSchedules.retrieve(
+              subscription.schedule as string
+            );
+
+            // Update the schedule's future phase with new seat count
+            await stripe.subscriptionSchedules.update(subscription.schedule as string, {
+              phases: [
+                // Current phase (unchanged until period end)
+                {
+                  items: existingSchedule.phases[0].items.map((item: any) => ({
+                    price: item.price as string,
+                    quantity: item.quantity,
+                  })),
+                  start_date: existingSchedule.phases[0].start_date,
+                  end_date: existingSchedule.phases[0].end_date,
+                },
+                // New phase (starts at period end with reduced seats)
+                {
+                  items: newPhaseItems,
+                  // Don't set end_date - continues indefinitely
+                },
+              ],
+            });
+          } else {
+            console.log('📅 Creating new subscription schedule');
+
+            // Create subscription schedule from existing subscription
+            const schedule = await stripe.subscriptionSchedules.create({
+              from_subscription: existingSubscriptionId,
+            });
+
+            // Update schedule with two phases: current + reduced
+            await stripe.subscriptionSchedules.update(schedule.id, {
+              phases: [
+                // Current phase (maintains current seats until period end)
+                {
+                  items: subscription.items.data.map((item: any) => ({
+                    price: item.price.id,
+                    quantity: item.quantity,
+                  })),
+                  start_date: subscription.current_period_start,
+                  end_date: subscription.current_period_end,
+                },
+                // New phase (reduced seats starting at period end)
+                {
+                  items: newPhaseItems,
+                  // No end_date = continues indefinitely
+                },
+              ],
+            });
+
+            // Update database with schedule ID
+            await supabaseClient
+              .from('organization_subscriptions')
+              .update({
+                stripe_schedule_id: schedule.id,
+                seats_pending_decrease: currentTotalSeats - seatCount,
+              })
+              .eq('id', orgSubscriptions[0].id);
+          }
+
+          console.log('✅ Seat reduction scheduled for next billing period:', {
+            effectiveDate: new Date(subscription.current_period_end * 1000).toISOString(),
+            currentSeats: currentTotalSeats,
+            scheduledSeats: seatCount,
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: `Réduction de ${currentTotalSeats} à ${seatCount} sièges planifiée pour le ${new Date(subscription.current_period_end * 1000).toLocaleDateString('fr-FR')}`,
+              scheduled: true,
+              currentSeats: currentTotalSeats,
+              scheduledSeats: seatCount,
+              effectiveDate: new Date(subscription.current_period_end * 1000).toISOString(),
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            }
+          );
+        }
+
+        // ====================================================================
+        // SEAT INCREASE: Use standard subscription update (keep existing logic)
+        // ====================================================================
+
+        // Check if subscription has an active schedule (pending reduction)
+        // If so, release it before applying the increase
+        if (subscription.schedule) {
+          console.log('📅 Active schedule detected. Releasing schedule before applying increase:', subscription.schedule);
+          await stripe.subscriptionSchedules.release(subscription.schedule as string);
+
+          // Clear schedule info from database
+          await supabaseClient
+            .from('organization_subscriptions')
+            .update({
+              stripe_schedule_id: null,
+              seats_pending_decrease: 0,
+            })
+            .eq('id', orgSubscriptions[0].id);
+
+          console.log('✅ Schedule released. Proceeding with seat increase.');
+        }
+
         // Build new line items for tier breakdown
         const lineItems: Stripe.SubscriptionUpdateParams.Item[] = [];
 

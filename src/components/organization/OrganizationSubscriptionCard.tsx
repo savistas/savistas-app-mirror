@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus, CreditCard } from 'lucide-react';
+import { Building2, Calendar, Users, AlertTriangle, Check, TrendingUp, Plus, CreditCard, X, Clock } from 'lucide-react';
 import { useOrganizationSubscription } from '@/hooks/useOrganizationSubscription';
 import { useOrganizationCapacity } from '@/hooks/useOrganizationCapacity';
 import { B2B_STUDENT_LIMITS, BillingPeriod, formatPrice, calculateSeatCost } from '@/constants/organizationPlans';
@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { SeatPurchaseModal } from './SeatPurchaseModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { createSeatCheckoutSession } from '@/services/organizationSubscriptionService';
+import { createSeatCheckoutSession, cancelScheduledSeatChange } from '@/services/organizationSubscriptionService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -58,6 +58,7 @@ export function OrganizationSubscriptionCard({
   const [isCanceling, setIsCanceling] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [isCancelingSchedule, setIsCancelingSchedule] = useState(false);
 
   // Check if current user is admin of the organization
   useEffect(() => {
@@ -182,6 +183,27 @@ export function OrganizationSubscriptionCard({
     }
   };
 
+  const handleCancelScheduledChange = async () => {
+    if (!confirm(
+      'Êtes-vous sûr de vouloir annuler la réduction planifiée ? ' +
+      'Vous conserverez votre nombre actuel de sièges.'
+    )) {
+      return;
+    }
+
+    setIsCancelingSchedule(true);
+    try {
+      await cancelScheduledSeatChange(organizationId);
+      toast.success('Modification planifiée annulée avec succès');
+      // Refresh to show updated state
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de l\'annulation');
+    } finally {
+      setIsCancelingSchedule(false);
+    }
+  };
+
   const handlePurchaseSeats = async (seatCount: number, billingPeriod: BillingPeriod, applyImmediately: boolean) => {
     try {
       const result = await createSeatCheckoutSession({
@@ -239,6 +261,38 @@ export function OrganizationSubscriptionCard({
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* Scheduled Seat Change Banner */}
+          {subscription && subscription.stripe_schedule_id && subscription.seats_pending_decrease > 0 && (
+            <Alert className="border-2 border-blue-500 bg-blue-50">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <AlertDescription className="flex items-start justify-between gap-2">
+                <div className="flex-1 text-blue-900">
+                  <div className="font-semibold text-base mb-1">📅 Modification planifiée</div>
+                  <div className="text-sm space-y-1">
+                    <p>Vos sièges passeront de <strong>{seatLimit}</strong> à <strong>{seatLimit - subscription.seats_pending_decrease}</strong> le <strong>{subscription.current_period_end ? format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr }) : 'prochain renouvellement'}</strong>.</p>
+                    <p className="text-xs text-blue-700 mt-1">Vous pouvez annuler cette modification à tout moment avant qu'elle ne prenne effet.</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelScheduledChange}
+                  disabled={isCancelingSchedule}
+                  className="text-blue-700 hover:text-blue-900 hover:bg-blue-100 shrink-0"
+                >
+                  {isCancelingSchedule ? (
+                    'Annulation...'
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 mr-1" />
+                      Annuler
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Status Badge - Only show if there are actual seats */}
           {subscription && subscription.status !== 'active' && seatLimit > 0 && (
             <Alert variant="destructive">

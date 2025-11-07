@@ -288,8 +288,8 @@ export function SeatPurchaseModal({
             </div>
           </div>
 
-          {/* Billing Timing Choice - Only show when modifying existing subscription */}
-          {currentSeats > 0 && seatCount !== currentSeats && (
+          {/* Billing Timing Choice - Only show for INCREASES */}
+          {currentSeats > 0 && seatCount !== currentSeats && isIncreasing && (
             <div className="space-y-3">
               <Label className="text-base font-semibold">Quand appliquer le changement ?</Label>
               <RadioGroup
@@ -311,7 +311,7 @@ export function SeatPurchaseModal({
                   </div>
                   <div className="text-xs text-gray-600 space-y-1">
                     <p>• Sièges disponibles <strong>immédiatement</strong></p>
-                    <p>• {isIncreasing ? 'Paiement' : 'Crédit'} proratisé pour la période restante</p>
+                    <p>• Paiement proratisé pour la période restante</p>
                     <p>• Facture générée aujourd'hui</p>
                   </div>
                 </Label>
@@ -336,6 +336,26 @@ export function SeatPurchaseModal({
                 </Label>
               </RadioGroup>
             </div>
+          )}
+
+          {/* Seat Reduction Warning - Only for reductions */}
+          {currentSeats > 0 && isReducing && (
+            <Alert className="border-2 border-orange-500 bg-orange-50">
+              <Clock className="h-5 w-5 text-orange-600" />
+              <AlertDescription className="text-orange-900">
+                <div className="font-semibold text-base mb-2">📅 Réduction planifiée pour le prochain renouvellement</div>
+                <div className="space-y-2 text-sm">
+                  <p>Cette réduction de <strong>{currentSeats} à {seatCount} sièges</strong> prendra effet le <strong>{currentPeriodEnd ? format(new Date(currentPeriodEnd), 'dd MMMM yyyy', { locale: fr }) : 'prochain renouvellement'}</strong>.</p>
+                  <div className="bg-orange-100 border border-orange-300 rounded p-2 mt-2">
+                    <p className="font-medium">💡 Pourquoi cette règle ?</p>
+                    <p className="mt-1">Pour éviter les abus, les réductions de sièges ne peuvent être appliquées qu'à la prochaine période de facturation. Vous continuerez à payer pour {currentSeats} sièges jusqu'au {currentPeriodEnd ? format(new Date(currentPeriodEnd), 'dd/MM/yyyy', { locale: fr }) : 'renouvellement'}.</p>
+                  </div>
+                  <p className="text-xs text-orange-700 mt-2">
+                    <strong>Note :</strong> Vous pourrez annuler cette réduction planifiée à tout moment avant qu'elle ne prenne effet.
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Cost Comparison - Before/After */}

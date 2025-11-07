@@ -20,6 +20,7 @@ export interface OrganizationSubscription {
   organization_id: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  stripe_schedule_id: string | null;
   status: OrganizationSubscriptionStatus;
   total_seats: number;
   tier_1_seats: number;
@@ -102,6 +103,15 @@ export type CreateOrgCheckoutSessionResponse =
       subscriptionId: string;
       quantity: number;
       prorated: true;
+    }
+  // Scheduled seat reduction: success with scheduled change info
+  | {
+      success: true;
+      message: string;
+      scheduled: true;
+      currentSeats: number;
+      scheduledSeats: number;
+      effectiveDate: string;
     };
 
 /**

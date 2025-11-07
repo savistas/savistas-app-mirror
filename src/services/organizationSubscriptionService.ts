@@ -324,3 +324,34 @@ export const createSeatCheckoutSession = async (params: {
   const data = await response.json();
   return data;
 };
+
+/**
+ * Cancel scheduled seat change
+ * Cancels a pending seat reduction by releasing the Stripe subscription schedule
+ */
+export const cancelScheduledSeatChange = async (
+  organizationId: string
+): Promise<void> => {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('No active session');
+  }
+
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL || 'https://vvmkbpkoccxpmfpxhacv.supabase.co'}/functions/v1/cancel-scheduled-seat-change`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ organizationId }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to cancel scheduled change: ${errorText}`);
+  }
+};
