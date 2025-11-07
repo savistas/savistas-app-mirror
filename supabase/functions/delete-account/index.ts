@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
+  apiVersion: '2024-11-20.acacia',
+  httpClient: Stripe.createFetchHttpClient(),
+});
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -42,6 +48,104 @@ serve(async (req) => {
     }
 
     console.log(`🗑️ Starting account deletion for user ${user.id} (${user.email})`);
+
+    // Step 0: Cancel all active Stripe subscriptions BEFORE deleting data
+    console.log('💳 Step 0: Canceling active Stripe subscriptions...');
+
+    let canceledSubscriptions = 0;
+
+    try {
+      // 0a. Get and cancel user's personal subscription
+      const { data: userSub } = await supabaseAdmin
+        .from('user_subscriptions')
+        .select('stripe_subscription_id, stripe_customer_id, plan, status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (userSub?.stripe_subscription_id && userSub.status !== 'canceled') {
+        console.log(`  ↳ Canceling user subscription: ${userSub.stripe_subscription_id} (${userSub.plan})`);
+
+        try {
+          await stripe.subscriptions.cancel(userSub.stripe_subscription_id, {
+            prorate: true, // Provide prorated refund
+          });
+
+          // Update database to reflect cancellation
+          await supabaseAdmin
+            .from('user_subscriptions')
+            .update({
+              status: 'canceled',
+              canceled_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id);
+
+          console.log(`  ✅ User subscription canceled successfully`);
+          canceledSubscriptions++;
+        } catch (stripeError: any) {
+          console.error(`  ⚠️ Failed to cancel user subscription on Stripe: ${stripeError.message}`);
+          // Continue anyway - don't block account deletion
+        }
+      }
+
+      // 0b. Get and cancel organization subscriptions (for organizations created by this user)
+      const { data: userOrgs } = await supabaseAdmin
+        .from('organizations')
+        .select(`
+          id,
+          name,
+          organization_subscriptions (
+            stripe_subscription_id,
+            stripe_customer_id,
+            plan,
+            status
+          )
+        `)
+        .eq('created_by', user.id);
+
+      if (userOrgs && userOrgs.length > 0) {
+        console.log(`  ↳ Found ${userOrgs.length} organization(s) created by user`);
+
+        for (const org of userOrgs) {
+          const orgSub = org.organization_subscriptions as any;
+
+          if (orgSub?.stripe_subscription_id && orgSub.status !== 'canceled') {
+            console.log(`  ↳ Canceling org subscription for "${org.name}": ${orgSub.stripe_subscription_id}`);
+
+            try {
+              await stripe.subscriptions.cancel(orgSub.stripe_subscription_id, {
+                prorate: true, // Provide prorated refund
+              });
+
+              // Update database to reflect cancellation
+              await supabaseAdmin
+                .from('organization_subscriptions')
+                .update({
+                  status: 'canceled',
+                  canceled_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('organization_id', org.id);
+
+              console.log(`  ✅ Organization subscription canceled successfully`);
+              canceledSubscriptions++;
+            } catch (stripeError: any) {
+              console.error(`  ⚠️ Failed to cancel org subscription on Stripe: ${stripeError.message}`);
+              // Continue anyway - don't block account deletion
+            }
+          }
+        }
+      }
+
+      if (canceledSubscriptions > 0) {
+        console.log(`✅ Canceled ${canceledSubscriptions} subscription(s) on Stripe`);
+      } else {
+        console.log('ℹ️ No active subscriptions to cancel');
+      }
+    } catch (subError: any) {
+      console.error('⚠️ Error during subscription cancellation (non-critical):', subError.message);
+      // Continue - subscription cancellation errors shouldn't block account deletion
+    }
 
     // Create Supabase client with user token (for RPC call with auth.uid() context)
     // This is CRITICAL: RPC function uses auth.uid() which only works with user token
@@ -134,6 +238,7 @@ serve(async (req) => {
         success: true,
         message: 'Account deleted successfully',
         user_id: user.id,
+        subscriptions_canceled: canceledSubscriptions,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

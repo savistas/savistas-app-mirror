@@ -294,6 +294,7 @@ export const createSeatCheckoutSession = async (params: {
   organizationId: string;
   seatCount: number;
   billingPeriod: 'monthly' | 'yearly';
+  applyImmediately: boolean;
   successUrl: string;
   cancelUrl: string;
 }): Promise<CreateOrgCheckoutSessionResponse> => {

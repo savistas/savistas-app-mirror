@@ -81,12 +81,13 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { organizationId, seatCount, billingPeriod, successUrl, cancelUrl } = await req.json();
+    const { organizationId, seatCount, billingPeriod, applyImmediately, successUrl, cancelUrl } = await req.json();
 
     console.log('🪑 Seat purchase request:', {
       organizationId,
       seatCount,
       billingPeriod,
+      applyImmediately: applyImmediately !== false, // Default to true if not specified
       userId: user.id,
     });
 
@@ -240,11 +241,38 @@ serve(async (req) => {
           lineItems.push({ id: tier3Item.id, deleted: true });
         }
 
-        // Update subscription with proration
-        const updatedSubscription = await stripe.subscriptions.update(existingSubscriptionId, {
+        // Determine proration behavior based on applyImmediately flag
+        // IMPORTANT: Understanding Stripe proration behavior:
+        //
+        // 'create_prorations' (immediate):
+        //   - Seat changes apply IMMEDIATELY
+        //   - Prorated invoice created and charged NOW
+        //   - User gets immediate access to new seats (or loses access if reducing)
+        //
+        // 'none' (scheduled billing):
+        //   - Seat changes STILL APPLY IMMEDIATELY (subscription items update now)
+        //   - NO prorated invoice generated
+        //   - New amount charged at next renewal date
+        //   - Use case: Adding seats near period end to avoid small prorated charge
+        //
+        // Note: There is NO Stripe option to defer the functional seat change itself.
+        // The 'scheduled' option only defers the billing, not the seat availability.
+        const shouldApplyImmediately = applyImmediately !== false;
+
+        const updateParams: Stripe.SubscriptionUpdateParams = {
           items: lineItems,
-          proration_behavior: 'create_prorations', // Immediate billing for increases
-        });
+          proration_behavior: shouldApplyImmediately ? 'create_prorations' : 'none',
+          billing_cycle_anchor: 'unchanged', // Keep the same renewal date
+        };
+
+        if (!shouldApplyImmediately) {
+          console.log('📅 Using deferred billing (seats available immediately, invoiced at next period)');
+        } else {
+          console.log('⚡ Using immediate billing with proration');
+        }
+
+        // Update subscription
+        const updatedSubscription = await stripe.subscriptions.update(existingSubscriptionId, updateParams);
 
         console.log('✅ Subscription updated successfully:', {
           subscriptionId: updatedSubscription.id,
@@ -264,13 +292,18 @@ serve(async (req) => {
           })
           .eq('id', orgSubscriptions[0].id);
 
+        const responseMessage = shouldApplyImmediately
+          ? 'Sièges mis à jour avec succès et effet immédiat'
+          : `Modification planifiée pour le prochain renouvellement (${seatCount} sièges)`;
+
         return new Response(
           JSON.stringify({
             success: true,
-            message: 'Seat quantity updated successfully',
+            message: responseMessage,
             subscriptionId: updatedSubscription.id,
             quantity: seatCount,
-            prorated: true,
+            prorated: shouldApplyImmediately,
+            scheduled: !shouldApplyImmediately,
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

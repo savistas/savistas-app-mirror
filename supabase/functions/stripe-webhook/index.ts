@@ -541,12 +541,18 @@ async function handleSeatPurchase(supabase: any, session: Stripe.Checkout.Sessio
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const nextBillingDate = new Date(subscription.current_period_end * 1000).toISOString();
 
-  // Update organization subscription with tier-based seats
+  // Determine plan based on seat count (legacy field, required for backward compatibility)
+  const plan = seatCount <= 20 ? 'b2b_pro' : seatCount <= 50 ? 'b2b_max' : 'b2b_ultra';
+
+  // Upsert organization subscription with tier-based seats
   // The database trigger will automatically sync seat_limit with total_seats
   const { error } = await supabase
     .from('organization_subscriptions')
-    .update({
+    .upsert({
+      organization_id: organizationId,
+      stripe_customer_id: session.customer as string,
       stripe_subscription_id: subscriptionId,
+      plan: plan,
       total_seats: seatCount,
       tier_1_seats: tier1Seats,
       tier_2_seats: tier2Seats,
@@ -556,8 +562,10 @@ async function handleSeatPurchase(supabase: any, session: Stripe.Checkout.Sessio
       status: subscription.status,
       current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
       current_period_end: nextBillingDate,
-    })
-    .eq('organization_id', organizationId);
+      cancel_at_period_end: false,
+    }, {
+      onConflict: 'organization_id'
+    });
 
   if (error) {
     console.error('❌ Error updating seat purchase:', error);
@@ -582,17 +590,25 @@ async function handleSeatSubscriptionUpdated(supabase: any, subscription: Stripe
   // Calculate tier breakdown
   const tierBreakdown = calculateTierBreakdown(totalSeats);
 
+  // Determine plan based on seat count (legacy field, required for backward compatibility)
+  const plan = totalSeats <= 20 ? 'b2b_pro' : totalSeats <= 50 ? 'b2b_max' : 'b2b_ultra';
+
   console.log('🪑 Updating seat subscription:', {
     organizationId,
     totalSeats,
     tierBreakdown,
+    plan,
     subscriptionId: subscription.id,
   });
 
-  // Update with new tier breakdown
+  // Upsert with new tier breakdown (in case record doesn't exist)
   const { error } = await supabase
     .from('organization_subscriptions')
-    .update({
+    .upsert({
+      organization_id: organizationId,
+      stripe_customer_id: subscription.customer as string,
+      stripe_subscription_id: subscription.id,
+      plan: plan,
       total_seats: totalSeats,
       tier_1_seats: tierBreakdown.tier_1,
       tier_2_seats: tierBreakdown.tier_2,
@@ -602,8 +618,9 @@ async function handleSeatSubscriptionUpdated(supabase: any, subscription: Stripe
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       next_billing_date: new Date(subscription.current_period_end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
-    })
-    .eq('stripe_subscription_id', subscription.id);
+    }, {
+      onConflict: 'organization_id'
+    });
 
   if (error) {
     console.error('❌ Error updating seat subscription:', error);

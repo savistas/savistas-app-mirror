@@ -15,6 +15,7 @@ import { PlanSelectionCards } from "./PlanSelectionCards";
 import { UpgradeDialog } from "./UpgradeDialog";
 import { formatTime } from "@/hooks/useConversationTimeLimit";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SubscriptionList } from "./SubscriptionList";
 
 export const SubscriptionCard = () => {
   const { subscription, limits, isLoading, refetch } = useSubscription();
@@ -22,7 +23,6 @@ export const SubscriptionCard = () => {
   const { session } = useAuth();
   const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
   const [reactivateLoading, setReactivateLoading] = useState(false);
 
   if (isLoading) {
@@ -77,45 +77,6 @@ export const SubscriptionCard = () => {
   const calculatePercentage = (current: number, limit: number) => {
     if (limit === 0) return 0;
     return Math.min((current / limit) * 100, 100);
-  };
-
-  const handleManageBilling = async () => {
-    if (!session || !subscription?.stripe_customer_id) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'accéder au portail de facturation",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setPortalLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-portal-session', {
-        body: {
-          context: 'individual',
-          return_url: window.location.href,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        // Redirect to Stripe Customer Portal
-        window.location.href = data.url;
-      } else {
-        throw new Error('No portal URL returned');
-      }
-    } catch (error: any) {
-      console.error('Error opening billing portal:', error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible d'ouvrir le portail de facturation",
-        variant: "destructive",
-      });
-    } finally {
-      setPortalLoading(false);
-    }
   };
 
   const handleReactivateSubscription = async () => {
@@ -353,21 +314,14 @@ export const SubscriptionCard = () => {
               {reactivateLoading ? 'Réactivation...' : 'Réactiver mon abonnement'}
             </Button>
           )}
-
-          {/* Manage Billing Button - Only for paid subscriptions */}
-          {subscription.plan !== 'basic' && subscription.stripe_customer_id && (
-            <Button
-              onClick={handleManageBilling}
-              variant="outline"
-              className="w-full"
-              disabled={portalLoading}
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              {portalLoading ? 'Chargement...' : 'Gérer ma facturation'}
-            </Button>
-          )}
         </CardContent>
       </Card>
+
+      {/* Subscription Management - Display and cancel current subscription */}
+      <SubscriptionList
+        subscription={subscription}
+        onSubscriptionCancelled={refetch}
+      />
 
       {/* Plan Selection Cards */}
       <PlanSelectionCards currentPlan={subscription.plan} />

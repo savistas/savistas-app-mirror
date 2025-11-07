@@ -182,12 +182,13 @@ export function OrganizationSubscriptionCard({
     }
   };
 
-  const handlePurchaseSeats = async (seatCount: number, billingPeriod: BillingPeriod) => {
+  const handlePurchaseSeats = async (seatCount: number, billingPeriod: BillingPeriod, applyImmediately: boolean) => {
     try {
       const result = await createSeatCheckoutSession({
         organizationId,
         seatCount,
         billingPeriod,
+        applyImmediately,
         successUrl: `${window.location.origin}${window.location.pathname}?seat-checkout=success`,
         cancelUrl: `${window.location.origin}${window.location.pathname}?seat-checkout=canceled`,
       });
@@ -456,6 +457,9 @@ export function OrganizationSubscriptionCard({
           onClose={() => setShowSeatPurchase(false)}
           organizationId={organizationId}
           currentSeats={seatLimit}
+          activeMembersCount={activeMembersCount}
+          currentPeriodEnd={subscription?.current_period_end || null}
+          currentBillingPeriod={(subscription?.billing_period as 'monthly' | 'yearly') || null}
           onPurchaseSeats={handlePurchaseSeats}
         />
       )}
