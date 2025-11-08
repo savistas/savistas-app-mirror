@@ -153,15 +153,18 @@ const AdminOrganizationRequests = () => {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="pending" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="pending">
-                    En attente ({pendingRequests.length})
+                <TabsList className="grid w-full grid-cols-3 gap-1">
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">En attente</span>
+                    <span className="sm:hidden">Attente</span> ({pendingRequests.length})
                   </TabsTrigger>
-                  <TabsTrigger value="approved">
-                    Approuvées ({approvedRequests.length})
+                  <TabsTrigger value="approved" className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Approuvées</span>
+                    <span className="sm:hidden">Validées</span> ({approvedRequests.length})
                   </TabsTrigger>
-                  <TabsTrigger value="rejected">
-                    Rejetées ({rejectedRequests.length})
+                  <TabsTrigger value="rejected" className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Rejetées</span>
+                    <span className="sm:hidden">Refusées</span> ({rejectedRequests.length})
                   </TabsTrigger>
                 </TabsList>
 

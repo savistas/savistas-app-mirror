@@ -129,16 +129,16 @@ export const OrganizationRequestCard = ({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
                 <OrgIcon className="w-6 h-6 text-primary" />
               </div>
-              <div>
-                <CardTitle className="text-lg">{request.organization_name}</CardTitle>
-                <div className="flex items-center gap-2 mt-1">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg truncate">{request.organization_name}</CardTitle>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Badge variant="secondary">{orgTypeLabel}</Badge>
                   {getStatusBadge()}
                 </div>
@@ -147,20 +147,20 @@ export const OrganizationRequestCard = ({
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           {/* Informations de l'organisation */}
           <div className="space-y-2">
             <h4 className="font-semibold text-sm text-slate-700">Informations de l'organisation</h4>
             <div className="space-y-2 text-sm">
-              <p className="text-slate-600">{request.organization_description}</p>
+              <p className="text-slate-600 break-words">{request.organization_description}</p>
               {request.organization_website && (
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Globe className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                  <Globe className="w-4 h-4 flex-shrink-0" />
                   <a
                     href={request.organization_website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline"
+                    className="text-primary hover:underline truncate"
                   >
                     {request.organization_website}
                   </a>
@@ -172,28 +172,28 @@ export const OrganizationRequestCard = ({
           {/* Informations de l'administrateur */}
           <div className="space-y-2">
             <h4 className="font-semibold text-sm text-slate-700">Administrateur</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-              <div className="flex items-center gap-2 text-slate-600">
-                <User className="w-4 h-4" />
-                {request.admin_full_name}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                <User className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{request.admin_full_name}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <Mail className="w-4 h-4" />
-                {request.admin_email}
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                <Mail className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{request.admin_email}</span>
               </div>
               {request.admin_date_of_birth && request.admin_date_of_birth !== '1970-01-01' && (
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Calendar className="w-4 h-4" />
-                  {format(new Date(request.admin_date_of_birth), 'dd/MM/yyyy', { locale: fr })}
+                <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{format(new Date(request.admin_date_of_birth), 'dd/MM/yyyy', { locale: fr })}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-slate-600">
-                <Phone className="w-4 h-4" />
-                {request.admin_phone}
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                <Phone className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{request.admin_phone}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <MapPin className="w-4 h-4" />
-                {request.admin_city ? `${request.admin_city}, ` : ''}{request.admin_country}
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{request.admin_city ? `${request.admin_city}, ` : ''}{request.admin_country}</span>
               </div>
             </div>
           </div>
@@ -217,31 +217,33 @@ export const OrganizationRequestCard = ({
               Traitée le {format(new Date(request.reviewed_at), 'dd/MM/yyyy à HH:mm', { locale: fr })}
             </div>
           )}
+        </CardContent>
 
-          {/* Boutons d'action (uniquement si pending et pas en readOnly) */}
-          {!readOnly && request.status === 'pending' && (
-            <div className="flex gap-2 pt-2">
+        {/* Boutons d'action (uniquement si pending et pas en readOnly) */}
+        {!readOnly && request.status === 'pending' && (
+          <div className="border-t border-slate-200 px-4 sm:px-6 py-4 bg-slate-50/50">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button
                 onClick={handleApprove}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 w-full min-w-0"
                 variant="default"
               >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Approuver
+                <CheckCircle2 className="w-4 h-4 mr-1.5 flex-shrink-0" />
+                <span className="truncate">Accepter</span>
               </Button>
               <Button
                 onClick={() => setShowRejectDialog(true)}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 w-full min-w-0"
                 variant="destructive"
               >
-                <XCircle className="w-4 h-4 mr-2" />
-                Rejeter
+                <XCircle className="w-4 h-4 mr-1.5 flex-shrink-0" />
+                <span className="truncate">Refuser</span>
               </Button>
             </div>
-          )}
-        </CardContent>
+          </div>
+        )}
       </Card>
 
       {/* Dialog de rejet */}
