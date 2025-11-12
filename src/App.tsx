@@ -23,6 +23,7 @@ import ProfesseurParticulierVirtuel from "./pages/ProfesseurParticulierVirtuel";
 import DashboardOrganization from "./pages/DashboardOrganization";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminOrganizationRequests from "./pages/AdminOrganizationRequests";
+import AdminUserManagement from "./pages/AdminUserManagement";
 import OrganizationRequestStatus from "./pages/OrganizationRequestStatus";
 import StudentDocuments from "./pages/StudentDocuments";
 import StudentRevisionSheets from "./pages/StudentRevisionSheets";
@@ -59,6 +60,7 @@ const App = () => (
               {/* Routes Admin Savistas - Backoffice */}
               <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
               <Route path="/admin/organization-requests" element={<ProtectedRoute><AdminOrganizationRequests /></ProtectedRoute>} />
+              <Route path="/admin/user-management" element={<ProtectedRoute><AdminUserManagement /></ProtectedRoute>} />
 
               {/* Routes B2B avec rôle dynamique */}
               <Route path="/:role/creation-request" element={<ProtectedRoute><OrganizationRequestStatus /></ProtectedRoute>} />

@@ -70,6 +70,8 @@ export const SubscriptionCard = () => {
         return 'Premium';
       case 'pro':
         return 'Pro';
+      case 'organization':
+        return 'Organisation';
       default:
         return plan;
     }
@@ -142,17 +144,26 @@ export const SubscriptionCard = () => {
                   <span>Cours générés</span>
                 </div>
                 <span className="font-medium">
-                  {usage?.courses_created || 0} / {limits.courses}
+                  {limits.isUnlimited ? 'Illimité' : `${usage?.courses_created || 0} / ${limits.courses}`}
                 </span>
               </div>
-              <Progress
-                value={calculatePercentage(usage?.courses_created || 0, limits.courses)}
-                className="h-2"
-                indicatorClassName={getProgressColor(calculatePercentage(usage?.courses_created || 0, limits.courses))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {remaining?.courses || 0} cours restants ce mois-ci
-              </p>
+              {!limits.isUnlimited && (
+                <>
+                  <Progress
+                    value={calculatePercentage(usage?.courses_created || 0, limits.courses)}
+                    className="h-2"
+                    indicatorClassName={getProgressColor(calculatePercentage(usage?.courses_created || 0, limits.courses))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {remaining?.courses || 0} cours restants ce mois-ci
+                  </p>
+                </>
+              )}
+              {limits.isUnlimited && (
+                <p className="text-xs text-green-600 font-medium">
+                  Création illimitée de cours
+                </p>
+              )}
             </div>
 
             {/* Exercises */}
@@ -163,17 +174,26 @@ export const SubscriptionCard = () => {
                   <span>Exercices créés</span>
                 </div>
                 <span className="font-medium">
-                  {usage?.exercises_created || 0} / {limits.exercises}
+                  {limits.isUnlimited ? 'Illimité' : `${usage?.exercises_created || 0} / ${limits.exercises}`}
                 </span>
               </div>
-              <Progress
-                value={calculatePercentage(usage?.exercises_created || 0, limits.exercises)}
-                className="h-2"
-                indicatorClassName={getProgressColor(calculatePercentage(usage?.exercises_created || 0, limits.exercises))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {remaining?.exercises || 0} exercices restants ce mois-ci
-              </p>
+              {!limits.isUnlimited && (
+                <>
+                  <Progress
+                    value={calculatePercentage(usage?.exercises_created || 0, limits.exercises)}
+                    className="h-2"
+                    indicatorClassName={getProgressColor(calculatePercentage(usage?.exercises_created || 0, limits.exercises))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {remaining?.exercises || 0} exercices restants ce mois-ci
+                  </p>
+                </>
+              )}
+              {limits.isUnlimited && (
+                <p className="text-xs text-green-600 font-medium">
+                  Création illimitée d'exercices
+                </p>
+              )}
             </div>
 
             {/* Fiches */}
@@ -184,17 +204,26 @@ export const SubscriptionCard = () => {
                   <span>Fiches de révision</span>
                 </div>
                 <span className="font-medium">
-                  {usage?.fiches_created || 0} / {limits.fiches}
+                  {limits.isUnlimited ? 'Illimité' : `${usage?.fiches_created || 0} / ${limits.fiches}`}
                 </span>
               </div>
-              <Progress
-                value={calculatePercentage(usage?.fiches_created || 0, limits.fiches)}
-                className="h-2"
-                indicatorClassName={getProgressColor(calculatePercentage(usage?.fiches_created || 0, limits.fiches))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {remaining?.fiches || 0} fiches restantes ce mois-ci
-              </p>
+              {!limits.isUnlimited && (
+                <>
+                  <Progress
+                    value={calculatePercentage(usage?.fiches_created || 0, limits.fiches)}
+                    className="h-2"
+                    indicatorClassName={getProgressColor(calculatePercentage(usage?.fiches_created || 0, limits.fiches))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {remaining?.fiches || 0} fiches restantes ce mois-ci
+                  </p>
+                </>
+              )}
+              {limits.isUnlimited && (
+                <p className="text-xs text-green-600 font-medium">
+                  Création illimitée de fiches
+                </p>
+              )}
             </div>
 
             {/* AI Minutes */}
@@ -205,22 +234,31 @@ export const SubscriptionCard = () => {
                   <span>Minutes Avatar IA</span>
                 </div>
                 <span className="font-medium">
-                  {usage?.ai_minutes_used || 0} / {limits.aiMinutes} min
+                  {limits.isUnlimited ? 'Illimité' : `${usage?.ai_minutes_used || 0} / ${limits.aiMinutes} min`}
                 </span>
               </div>
-              <Progress
-                value={calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes)}
-                className="h-2"
-                indicatorClassName={getProgressColor(calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {remaining?.aiMinutes || 0} minutes restantes
-                {subscription.ai_minutes_purchased > 0 && (
-                  <span className="text-green-600 ml-1">
-                    ({subscription.ai_minutes_purchased} min achetées)
-                  </span>
-                )}
-              </p>
+              {!limits.isUnlimited && (
+                <>
+                  <Progress
+                    value={calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes)}
+                    className="h-2"
+                    indicatorClassName={getProgressColor(calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {remaining?.aiMinutes || 0} minutes restantes
+                    {subscription.ai_minutes_purchased > 0 && (
+                      <span className="text-green-600 ml-1">
+                        ({subscription.ai_minutes_purchased} min achetées)
+                      </span>
+                    )}
+                  </p>
+                </>
+              )}
+              {limits.isUnlimited && (
+                <p className="text-xs text-green-600 font-medium">
+                  Utilisation illimitée de l'Avatar IA
+                </p>
+              )}
             </div>
 
             {/* Max Days per Course */}
@@ -233,8 +271,8 @@ export const SubscriptionCard = () => {
             </div>
           </div>
 
-          {/* Buy AI Minutes Button */}
-          {(subscription.plan === 'premium' || subscription.plan === 'pro') && (
+          {/* Buy AI Minutes Button - Hidden for organization members */}
+          {!limits.isUnlimited && (
             <Button
               onClick={() => setShowUpgradeDialog(true)}
               variant="outline"
@@ -244,11 +282,20 @@ export const SubscriptionCard = () => {
               Acheter des minutes IA
             </Button>
           )}
+
+          {/* Note for organization members */}
+          {limits.isUnlimited && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800 font-medium">
+                Votre abonnement est géré par votre organisation. Vous bénéficiez d'un accès illimité à toutes les fonctionnalités.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Plan Selection Cards */}
-      <PlanSelectionCards currentPlan={subscription.plan} />
+      {/* Plan Selection Cards - Hidden for organization members */}
+      {!limits.isUnlimited && <PlanSelectionCards currentPlan={subscription.plan} />}
 
       {/* AI Minutes Purchase Dialog */}
       <UpgradeDialog

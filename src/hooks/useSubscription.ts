@@ -7,7 +7,7 @@ export interface UserSubscription {
   user_id: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
-  plan: 'basic' | 'premium' | 'pro';
+  plan: 'basic' | 'premium' | 'pro' | 'organization';
   status: 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing';
   current_period_start: string | null;
   current_period_end: string | null;
@@ -16,6 +16,7 @@ export interface UserSubscription {
   ai_minutes_purchased: number;
   created_at: string;
   updated_at: string;
+  is_organization_member?: boolean;
 }
 
 export interface SubscriptionLimits {
@@ -24,16 +25,18 @@ export interface SubscriptionLimits {
   fiches: number;
   aiMinutes: number;
   maxDaysPerCourse: number;
+  isUnlimited?: boolean;
 }
 
 // Plan limits based on subscription tier
-const PLAN_LIMITS: Record<'basic' | 'premium' | 'pro', SubscriptionLimits> = {
+const PLAN_LIMITS: Record<'basic' | 'premium' | 'pro' | 'organization', SubscriptionLimits> = {
   basic: {
     courses: 2,
     exercises: 2,
     fiches: 2,
     aiMinutes: 3, // Base, will be incremented with purchased minutes
     maxDaysPerCourse: 10,
+    isUnlimited: false,
   },
   premium: {
     courses: 10,
@@ -41,6 +44,7 @@ const PLAN_LIMITS: Record<'basic' | 'premium' | 'pro', SubscriptionLimits> = {
     fiches: 10,
     aiMinutes: 0, // Only purchased minutes
     maxDaysPerCourse: 10,
+    isUnlimited: false,
   },
   pro: {
     courses: 30,
@@ -48,6 +52,15 @@ const PLAN_LIMITS: Record<'basic' | 'premium' | 'pro', SubscriptionLimits> = {
     fiches: 30,
     aiMinutes: 0, // Only purchased minutes
     maxDaysPerCourse: 10,
+    isUnlimited: false,
+  },
+  organization: {
+    courses: 999999,
+    exercises: 999999,
+    fiches: 999999,
+    aiMinutes: 999999,
+    maxDaysPerCourse: 999999,
+    isUnlimited: true,
   },
 };
 
@@ -64,6 +77,35 @@ export function useSubscription() {
     queryFn: async () => {
       if (!user?.id) {
         throw new Error('User not authenticated');
+      }
+
+      // Check if user is an active member of an organization (not removed, rejected, or pending)
+      const { data: organizationMembership, error: orgError } = await supabase
+        .from('organization_members')
+        .select('id, status, organization_id, previous_subscription_plan')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (!orgError && organizationMembership) {
+        // User is an active organization member - return unlimited plan
+        console.log('User is organization member, applying unlimited limits');
+        return {
+          id: `org-${organizationMembership.id}`,
+          user_id: user.id,
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          plan: 'organization' as const,
+          status: 'active' as const,
+          current_period_start: new Date().toISOString(),
+          current_period_end: null,
+          cancel_at_period_end: false,
+          canceled_at: null,
+          ai_minutes_purchased: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_organization_member: true,
+        } as UserSubscription;
       }
 
       // Get user subscription (maybeSingle returns null if no rows, instead of error)

@@ -248,15 +248,31 @@ export const StudentProfileForm = ({
           .maybeSingle();
 
         if (!existingMembership) {
+          // Récupérer l'abonnement B2C existant pour le sauvegarder
+          const { data: currentSubscription } = await supabase
+            .from('user_subscriptions')
+            .select('plan, stripe_subscription_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          const memberData: any = {
+            organization_id: organizationId,
+            user_id: user.id,
+            role: 'student',
+            status: 'pending',
+            requested_at: new Date().toISOString(),
+          };
+
+          // Sauvegarder le plan actuel si ce n'est pas le plan basique par défaut
+          if (currentSubscription && currentSubscription.plan !== 'basic') {
+            memberData.previous_subscription_plan = currentSubscription.plan;
+            memberData.previous_stripe_subscription_id = currentSubscription.stripe_subscription_id;
+            console.log(`Saving previous subscription: ${currentSubscription.plan}`);
+          }
+
           const { error: memberError } = await supabase
             .from('organization_members')
-            .insert({
-              organization_id: organizationId,
-              user_id: user.id,
-              role: 'student',
-              status: 'pending',
-              requested_at: new Date().toISOString(),
-            });
+            .insert(memberData);
 
           if (memberError) {
             console.error('Error adding member:', memberError);
@@ -634,14 +650,28 @@ export const StudentProfileForm = ({
 
         {/* Message d'information si rejoint via code */}
         {joinedViaCode && organizationName && (
-          <Alert className="border-green-200 bg-green-50">
-            <Check className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">
-              <strong>Organisation rejointe</strong>
-              <br />
-              Vous êtes membre de <strong>{organizationName}</strong>. L'abonnement est géré par votre organisation.
-            </AlertDescription>
-          </Alert>
+          <div className="space-y-3">
+            <Alert className="border-green-200 bg-green-50">
+              <Check className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                <strong>Organisation rejointe</strong>
+                <br />
+                Vous êtes membre de <strong>{organizationName}</strong>. L'abonnement est géré par votre organisation.
+              </AlertDescription>
+            </Alert>
+
+            {subscription !== 'basic' && (
+              <Alert className="border-blue-200 bg-blue-50">
+                <AlertDescription className="text-blue-800 text-sm">
+                  <strong>💡 Information importante :</strong>
+                  <br />
+                  Vous avez actuellement un abonnement <strong>{subscription === 'premium' ? 'Premium' : 'Pro'}</strong>.
+                  En rejoignant l'organisation, votre abonnement personnel sera mis en pause et sauvegardé.
+                  Si vous quittez l'organisation ultérieurement, votre abonnement {subscription === 'premium' ? 'Premium' : 'Pro'} sera automatiquement restauré.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
 
         {/* Bouton de soumission */}

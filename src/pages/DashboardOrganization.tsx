@@ -240,6 +240,7 @@ const DashboardOrganization = () => {
             name={organization.name}
             description={organization.description}
             organizationCode={organization.organization_code}
+            activeMembersCount={activeMembers.length}
             onUpdateOrganization={updateOrganization}
             onRegenerateCode={regenerateCode}
           />

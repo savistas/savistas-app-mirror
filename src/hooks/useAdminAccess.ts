@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
@@ -6,18 +6,31 @@ import { useAuth } from '@/contexts/AuthContext';
  * Seul contact.savistas@gmail.com a accès au backoffice de validation des organisations
  */
 export const useAdminAccess = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const hasCheckedRef = useRef(false);
 
   useEffect(() => {
-    if (user?.email) {
-      setIsAdmin(user.email === 'contact.savistas@gmail.com');
-    } else {
-      setIsAdmin(false);
+    // Attendre que l'authentification soit chargée
+    if (authLoading) {
+      return;
     }
+
+    // Vérifier l'email admin
+    if (user?.email === 'contact.savistas@gmail.com') {
+      setIsAdmin(true);
+      hasCheckedRef.current = true;
+    } else if (user?.email && user.email !== 'contact.savistas@gmail.com') {
+      // Utilisateur connecté mais pas admin
+      setIsAdmin(false);
+      hasCheckedRef.current = true;
+    }
+    // Si user est null mais on a déjà vérifié, ne pas changer l'état immédiatement
+    // (peut être un refresh de session temporaire)
+
     setLoading(false);
-  }, [user]);
+  }, [user, authLoading]);
 
   return {
     isAdmin,

@@ -77,13 +77,18 @@ export function ActiveOrganizationInfo({
                     <p>
                       Êtes-vous sûr de vouloir quitter <strong className="text-slate-900">{organizationName}</strong> ?
                     </p>
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
                       <p className="text-sm font-medium text-amber-900">⚠️ Conséquences :</p>
                       <ul className="text-sm text-amber-800 space-y-1 ml-4 list-disc">
-                        <li>Perte d'accès aux ressources de l'organisation</li>
-                        <li>Retour à l'abonnement de base</li>
+                        <li>Perte d'accès aux ressources et avantages de l'organisation</li>
+                        <li>Restauration de votre abonnement personnel précédent</li>
                         <li>Possibilité de rejoindre à nouveau avec un code</li>
                       </ul>
+                      <div className="bg-blue-50 border border-blue-200 rounded px-2 py-1.5 mt-2">
+                        <p className="text-xs text-blue-800">
+                          <strong>Note :</strong> Si vous aviez un abonnement payant avant de rejoindre l'organisation, il sera restauré. Sinon, vous repasserez à l'abonnement gratuit.
+                        </p>
+                      </div>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>

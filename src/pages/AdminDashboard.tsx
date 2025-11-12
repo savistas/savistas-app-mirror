@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight, Users } from 'lucide-react';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { useOrganizationRequests } from '@/hooks/useOrganizationRequests';
 import BurgerMenu from '@/components/BurgerMenu';
@@ -12,12 +12,17 @@ const AdminDashboard = () => {
   const { isAdmin, loading: adminLoading } = useAdminAccess();
   const { pendingRequests, loading: requestsLoading } = useOrganizationRequests(true);
 
-  // Vérifier les droits d'accès
+  // Vérifier les droits d'accès - seulement après le chargement complet
   useEffect(() => {
-    if (!adminLoading && !isAdmin) {
-      navigate('/dashboard');
+    // Attendre que le chargement soit terminé avant de rediriger
+    if (!adminLoading && !requestsLoading && !isAdmin) {
+      // Redirection avec un délai pour éviter les faux positifs lors des rafraîchissements de session
+      const timeout = setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
+      return () => clearTimeout(timeout);
     }
-  }, [isAdmin, adminLoading, navigate]);
+  }, [isAdmin, adminLoading, requestsLoading, navigate]);
 
   if (adminLoading || requestsLoading) {
     return (
@@ -105,17 +110,26 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Placeholder pour futures fonctionnalités */}
-            <Card className="opacity-60">
+            {/* Carte Gestion des utilisateurs */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
               <CardHeader>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-3 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
+                    <Users className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
                 <CardTitle>Gestion des utilisateurs</CardTitle>
                 <CardDescription>
-                  Gérer les comptes utilisateurs (bientôt disponible)
+                  Bloquer ou supprimer des comptes utilisateurs
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button disabled className="w-full">
-                  Bientôt disponible
+                <Button
+                  onClick={() => navigate('/admin/user-management')}
+                  className="w-full group-hover:bg-primary/90"
+                >
+                  Accéder
+                  <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </CardContent>
             </Card>

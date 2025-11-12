@@ -69,6 +69,7 @@ export function useOrganizationCode(): UseOrganizationCodeReturn {
   /**
    * Rejoindre une organisation
    * Ajoute l'utilisateur comme membre avec le statut "active"
+   * Sauvegarde l'abonnement B2C existant pour pouvoir le restaurer plus tard
    */
   const joinOrganization = async (userId: string, organizationId: string): Promise<boolean> => {
     try {
@@ -89,16 +90,33 @@ export function useOrganizationCode(): UseOrganizationCodeReturn {
         return false;
       }
 
-      // 2. Ajouter comme membre avec statut "active" (adhésion via code = approbation automatique)
+      // 2. Récupérer l'abonnement B2C existant pour le sauvegarder
+      const { data: currentSubscription } = await supabase
+        .from('user_subscriptions')
+        .select('plan, stripe_subscription_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const memberData: any = {
+        user_id: userId,
+        organization_id: organizationId,
+        role: 'student',
+        status: 'active',
+        approved_at: new Date().toISOString(),
+        subscription_paused_at: new Date().toISOString(),
+      };
+
+      // Sauvegarder le plan actuel si ce n'est pas le plan basique par défaut
+      if (currentSubscription && currentSubscription.plan !== 'basic') {
+        memberData.previous_subscription_plan = currentSubscription.plan;
+        memberData.previous_stripe_subscription_id = currentSubscription.stripe_subscription_id;
+        console.log(`Saving previous subscription: ${currentSubscription.plan} (${currentSubscription.stripe_subscription_id})`);
+      }
+
+      // 3. Ajouter comme membre avec statut "active" (adhésion via code = approbation automatique)
       const { error: insertError } = await supabase
         .from('organization_members')
-        .insert({
-          user_id: userId,
-          organization_id: organizationId,
-          role: 'student',
-          status: 'active',
-          approved_at: new Date().toISOString(),
-        });
+        .insert(memberData);
 
       if (insertError) {
         console.error('Error adding member:', insertError);

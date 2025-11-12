@@ -15,13 +15,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Copy, RefreshCw } from 'lucide-react';
+import { Copy, RefreshCw, Euro, Users, Calculator, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface OrganizationSettingsProps {
   name: string;
   description: string | null;
   organizationCode: string;
+  activeMembersCount?: number;
   onUpdateOrganization: (updates: {
     name?: string;
     description?: string;
@@ -33,6 +35,7 @@ export const OrganizationSettings = ({
   name: initialName,
   description: initialDescription,
   organizationCode,
+  activeMembersCount = 0,
   onUpdateOrganization,
   onRegenerateCode,
 }: OrganizationSettingsProps) => {
@@ -41,6 +44,9 @@ export const OrganizationSettings = ({
   const [description, setDescription] = useState(initialDescription || '');
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+
+  const PRICE_PER_MEMBER = 5; // €5 par membre actif par mois
+  const monthlyTotal = activeMembersCount * PRICE_PER_MEMBER;
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(organizationCode);
@@ -180,6 +186,107 @@ export const OrganizationSettings = ({
             Partagez ce code avec vos étudiants pour qu'ils puissent rejoindre
             votre organisation
           </p>
+        </div>
+
+        {/* Section Système de Paiement Cumulatif */}
+        <div className="pt-6 border-t">
+          <div className="flex items-center gap-2 mb-4">
+            <Euro className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-lg">Système de Facturation</h3>
+          </div>
+
+          <Alert className="mb-4 border-blue-200 bg-blue-50">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-900 text-sm">
+              <strong>Tarification cumulative :</strong> Votre abonnement est calculé en fonction du nombre de membres actifs dans votre organisation.
+            </AlertDescription>
+          </Alert>
+
+          {/* Carte récapitulative actuelle */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-700 font-medium">Membres actifs</p>
+                      <p className="text-2xl font-bold text-blue-900">{activeMembersCount}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <Calculator className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-green-700 font-medium">Coût mensuel estimé</p>
+                      <p className="text-2xl font-bold text-green-900">{monthlyTotal}€</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Explication détaillée */}
+          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+            <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+              <Info className="w-4 h-4" />
+              Comment ça marche ?
+            </h4>
+            <ul className="space-y-2 text-sm text-slate-700">
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold mt-0.5">•</span>
+                <span><strong>Prix unitaire :</strong> {PRICE_PER_MEMBER}€ par membre actif par mois</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold mt-0.5">•</span>
+                <span><strong>Facturation cumulative :</strong> Le coût total est calculé en multipliant le nombre de membres actifs par {PRICE_PER_MEMBER}€</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold mt-0.5">•</span>
+                <span><strong>Membres actifs :</strong> Seuls les membres avec le statut "Actif" sont comptabilisés dans la facturation</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-bold mt-0.5">•</span>
+                <span><strong>Flexibilité :</strong> Ajoutez ou retirez des membres à tout moment - la facturation s'ajuste automatiquement</span>
+              </li>
+            </ul>
+
+            {/* Tableau d'exemples */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <h5 className="font-semibold text-slate-900 mb-3 text-sm">Exemples de tarification :</h5>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-100">
+                    <tr>
+                      <th className="text-left p-2 font-medium text-slate-700">Membres actifs</th>
+                      <th className="text-left p-2 font-medium text-slate-700">Calcul</th>
+                      <th className="text-right p-2 font-medium text-slate-700">Coût mensuel</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-100">
+                    {[1, 5, 10, 20, 50].map((members) => (
+                      <tr key={members} className={activeMembersCount === members ? 'bg-blue-50' : ''}>
+                        <td className="p-2 text-slate-700">{members} {members === 1 ? 'membre' : 'membres'}</td>
+                        <td className="p-2 text-slate-600">{members} × {PRICE_PER_MEMBER}€</td>
+                        <td className="p-2 text-right font-semibold text-slate-900">{members * PRICE_PER_MEMBER}€</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

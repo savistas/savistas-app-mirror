@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2 } from "lucide-react";
+import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
@@ -31,6 +31,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
 import { clearCheckoutSession } from "@/lib/checkoutSession";
 import { useSubscription } from "@/hooks/useSubscription";
+import { RoleChangeDialog } from "@/components/RoleChangeDialog";
+import { useOrganizationLeave } from "@/hooks/useOrganizationLeave";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -39,6 +41,7 @@ const Profile = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { role, loading: roleLoading } = useUserRole();
   const { refetch: refetchSubscription } = useSubscription();
+  const { leaveOrganization, isLeaving: isLeavingOrgHook } = useOrganizationLeave();
 
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -101,6 +104,9 @@ const Profile = () => {
 
   // État pour le dialogue de suppression de compte
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // État pour le dialogue de changement de rôle
+  const [showRoleChangeDialog, setShowRoleChangeDialog] = useState(false);
 
   const [profilesInfos, setProfilesInfos] = useState<{
     pref_apprendre_idee?: string;
@@ -728,27 +734,21 @@ const Profile = () => {
   const handleLeaveOrganization = async () => {
     if (!user || !activeOrganization) return;
 
+    setIsLeavingOrg(true);
+
     try {
-      setIsLeavingOrg(true);
+      // Utiliser le hook pour quitter et restaurer l'abonnement
+      const success = await leaveOrganization(user.id, activeOrganization.membershipId);
 
-      // Supprimer l'adhésion à l'organisation
-      const { error } = await supabase
-        .from('organization_members')
-        .delete()
-        .eq('id', activeOrganization.membershipId);
+      if (success) {
+        // Réinitialiser l'état
+        setActiveOrganization(null);
 
-      if (error) throw error;
-
-      toast({
-        title: "Organisation quittée",
-        description: `Vous avez quitté ${activeOrganization.organizationName} avec succès.`,
-      });
-
-      // Réinitialiser l'état
-      setActiveOrganization(null);
-
-      // Recharger les données du profil
-      window.location.reload();
+        // Recharger les données du profil pour refléter les changements
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000); // Attendre 2 secondes pour que l'utilisateur puisse lire les notifications
+      }
     } catch (e: any) {
       toast({
         title: "Erreur",
@@ -1405,6 +1405,30 @@ const Profile = () => {
           </CardContent>
         </Card>
 
+        {/* Section pour changer de type de compte */}
+        <Card className="border-amber-200 bg-amber-50/50 mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl text-amber-700">Changer de type de compte</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-amber-600">
+                Vous vous êtes inscrit avec le mauvais type de compte ? Vous pouvez le changer ici.
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setShowRoleChangeDialog(true)}
+                  variant="outline"
+                  className="flex items-center gap-2 border-amber-300 text-amber-700 hover:bg-amber-100"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Changer de type de compte
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Section pour se déconnecter */}
         <Card className="border-red-200 bg-red-50/50 mt-8">
           <CardHeader>
@@ -1491,6 +1515,13 @@ const Profile = () => {
           onClose={() => setShowDeleteDialog(false)}
           onConfirm={handleDeleteAccount}
           userEmail={form.email}
+        />
+
+        {/* Dialogue de changement de rôle */}
+        <RoleChangeDialog
+          open={showRoleChangeDialog}
+          onClose={() => setShowRoleChangeDialog(false)}
+          currentRole={role || 'student'}
         />
         </div>
         {/* Fin de la section profil normal */}

@@ -22,12 +22,17 @@ const AdminOrganizationRequests = () => {
     rejectRequest,
   } = useOrganizationRequests(true); // Mode admin
 
-  // Vérifier les droits d'accès
+  // Vérifier les droits d'accès - seulement après le chargement complet
   useEffect(() => {
-    if (!adminLoading && !isAdmin) {
-      navigate('/dashboard');
+    // Attendre que le chargement soit terminé avant de rediriger
+    if (!adminLoading && !requestsLoading && !isAdmin) {
+      // Redirection avec un délai pour éviter les faux positifs lors des rafraîchissements de session
+      const timeout = setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
+      return () => clearTimeout(timeout);
     }
-  }, [isAdmin, adminLoading, navigate]);
+  }, [isAdmin, adminLoading, requestsLoading, navigate]);
 
   if (adminLoading || requestsLoading) {
     return (
