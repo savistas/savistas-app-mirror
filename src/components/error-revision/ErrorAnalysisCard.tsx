@@ -23,12 +23,19 @@ import {
   Lightbulb,
   Image as ImageIcon,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ReactMarkdown from 'react-markdown';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+// Configuration de pdf.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface ErrorAnalysisCardProps {
   revision: ErrorRevision;
@@ -73,9 +80,13 @@ const getStatusConfig = (status: string) => {
 export const ErrorAnalysisCard = ({ revision }: ErrorAnalysisCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [numPages, setNumPages] = useState<number | null>(null);
 
   const statusConfig = getStatusConfig(revision.status);
   const StatusIcon = statusConfig.icon;
+
+  // Détecter si le fichier est un PDF
+  const isPDF = revision.error_image_url?.toLowerCase().endsWith('.pdf') || false;
 
   // Parse analysis_response si présent
   // Support des deux formats: array direct ou objet avec items
@@ -84,6 +95,10 @@ export const ErrorAnalysisCard = ({ revision }: ErrorAnalysisCardProps) => {
     : (revision.analysis_response?.items || []);
   const hasAnalysis = analysisItems.length > 0;
   const hasRecommendation = !!revision.global_recommandation;
+
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+  };
 
   return (
     <>
@@ -123,11 +138,17 @@ export const ErrorAnalysisCard = ({ revision }: ErrorAnalysisCardProps) => {
                 setIsImageModalOpen(true);
               }}
             >
-              <img
-                src={revision.error_image_url}
-                alt="Erreur"
-                className="w-full h-full object-cover"
-              />
+              {isPDF ? (
+                <div className="w-full h-full flex items-center justify-center bg-red-50">
+                  <FileText className="w-8 h-8 text-red-600" />
+                </div>
+              ) : (
+                <img
+                  src={revision.error_image_url}
+                  alt="Erreur"
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
           </div>
 
@@ -161,21 +182,55 @@ export const ErrorAnalysisCard = ({ revision }: ErrorAnalysisCardProps) => {
           <div className="space-y-4 mt-4">
             {/* Image de l'erreur */}
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">Image de l'erreur</h3>
+              <h3 className="text-sm font-semibold text-gray-700">
+                {isPDF ? 'Document de l\'erreur' : 'Image de l\'erreur'}
+              </h3>
               <div className="relative rounded-lg overflow-hidden border">
-                <img
-                  src={revision.error_image_url}
-                  alt="Erreur complète"
-                  className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setIsImageModalOpen(true)}
-                />
+                {isPDF ? (
+                  <div className="bg-gray-50">
+                    <Document
+                      file={revision.error_image_url}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      loading={
+                        <div className="flex items-center justify-center p-8">
+                          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                        </div>
+                      }
+                      error={
+                        <div className="flex items-center justify-center p-8 text-red-600">
+                          <AlertCircle className="w-6 h-6 mr-2" />
+                          Erreur lors du chargement du PDF
+                        </div>
+                      }
+                    >
+                      <Page
+                        pageNumber={1}
+                        width={700}
+                        renderTextLayer={true}
+                        renderAnnotationLayer={true}
+                      />
+                    </Document>
+                    {numPages && numPages > 1 && (
+                      <div className="bg-gray-100 px-4 py-2 text-sm text-gray-600 text-center">
+                        Page 1 sur {numPages} - Cliquez sur "Agrandir" pour voir toutes les pages
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <img
+                    src={revision.error_image_url}
+                    alt="Erreur complète"
+                    className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setIsImageModalOpen(true)}
+                  />
+                )}
                 <Button
                   size="sm"
                   variant="secondary"
                   className="absolute bottom-2 right-2"
                   onClick={() => setIsImageModalOpen(true)}
                 >
-                  <ImageIcon className="w-4 h-4 mr-2" />
+                  {isPDF ? <FileText className="w-4 h-4 mr-2" /> : <ImageIcon className="w-4 h-4 mr-2" />}
                   Agrandir
                 </Button>
               </div>
@@ -294,26 +349,65 @@ export const ErrorAnalysisCard = ({ revision }: ErrorAnalysisCardProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal image fullscreen */}
+      {/* Modal image/PDF fullscreen */}
       {isImageModalOpen && (
         <div
           className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4"
           onClick={() => setIsImageModalOpen(false)}
         >
-          <div className="relative w-full max-w-6xl max-h-[95vh]">
+          <div className="relative w-full max-w-6xl max-h-[95vh] overflow-auto">
             <button
               onClick={() => setIsImageModalOpen(false)}
-              className="absolute -top-12 right-0 text-white hover:text-gray-300 text-sm flex items-center gap-2 bg-black/50 px-3 py-2 rounded"
+              className="sticky top-0 left-full z-10 mb-2 text-white hover:text-gray-300 text-sm flex items-center gap-2 bg-black/50 px-3 py-2 rounded"
             >
               <XCircle className="w-5 h-5" />
               Fermer (Echap)
             </button>
-            <img
-              src={revision.error_image_url}
-              alt="Erreur complète"
-              className="w-full h-auto max-h-[95vh] rounded-lg object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {isPDF ? (
+              <div
+                className="bg-white rounded-lg p-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Document
+                  file={revision.error_image_url}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  loading={
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+                    </div>
+                  }
+                  error={
+                    <div className="flex items-center justify-center p-12 text-red-600">
+                      <AlertCircle className="w-8 h-8 mr-2" />
+                      Erreur lors du chargement du PDF
+                    </div>
+                  }
+                >
+                  {numPages && Array.from(new Array(numPages), (_, index) => (
+                    <div key={`page_${index + 1}`} className="mb-4">
+                      <Page
+                        pageNumber={index + 1}
+                        width={Math.min(window.innerWidth * 0.8, 1000)}
+                        renderTextLayer={true}
+                        renderAnnotationLayer={true}
+                      />
+                      {numPages > 1 && (
+                        <div className="text-center text-gray-600 text-sm mt-2 mb-4">
+                          Page {index + 1} sur {numPages}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </Document>
+              </div>
+            ) : (
+              <img
+                src={revision.error_image_url}
+                alt="Erreur complète"
+                className="w-full h-auto max-h-[95vh] rounded-lg object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
         </div>
       )}

@@ -2,35 +2,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Crown, Calendar, TrendingUp, BookOpen, FileText, Bot, Clock } from "lucide-react";
+import { Crown, Calendar, TrendingUp, BookOpen, FileText, Bot, Clock, CreditCard, AlertCircle, RotateCcw } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUsageLimits } from "@/hooks/useUsageLimits";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PlanSelectionCards } from "./PlanSelectionCards";
 import { UpgradeDialog } from "./UpgradeDialog";
-import { CheckoutPendingState } from "./CheckoutPendingState";
-import { hasActiveCheckoutSession } from "@/lib/checkoutSession";
+import { formatTime } from "@/hooks/useConversationTimeLimit";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SubscriptionList } from "./SubscriptionList";
 
 export const SubscriptionCard = () => {
   const { subscription, limits, isLoading, refetch } = useSubscription();
   const { usage, remaining } = useUsageLimits();
+  const { session } = useAuth();
+  const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [hasPendingCheckout, setHasPendingCheckout] = useState(false);
-
-  // Check for pending checkout session on mount and when localStorage changes
-  useEffect(() => {
-    const checkPendingSession = () => {
-      setHasPendingCheckout(hasActiveCheckoutSession());
-    };
-
-    checkPendingSession();
-
-    // Listen for storage events (in case checkout is started in another tab)
-    window.addEventListener('storage', checkPendingSession);
-    return () => window.removeEventListener('storage', checkPendingSession);
-  }, []);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
 
   if (isLoading) {
     return (
@@ -88,19 +81,47 @@ export const SubscriptionCard = () => {
     return Math.min((current / limit) * 100, 100);
   };
 
-  const handleCancelCheckout = () => {
-    // Update state when checkout is canceled
-    setHasPendingCheckout(false);
-    refetch(); // Refresh subscription data
+  const handleReactivateSubscription = async () => {
+    if (!session || !subscription?.stripe_subscription_id) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de réactiver l'abonnement",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setReactivateLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('reactivate-subscription', {
+        body: {
+          subscription_id: subscription.stripe_subscription_id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Votre abonnement a été réactivé avec succès",
+      });
+
+      // Refetch subscription data
+      refetch();
+    } catch (error: any) {
+      console.error('Error reactivating subscription:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de réactiver l'abonnement",
+        variant: "destructive",
+      });
+    } finally {
+      setReactivateLoading(false);
+    }
   };
 
   return (
     <>
-      {/* Show pending checkout state if active */}
-      {hasPendingCheckout && (
-        <CheckoutPendingState onCancel={handleCancelCheckout} />
-      )}
-
       <Card className="border-2">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -118,12 +139,40 @@ export const SubscriptionCard = () => {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* Cancellation Warning */}
+          {subscription.cancel_at_period_end && subscription.current_period_end && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <p className="font-semibold mb-1">
+                  Votre abonnement se termine le{' '}
+                  {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
+                </p>
+                <p className="text-sm">
+                  Vous conservez l'accès à votre plan {getPlanName(subscription.plan)} jusqu'à cette date.
+                  Après, vous serez rétrogradé vers le forfait Basic.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Renewal Date */}
-          {subscription.current_period_end && (
+          {subscription.current_period_end && !subscription.cancel_at_period_end && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
               <span>
                 Prochain renouvellement le{' '}
+                {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
+              </span>
+            </div>
+          )}
+
+          {/* Active Until Date (for cancelled subscriptions) */}
+          {subscription.cancel_at_period_end && subscription.current_period_end && (
+            <div className="flex items-center gap-2 text-sm text-orange-600 font-medium">
+              <Calendar className="w-4 h-4" />
+              <span>
+                Actif jusqu'au{' '}
                 {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale: fr })}
               </span>
             </div>
@@ -227,39 +276,56 @@ export const SubscriptionCard = () => {
             </div>
 
             {/* AI Minutes */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-orange-500" />
-                  <span>Minutes Avatar IA</span>
+            {limits.isUnlimited ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-orange-500" />
+                    <span>Minutes Avatar IA</span>
+                  </div>
+                  <span className="font-medium">Illimité</span>
                 </div>
-                <span className="font-medium">
-                  {limits.isUnlimited ? 'Illimité' : `${usage?.ai_minutes_used || 0} / ${limits.aiMinutes} min`}
-                </span>
-              </div>
-              {!limits.isUnlimited && (
-                <>
-                  <Progress
-                    value={calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes)}
-                    className="h-2"
-                    indicatorClassName={getProgressColor(calculatePercentage(usage?.ai_minutes_used || 0, limits.aiMinutes))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {remaining?.aiMinutes || 0} minutes restantes
-                    {subscription.ai_minutes_purchased > 0 && (
-                      <span className="text-green-600 ml-1">
-                        ({subscription.ai_minutes_purchased} min achetées)
-                      </span>
-                    )}
-                  </p>
-                </>
-              )}
-              {limits.isUnlimited && (
                 <p className="text-xs text-green-600 font-medium">
                   Utilisation illimitée de l'Avatar IA
                 </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-sm text-orange-700">
+                  <Bot className="w-4 h-4" />
+                  <span className="font-medium">Minutes de conversation avec l'Avatar IA</span>
+                </div>
+                <p className="text-xs text-orange-700/80">
+                  Utilisez ces minutes pour discuter avec votre professeur virtuel personnalisé
+                </p>
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-orange-600">
+                      {formatTime((remaining?.aiMinutes || 0) * 60)}
+                    </span>
+                    <span className="text-sm text-orange-700 font-medium">
+                      sur {formatTime(limits.aiMinutes * 60)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-orange-700/90">
+                    Temps de conversation disponible
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-orange-600">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      Utilisées: {formatTime((usage?.ai_minutes_used || 0) * 60)} / {formatTime(limits.aiMinutes * 60)}
+                    </span>
+                  </div>
+                  {subscription.ai_minutes_purchased > 0 && (
+                    <div className="text-xs text-orange-700 font-medium bg-orange-100/50 px-2 py-1 rounded">
+                      + {formatTime(subscription.ai_minutes_purchased * 60)} achetées (ne se réinitialisent pas)
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Max Days per Course */}
             <div className="flex items-center justify-between text-sm p-3 bg-muted rounded-lg">
@@ -283,6 +349,18 @@ export const SubscriptionCard = () => {
             </Button>
           )}
 
+          {/* Reactivate Subscription Button - Only shown when subscription is cancelled */}
+          {subscription.cancel_at_period_end && subscription.plan !== 'basic' && (
+            <Button
+              onClick={handleReactivateSubscription}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={reactivateLoading}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {reactivateLoading ? 'Réactivation...' : 'Réactiver mon abonnement'}
+            </Button>
+          )}
+
           {/* Note for organization members */}
           {limits.isUnlimited && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -294,6 +372,12 @@ export const SubscriptionCard = () => {
         </CardContent>
       </Card>
 
+      {/* Subscription Management - Display and cancel current subscription */}
+      <SubscriptionList
+        subscription={subscription}
+        onSubscriptionCancelled={refetch}
+      />
+
       {/* Plan Selection Cards - Hidden for organization members */}
       {!limits.isUnlimited && <PlanSelectionCards currentPlan={subscription.plan} />}
 
@@ -302,6 +386,7 @@ export const SubscriptionCard = () => {
         open={showUpgradeDialog}
         onClose={() => setShowUpgradeDialog(false)}
         currentPlan={subscription.plan}
+        showOnlyAIMinutes={true}
       />
     </>
   );

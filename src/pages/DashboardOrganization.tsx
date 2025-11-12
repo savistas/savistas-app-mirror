@@ -9,8 +9,10 @@ import { MemberRequestCard } from '@/components/MemberRequestCard';
 import { MembersTable } from '@/components/MembersTable';
 import { OrganizationSettings } from '@/components/OrganizationSettings';
 import { OnboardingOrganizationDialog } from '@/components/OnboardingOrganizationDialog';
+import { OrganizationCapacityModal } from '@/components/organization/OrganizationCapacityModal';
 import { useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
+import { toast } from 'sonner';
 
 const DashboardOrganization = () => {
   const { user } = useAuth();
@@ -29,6 +31,7 @@ const DashboardOrganization = () => {
   } = useOrganizationMembers(organization?.id || null);
 
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
 
   // Vérifier que l'utilisateur a le bon rôle
   useEffect(() => {
@@ -45,6 +48,46 @@ const DashboardOrganization = () => {
       setShowOnboarding(true);
     }
   }, [organization, orgLoading, roleLoading]);
+
+  // Wrapper pour approveMember avec gestion de capacité et abonnement
+  const handleApproveMember = async (memberId: string) => {
+    const result = await approveMember(memberId);
+
+    if (result.noSubscription) {
+      toast.error(result.error?.message || 'Abonnement requis pour ajouter des membres', {
+        duration: 6000,
+        action: {
+          label: 'Voir les plans',
+          onClick: () => navigate(`/${role}/profile`),
+        },
+      });
+      return;
+    }
+
+    if (result.capacityExceeded) {
+      setShowCapacityModal(true);
+      toast.error(result.error?.message || 'Capacité maximale atteinte');
+      return;
+    }
+
+    if (result.error) {
+      toast.error(result.error.message || 'Erreur lors de l\'approbation');
+    } else {
+      toast.success('Membre approuvé avec succès');
+    }
+  };
+
+  // Wrapper pour removeMember
+  const handleRemoveMember = async (memberId: string) => {
+    const result = await removeMember(memberId);
+
+    if (result.error) {
+      toast.error(result.error.message || 'Erreur lors de la suppression');
+      return;
+    }
+
+    toast.success('Membre retiré avec succès');
+  };
 
   if (roleLoading || orgLoading) {
     return (
@@ -143,6 +186,23 @@ const DashboardOrganization = () => {
             </Alert>
           )}
 
+          {/* Alert pour absence de sièges */}
+          {organization.validation_status === 'approved' && (!organization.seat_limit || organization.seat_limit === 0) && (
+            <Alert variant="default" className="border-blue-200 bg-blue-50">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              <AlertTitle className="text-blue-900 font-semibold">
+                Achat de sièges requis pour ajouter des membres
+              </AlertTitle>
+              <AlertDescription className="text-blue-800">
+                Votre organisation est validée mais vous devez acheter des sièges
+                pour pouvoir ajouter et gérer des membres. Consultez la section "Gestion de l'abonnement" ci-dessous
+                pour acheter des sièges.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Note: Auto-downgrade removed - seat-based model doesn't require it */}
+
           {/* Statistiques */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
@@ -203,8 +263,10 @@ const DashboardOrganization = () => {
                     email={member.email}
                     profilePhotoUrl={member.profile_photo_url}
                     requestedAt={member.requested_at}
-                    onApprove={approveMember}
+                    onApprove={handleApproveMember}
                     onReject={rejectMember}
+                    disableApprove={!organization.seat_limit || organization.seat_limit === 0}
+                    disableReason={!organization.seat_limit || organization.seat_limit === 0 ? 'Sièges requis' : undefined}
                   />
                 ))}
               </CardContent>
@@ -212,7 +274,7 @@ const DashboardOrganization = () => {
           )}
 
           {/* Liste des membres */}
-          <Card>
+          <Card id="members-section">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
@@ -229,7 +291,8 @@ const DashboardOrganization = () => {
                   members={members}
                   activeMembers={activeMembers}
                   pendingMembers={pendingMembers}
-                  onRemoveMember={removeMember}
+                  onRemoveMember={handleRemoveMember}
+                  organizationId={organization?.id || null}
                 />
               )}
             </CardContent>
@@ -248,6 +311,15 @@ const DashboardOrganization = () => {
       </div>
 
       {/* Bottom Navigation */}
+
+      {/* Capacity Modal */}
+      {organization && (
+        <OrganizationCapacityModal
+          organizationId={organization.id}
+          open={showCapacityModal}
+          onClose={() => setShowCapacityModal(false)}
+        />
+      )}
     </div>
   );
 };

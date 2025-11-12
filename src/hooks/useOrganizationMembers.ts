@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { checkOrganizationCapacity } from '@/services/organizationSubscriptionService';
 
 interface Member {
   id: string;
@@ -14,6 +15,26 @@ interface Member {
   approved_at: string | null;
   organization_name: string;
   organization_code: string;
+}
+
+interface ApproveMemberResult {
+  error: Error | null;
+  capacityExceeded?: boolean;
+  noSubscription?: boolean;
+  capacityInfo?: {
+    can_add: boolean;
+    current_members: number;
+    seat_limit: number;
+    remaining_seats: number;
+  };
+}
+
+interface RemoveMemberResult {
+  error: Error | null;
+}
+
+interface RejectMemberResult {
+  error: Error | null;
 }
 
 export const useOrganizationMembers = (organizationId: string | null) => {
@@ -69,24 +90,70 @@ export const useOrganizationMembers = (organizationId: string | null) => {
     }
   }, [organizationId]);
 
-  const approveMember = async (memberId: string) => {
-    const { error } = await supabase
-      .from('organization_members')
-      .update({
-        status: 'active',
-        approved_at: new Date().toISOString(),
-        approved_by: user?.id,
-      })
-      .eq('id', memberId);
-
-    if (!error) {
-      await fetchMembers();
+  const approveMember = async (memberId: string): Promise<ApproveMemberResult> => {
+    // CRITICAL: Check capacity before approving
+    if (!organizationId) {
+      return { error: new Error('Organization ID is required') };
     }
 
-    return { error };
+    try {
+      // CRITICAL: Check if organization has purchased seats
+      const { data: organization, error: orgError } = await supabase
+        .from('organizations')
+        .select('seat_limit')
+        .eq('id', organizationId)
+        .single();
+
+      if (orgError || !organization) {
+        return {
+          error: new Error('Impossible de vérifier les informations de l\'organisation'),
+        };
+      }
+
+      // Check if organization has purchased any seats (seat_limit > 0)
+      if (!organization.seat_limit || organization.seat_limit === 0) {
+        return {
+          error: new Error(
+            'Vous devez acheter des sièges avant d\'ajouter des membres. ' +
+            'Rendez-vous dans le tableau de bord de votre organisation pour acheter des sièges.'
+          ),
+          noSubscription: true,
+        };
+      }
+
+      const capacityCheck = await checkOrganizationCapacity(organizationId);
+
+      if (!capacityCheck.can_add) {
+        return {
+          error: new Error(
+            `Capacité maximale atteinte. Votre organisation a ${capacityCheck.current_members} membres ` +
+            `sur ${capacityCheck.seat_limit} autorisés. Achetez plus de sièges pour ajouter ce membre.`
+          ),
+          capacityExceeded: true,
+          capacityInfo: capacityCheck,
+        };
+      }
+
+      const { error } = await supabase
+        .from('organization_members')
+        .update({
+          status: 'active',
+          approved_at: new Date().toISOString(),
+          approved_by: user?.id,
+        })
+        .eq('id', memberId);
+
+      if (!error) {
+        await fetchMembers();
+      }
+
+      return { error };
+    } catch (err: any) {
+      return { error: err };
+    }
   };
 
-  const rejectMember = async (memberId: string) => {
+  const rejectMember = async (memberId: string): Promise<RejectMemberResult> => {
     const { error } = await supabase
       .from('organization_members')
       .update({ status: 'rejected' })
@@ -99,7 +166,7 @@ export const useOrganizationMembers = (organizationId: string | null) => {
     return { error };
   };
 
-  const removeMember = async (memberId: string) => {
+  const removeMember = async (memberId: string): Promise<RemoveMemberResult> => {
     const { error } = await supabase
       .from('organization_members')
       .delete()
@@ -107,6 +174,7 @@ export const useOrganizationMembers = (organizationId: string | null) => {
 
     if (!error) {
       await fetchMembers();
+      // Database triggers update active_members_count automatically
     }
 
     return { error };

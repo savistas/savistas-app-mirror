@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Clock, AlertCircle, Building2, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, AlertCircle, Building2, CheckCircle, XCircle, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganizationRequests } from '@/hooks/useOrganizationRequests';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import DeleteAccountDialog from '@/components/DeleteAccountDialog';
 
 const OrganizationRequestStatus = () => {
   const navigate = useNavigate();
@@ -18,6 +20,8 @@ const OrganizationRequestStatus = () => {
   const { toast } = useToast();
   const { role, loading: roleLoading } = useUserRole();
   const { requests, loading: requestsLoading } = useOrganizationRequests(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     organization_name: '',
@@ -63,6 +67,63 @@ const OrganizationRequestStatus = () => {
     }
   }, [latestRequest, roleLoading, requestsLoading, navigate, role]);
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+
+    setIsDeleting(true);
+
+    try {
+      // Step 1: Delete all user data from database using Edge Function
+      console.log('🗑️ Deleting user account...');
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !sessionData?.session) {
+        throw new Error('No active session');
+      }
+
+      const session = sessionData.session;
+
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to delete account');
+      }
+
+      console.log('✅ Account deleted successfully');
+
+      // Sign out (account is already deleted, but let's clean up the local session)
+      await supabase.auth.signOut();
+
+      toast({
+        title: "Compte supprimé",
+        description: "Votre compte a été supprimé avec succès. Au revoir !",
+      });
+
+      // Redirect to auth page
+      navigate('/auth');
+    } catch (e: any) {
+      console.error('❌ Error deleting account:', e);
+      toast({
+        title: "Erreur",
+        description: e.message ?? "Impossible de supprimer le compte",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
 
   if (roleLoading || requestsLoading) {
     return (
@@ -127,13 +188,28 @@ const OrganizationRequestStatus = () => {
                     <p className="mt-1">{latestRequest.rejection_reason}</p>
                   </div>
                 )}
-                <div className="mt-4">
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm font-semibold text-red-900">
+                    Votre compte ne peut pas être utilisé car la demande d'organisation a été rejetée.
+                    Vous devez supprimer votre compte pour pouvoir en créer un nouveau.
+                  </p>
                   <Button
-                    onClick={() => navigate(`/${role}/profile`)}
-                    variant="default"
-                    className="bg-red-700 hover:bg-red-800"
+                    onClick={() => setShowDeleteDialog(true)}
+                    disabled={isDeleting}
+                    variant="destructive"
+                    className="w-full sm:w-auto bg-red-700 hover:bg-red-800"
                   >
-                    Retour au profil
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Suppression en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer mon compte
+                      </>
+                    )}
                   </Button>
                 </div>
               </AlertDescription>
@@ -251,6 +327,14 @@ const OrganizationRequestStatus = () => {
             </Alert>
           )}
       </div>
+
+      {/* Delete Account Confirmation Dialog */}
+      <DeleteAccountDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteAccount}
+        userEmail={user?.email || ''}
+      />
     </div>
   );
 };

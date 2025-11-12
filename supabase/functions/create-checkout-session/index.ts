@@ -19,6 +19,12 @@ const PRICE_IDS = {
   ai_60min: 'price_1SNu5g37eeTawvFRdsQ1vIYp',    // Avatar IA - 60min - 20€
 };
 
+// Price tier mapping for upgrade/downgrade detection
+const PRICE_TIERS: Record<string, number> = {
+  [PRICE_IDS.premium]: 990,  // 9.90€ in cents
+  [PRICE_IDS.pro]: 1990,     // 19.90€ in cents
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -55,6 +61,26 @@ serve(async (req) => {
     // Validate mode
     if (!['subscription', 'payment'].includes(mode)) {
       throw new Error('Invalid mode. Must be "subscription" or "payment"');
+    }
+
+    // CRITICAL VALIDATION: Check if user is in an organization
+    // Users in organizations should NOT be able to purchase individual subscriptions
+    // They already benefit from the organization subscription
+    if (mode === 'subscription') {
+      const { data: orgMembership } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (orgMembership) {
+        throw new Error(
+          'Vous êtes membre d\'une organisation et bénéficiez déjà d\'un abonnement. ' +
+          'Vous ne pouvez pas souscrire à un plan individuel. ' +
+          'Contactez l\'administrateur de votre organisation pour toute question.'
+        );
+      }
     }
 
     // Get or create Stripe customer
@@ -125,13 +151,33 @@ serve(async (req) => {
     if (mode === 'subscription') {
       // Check if user already has an active subscription
       if (userSub?.stripe_subscription_id) {
-        // User is upgrading/downgrading their subscription
+        // User is changing their subscription (upgrade or downgrade)
         // Instead of using Checkout, update the subscription directly with proration
-        console.log('🔄 Upgrading existing subscription:', userSub.stripe_subscription_id);
+        console.log('🔄 Changing existing subscription:', userSub.stripe_subscription_id);
 
         try {
           // Retrieve the current subscription
           const currentSubscription = await stripe.subscriptions.retrieve(userSub.stripe_subscription_id);
+          const currentPriceId = currentSubscription.items.data[0].price.id;
+
+          // Detect if this is an upgrade or downgrade
+          const currentTier = PRICE_TIERS[currentPriceId] || 0;
+          const newTier = PRICE_TIERS[priceId] || 0;
+
+          let changeType = 'change';
+          let message = 'Subscription updated successfully';
+
+          if (newTier > currentTier) {
+            changeType = 'upgrade';
+            message = 'Subscription upgraded successfully';
+            console.log('⬆️ Upgrading from', currentTier, 'to', newTier);
+          } else if (newTier < currentTier) {
+            changeType = 'downgrade';
+            message = 'Subscription downgraded successfully';
+            console.log('⬇️ Downgrading from', currentTier, 'to', newTier);
+          } else {
+            console.log('🔄 Same tier, updating subscription');
+          }
 
           // Update the subscription to the new price with proration
           const updatedSubscription = await stripe.subscriptions.update(userSub.stripe_subscription_id, {
@@ -141,7 +187,7 @@ serve(async (req) => {
                 price: priceId,
               },
             ],
-            proration_behavior: 'create_prorations', // Credit unused time, charge difference
+            proration_behavior: 'create_prorations', // Credit unused time, charge/refund difference
             metadata: {
               user_id: user.id,
             },
@@ -153,18 +199,18 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({
               success: true,
-              upgraded: true,
+              changeType: changeType,
               subscriptionId: updatedSubscription.id,
-              message: 'Subscription upgraded successfully',
+              message: message,
             }),
             {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               status: 200,
             }
           );
-        } catch (upgradeError: any) {
-          console.error('❌ Error upgrading subscription:', upgradeError);
-          throw new Error(`Failed to upgrade subscription: ${upgradeError.message}`);
+        } catch (updateError: any) {
+          console.error('❌ Error updating subscription:', updateError);
+          throw new Error(`Failed to update subscription: ${updateError.message}`);
         }
       }
     }

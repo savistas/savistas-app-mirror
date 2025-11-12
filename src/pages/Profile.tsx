@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2, RefreshCw } from "lucide-react";
+import { Pencil, LogOut, ChevronLeft, ChevronRight, AlertCircle, Check, Trash2, RefreshCw, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
@@ -33,6 +33,11 @@ import { clearCheckoutSession } from "@/lib/checkoutSession";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RoleChangeDialog } from "@/components/RoleChangeDialog";
 import { useOrganizationLeave } from "@/hooks/useOrganizationLeave";
+import { useUserOrganizationStatus } from "@/hooks/useUserOrganizationStatus";
+import { UserOrganizationBanner } from "@/components/organization/UserOrganizationBanner";
+import { useOrganization } from "@/hooks/useOrganization";
+import { OrganizationSubscriptionCard } from "@/components/organization/OrganizationSubscriptionCard";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -42,6 +47,15 @@ const Profile = () => {
   const { role, loading: roleLoading } = useUserRole();
   const { refetch: refetchSubscription } = useSubscription();
   const { leaveOrganization, isLeaving: isLeavingOrgHook } = useOrganizationLeave();
+  const {
+    isInOrganization,
+    organization,
+    canPurchaseIndividualPlan,
+  } = useUserOrganizationStatus(user?.id);
+  const queryClient = useQueryClient();
+
+  // For organization admins (schools/companies)
+  const { organization: adminOrganization, loading: adminOrgLoading } = useOrganization();
 
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -88,6 +102,9 @@ const Profile = () => {
     role: "",
     subscription: "basic",
     ai_level: "",
+    link_code: "",
+    link_relation: "",
+    ent: "",
     troubles_detection_completed: false,
     learning_styles_completed: false,
   });
@@ -245,7 +262,7 @@ const Profile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name,email,phone,country,city,postal_code,education_level,classes,subjects,subscription,profile_photo_url')
+        .select('full_name,email,phone,country,city,postal_code,education_level,classes,subjects,role,subscription,link_code,link_relation,ent,ai_level,troubles_detection_completed,learning_styles_completed,profile_photo_url')
         .eq('user_id', user.id)
         .maybeSingle();
       if (!active) return;
@@ -333,20 +350,43 @@ const Profile = () => {
   // Handle Stripe checkout return (success/cancel)
   useEffect(() => {
     const checkoutStatus = searchParams.get('checkout');
+    const purchaseType = searchParams.get('type'); // 'subscription' or 'ai_minutes'
 
     if (checkoutStatus) {
       if (checkoutStatus === 'success') {
         // Clear the checkout session from localStorage
         clearCheckoutSession();
 
-        // Show success toast
-        toast({
-          title: "Paiement réussi!",
-          description: "Votre abonnement a été mis à jour avec succès.",
-        });
+        // Show success toast based on purchase type
+        if (purchaseType === 'ai_minutes') {
+          toast({
+            title: "Achat réussi!",
+            description: "Vos minutes Avatar IA ont été ajoutées à votre compte.",
+          });
+        } else {
+          toast({
+            title: "Paiement réussi!",
+            description: "Votre abonnement a été mis à jour avec succès. Actualisation en cours...",
+          });
+        }
 
-        // Refetch subscription data to update UI
-        refetchSubscription();
+        // Remove the query parameters from URL first
+        searchParams.delete('checkout');
+        searchParams.delete('type');
+        setSearchParams(searchParams, { replace: true });
+
+        // For subscriptions, reload the page after a delay to ensure webhook has processed
+        // This is more reliable than multiple refetches
+        if (purchaseType === 'subscription') {
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+        } else {
+          // For AI minutes, just refetch
+          setTimeout(() => {
+            refetchSubscription();
+          }, 2000);
+        }
       } else if (checkoutStatus === 'canceled') {
         // Clear the checkout session from localStorage
         clearCheckoutSession();
@@ -357,11 +397,12 @@ const Profile = () => {
           description: "Vous avez annulé le processus de paiement.",
           variant: "default",
         });
-      }
 
-      // Remove the query parameter from URL
-      searchParams.delete('checkout');
-      setSearchParams(searchParams, { replace: true });
+        // Remove the query parameters from URL
+        searchParams.delete('checkout');
+        searchParams.delete('type');
+        setSearchParams(searchParams, { replace: true });
+      }
     }
   }, [searchParams, setSearchParams, toast, refetchSubscription]);
 
@@ -445,21 +486,32 @@ const Profile = () => {
       setAvatarUrl(publicUrl);
 
       // Ensure profile exists, then update
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (checkError) throw checkError;
+
       if (existing) {
-        await supabase.from('profiles').update({ profile_photo_url: publicUrl }).eq('user_id', user.id);
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ profile_photo_url: publicUrl })
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
       } else {
-        await supabase.from('profiles').insert({
-          user_id: user.id,
-          email: user.email,
-          full_name: form.full_name,
-          profile_photo_url: publicUrl,
-        });
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            full_name: form.full_name,
+            profile_photo_url: publicUrl,
+          });
+
+        if (insertError) throw insertError;
       }
 
       toast({ title: "Photo mise à jour", description: "Votre photo de profil a été enregistrée" });
@@ -663,19 +715,54 @@ const Profile = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const { data: existing } = await supabase
+
+      // Only include editable fields in the update payload
+      // Exclude: role, subscription, completion flags (these are managed elsewhere)
+      const editableFields = {
+        full_name: form.full_name,
+        phone: form.phone,
+        country: form.country,
+        city: form.city,
+        postal_code: form.postal_code,
+        education_level: form.education_level,
+        classes: form.classes,
+        subjects: form.subjects,
+        link_code: form.link_code,
+        link_relation: form.link_relation,
+        ent: form.ent,
+        ai_level: form.ai_level,
+      };
+
+      const { data: existing, error: checkError } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (checkError) throw checkError;
+
       if (existing) {
-        await supabase.from('profiles').update(form).eq('user_id', user.id);
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(editableFields)
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
       } else {
-        await supabase.from('profiles').insert({ ...form, user_id: user.id });
+        // If profile doesn't exist (shouldn't happen), we need to include required fields
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            ...editableFields,
+            user_id: user.id,
+            email: user.email,
+          });
+
+        if (insertError) throw insertError;
       }
       toast({ title: "Profil enregistré", description: "Vos informations ont été mises à jour" });
     } catch (e: any) {
+      console.error('Profile save error:', e);
       toast({ title: "Erreur", description: e.message ?? "Impossible d'enregistrer", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -741,8 +828,13 @@ const Profile = () => {
       const success = await leaveOrganization(user.id, activeOrganization.membershipId);
 
       if (success) {
-        // Réinitialiser l'état
+        // Réinitialiser l'état local
         setActiveOrganization(null);
+
+        // CRITICAL: Invalidate all React Query caches related to organization membership
+        // This ensures fresh data is fetched after reload instead of using stale cached data
+        queryClient.invalidateQueries({ queryKey: ['subscription', user.id] });
+        queryClient.invalidateQueries({ queryKey: ['user-organization-status', user.id] });
 
         // Recharger les données du profil pour refléter les changements
         setTimeout(() => {
@@ -829,22 +921,79 @@ const Profile = () => {
   const handleOrgCodeSuccess = async (organizationId: string, organizationName: string, code: string) => {
     if (!user) return;
 
-    // Stocker dans le localStorage pour persister entre les renders
-    // L'ajout à organization_members se fera lors de la soumission du formulaire
-    localStorage.setItem('validated_org_id', organizationId);
-    localStorage.setItem('validated_org_name', organizationName);
-    localStorage.setItem('validated_org_code', code);
+    // Check if profile is already complete
+    const profileComplete = !isProfileIncomplete && form.country && form.education_level && form.classes && form.subjects && form.subscription;
 
-    setValidatedOrgId(organizationId);
-    setValidatedOrgName(organizationName);
-    setValidatedOrgCode(code);
-    setOrganizationValidated(true);
+    if (profileComplete) {
+      // Profile is complete - create organization membership immediately
+      try {
+        const { data: existingMembership } = await supabase
+          .from('organization_members')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!existingMembership) {
+          const { error: memberError } = await supabase
+            .from('organization_members')
+            .insert({
+              organization_id: organizationId,
+              user_id: user.id,
+              status: 'pending',
+              role: 'student',
+              requested_at: new Date().toISOString(),
+            });
+
+          if (memberError) {
+            console.error('Error creating organization membership:', memberError);
+            toast({
+              title: "Erreur",
+              description: "Impossible de rejoindre l'organisation",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Demande envoyée !",
+              description: `Votre demande a été envoyée à ${organizationName}. Vous recevrez une notification une fois votre demande approuvée.`,
+            });
+
+            // Reload the page to update the UI
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          }
+        } else {
+          toast({
+            title: "Déjà membre",
+            description: "Vous faites déjà partie d'une organisation.",
+          });
+        }
+      } catch (error) {
+        console.error('Organization membership error:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de rejoindre l'organisation",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Profile is incomplete - store in localStorage for later (during profile completion)
+      localStorage.setItem('validated_org_id', organizationId);
+      localStorage.setItem('validated_org_name', organizationName);
+      localStorage.setItem('validated_org_code', code);
+
+      setValidatedOrgId(organizationId);
+      setValidatedOrgName(organizationName);
+      setValidatedOrgCode(code);
+      setOrganizationValidated(true);
+
+      toast({
+        title: "Code validé !",
+        description: `Complétez votre profil pour rejoindre ${organizationName}.`,
+      });
+    }
+
     setShowOrgCodeDialog(false);
-
-    toast({
-      title: "Code validé !",
-      description: `Complétez votre profil pour rejoindre ${organizationName}.`,
-    });
   };
 
   const handleOrgCodeSkip = () => {
@@ -856,26 +1005,19 @@ const Profile = () => {
     if (!user) return;
 
     try {
-      // Step 1: Delete all user data from database using RPC function
-      console.log('Step 1: Deleting user data from database...');
-      const { data: deleteResult, error: rpcError } = await supabase.rpc('delete_user_account');
+      // Call the delete-account Edge Function which handles:
+      // 1. Deleting all user data from database (via RPC function)
+      // 2. Deleting user files from storage
+      // 3. Deleting the auth user
+      console.log('🗑️ Deleting user account...');
 
-      if (rpcError) {
-        console.error('RPC Error:', rpcError);
-        throw new Error(`Failed to delete user data: ${rpcError.message}`);
-      }
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      console.log('User data deleted:', deleteResult);
-
-      // Step 2: Delete auth user and storage files using Edge Function
-      console.log('Step 2: Deleting auth account...');
-      const { data, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !data?.session) {
+      if (sessionError || !sessionData?.session) {
         throw new Error('No active session');
       }
 
-      const session = data.session;
+      const session = sessionData.session;
 
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/delete-account`,
@@ -891,12 +1033,12 @@ const Profile = () => {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to delete auth account');
+        throw new Error(result.error || 'Failed to delete account');
       }
 
-      console.log('Auth account deleted successfully');
+      console.log('✅ Account deleted successfully');
 
-      // Sign out (account is deleted, but let's clean up the local session)
+      // Sign out (account is already deleted, but let's clean up the local session)
       await supabase.auth.signOut();
 
       toast({
@@ -907,7 +1049,7 @@ const Profile = () => {
       // Redirect to auth page
       navigate('/auth');
     } catch (e: any) {
-      console.error('Error deleting account:', e);
+      console.error('❌ Error deleting account:', e);
       toast({
         title: "Erreur",
         description: e.message ?? "Impossible de supprimer le compte",
@@ -987,13 +1129,12 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Section profil normal (grisée uniquement si profil incomplet, pas si en attente) */}
-        <div className={isProfileIncomplete ? "opacity-50 pointer-events-none" : ""}>
+        {/* Section profil normal (seuls les onglets du profil sont grisés si incomplet) */}
         <Card className="border-border">
           <CardHeader>
             <CardTitle className="text-2xl">Mon profil</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className={isProfileIncomplete ? "opacity-50 pointer-events-none" : ""}>
             {/* Photo et nom utilisateur */}
             <div className="flex items-center space-x-4 mb-6 pb-6 border-b">
               <Avatar className="w-16 h-16">
@@ -1123,8 +1264,60 @@ const Profile = () => {
 
               {/* Onglet Abonnement */}
               <TabsContent value="subscription" className="space-y-6 mt-6">
-                {/* Message pour les membres d'organisation */}
-                {activeOrganization ? (
+                {/* Organization Admin (School/Company) - B2B Subscription Management */}
+                {(role === 'school' || role === 'company') ? (
+                  <>
+                    {adminOrganization ? (
+                      <>
+                        <OrganizationSubscriptionCard
+                          organizationId={adminOrganization.id}
+                          onManage={() => navigate(`/${role}/dashboard-organization`)}
+                        />
+                      </>
+                    ) : (
+                      /* No organization created yet - show message */
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-blue-500" />
+                            Abonnement Organisation
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-muted-foreground mb-4">
+                            Vous devez d'abord créer votre organisation pour souscrire à un abonnement.
+                          </p>
+                          <Button onClick={() => navigate(`/${role}/dashboard-organization`)}>
+                            Créer mon organisation
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                ) : /* Organization Member - Show benefits banner (CRITICAL: Check only isInOrganization to prevent showing SubscriptionCard during loading) */
+                isInOrganization ? (
+                  organization ? (
+                    <UserOrganizationBanner
+                      organizationName={organization.name}
+                    />
+                  ) : (
+                    /* Organization data still loading */
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardContent className="p-6">
+                        <div className="space-y-3 text-center">
+                          <div className="flex items-center justify-center gap-2 text-blue-900">
+                            <Building2 className="w-5 h-5" />
+                            <h3 className="text-lg font-semibold">Membre d'une organisation</h3>
+                          </div>
+                          <p className="text-blue-800">
+                            Chargement des informations de votre organisation...
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                ) : activeOrganization ? (
+                  /* Legacy organization check for backward compatibility */
                   <Card className="border-blue-200 bg-blue-50">
                     <CardContent className="p-6">
                       <div className="space-y-3 text-center">
@@ -1143,12 +1336,49 @@ const Profile = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <SubscriptionCard />
+                  /* Individual User - B2C Subscription */
+                  <>
+                    {/* Option to join an organization (for students only) */}
+                    {role === 'student' && !pendingOrgApproval && !activeOrganization && (
+                      <Card className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="w-5 h-5 text-blue-600" />
+                                <h3 className="text-lg font-semibold text-blue-900">Vous faites partie d'une organisation ?</h3>
+                              </div>
+                              <p className="text-sm text-blue-700">
+                                Rejoignez votre école ou entreprise pour bénéficier de leurs avantages :
+                              </p>
+                              <ul className="text-sm text-blue-600 space-y-1 ml-6 list-disc">
+                                <li>Cours illimités</li>
+                                <li>30 exercices par mois</li>
+                                <li>30 fiches de révision par mois</li>
+                                <li>60 minutes IA par mois</li>
+                              </ul>
+                            </div>
+                            <Button
+                              onClick={() => setShowOrgCodeDialog(true)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+                            >
+                              <Building2 className="w-4 h-4 mr-2" />
+                              Rejoindre une organisation
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <SubscriptionCard />
+                  </>
                 )}
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Security and Account Management sections - Always accessible even with incomplete profile */}
 
         {/* Section Styles d'apprentissage - affichée uniquement si pas complété et pas d'infos ET pas une organisation ET pas en attente d'approbation */}
         {!roleLoading && role !== 'school' && role !== 'company' && !pendingOrgApproval && !form.learning_styles_completed && (!profilesInfos || !Object.values(profilesInfos).some(value => value)) && (
@@ -1523,8 +1753,6 @@ const Profile = () => {
           onClose={() => setShowRoleChangeDialog(false)}
           currentRole={role || 'student'}
         />
-        </div>
-        {/* Fin de la section profil normal */}
         </div>
       </div>
 

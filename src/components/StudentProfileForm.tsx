@@ -12,6 +12,10 @@ import { Loader2, AlertCircle, Check, Upload, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PlanDetailsDialog } from '@/components/subscription/PlanDetailsDialog';
+import { UnsubscribeConfirmDialog } from '@/components/subscription/UnsubscribeConfirmDialog';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useSearchParams } from 'react-router-dom';
+import { clearCheckoutSession } from '@/lib/checkoutSession';
 
 interface StudentProfileFormProps {
   onComplete: () => void;
@@ -67,6 +71,10 @@ export const StudentProfileForm = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Use the subscription hook to get real-time subscription data
+  const { subscription: userSubscription, refetch: refetchSubscription, isLoading: subscriptionLoading } = useSubscription();
 
   // États pour informations générales
   const [country, setCountry] = useState('');
@@ -83,10 +91,11 @@ export const StudentProfileForm = ({
   const [classes, setClasses] = useState('');
   const [subjects, setSubjects] = useState('');
 
-  // État pour l'abonnement
-  const [subscription, setSubscription] = useState('basic');
+  // État pour l'abonnement - Use subscription from hook instead of local state
+  const subscription = userSubscription?.plan || 'basic';
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<'premium' | 'pro'>('premium');
+  const [showUnsubscribeDialog, setShowUnsubscribeDialog] = useState(false);
 
   // États pour la validation du code d'organisation
   const [organizationValidated, setOrganizationValidated] = useState<boolean>(false);
@@ -103,12 +112,59 @@ export const StudentProfileForm = ({
     setValidatedOrgName(orgName);
   };
 
+  // Get button color based on plan (same logic as PlanSelectionCards)
+  const getButtonColor = (planId: string) => {
+    const plan = subscriptions.find(s => s.id === planId);
+    if (!plan) return '';
+
+    // For premium plans, use blue
+    if (planId === 'premium') return 'bg-blue-600 hover:bg-blue-700';
+    // For pro plans, use purple
+    if (planId === 'pro') return 'bg-purple-600 hover:bg-purple-700';
+    return '';
+  };
+
+  // Get button text based on current plan and target plan (same logic as PlanSelectionCards)
+  const getButtonText = (planId: string) => {
+    // Current plan
+    if (planId === subscription) {
+      return 'Plan actuel';
+    }
+
+    // Downgrade to basic
+    if (subscription !== 'basic' && planId === 'basic') {
+      return 'Se désabonner';
+    }
+
+    // Upgrade from basic
+    if (subscription === 'basic' && planId !== 'basic') {
+      return 'Souscrire';
+    }
+
+    // Upgrade from premium to pro
+    if (subscription === 'premium' && planId === 'pro') {
+      return 'Passer à Pro';
+    }
+
+    // Downgrade from pro to premium
+    if (subscription === 'pro' && planId === 'premium') {
+      return 'Passer à Premium';
+    }
+
+    return 'Choisir';
+  };
+
   const handlePlanClick = (sub: typeof subscriptions[0]) => {
-    if (sub.price === "Gratuit") {
-      // Free plan: just select it
-      setSubscription(sub.id);
-    } else {
-      // Paid plan: open upgrade dialog
+    // If clicking on current plan, do nothing
+    if (sub.id === subscription) {
+      return;
+    }
+
+    // If downgrading to basic, show confirmation dialog
+    if (subscription !== 'basic' && sub.id === 'basic') {
+      setShowUnsubscribeDialog(true);
+    } else if (sub.id !== 'basic') {
+      // For all paid plans (upgrades and downgrades)
       setSelectedPlanForUpgrade(sub.id as 'premium' | 'pro');
       setShowUpgradeDialog(true);
     }
@@ -123,14 +179,56 @@ export const StudentProfileForm = ({
     setProfilePhoto(null);
   };
 
-  // Charger les données existantes au montage du composant
+  // Handle Stripe checkout return (success/cancel)
+  useEffect(() => {
+    const checkoutStatus = searchParams.get('checkout');
+    const purchaseType = searchParams.get('type');
+
+    if (checkoutStatus) {
+      if (checkoutStatus === 'success') {
+        clearCheckoutSession();
+
+        if (purchaseType === 'subscription') {
+          toast({
+            title: "Paiement réussi!",
+            description: "Votre abonnement a été mis à jour avec succès.",
+          });
+        }
+
+        // Remove the query parameters from URL
+        searchParams.delete('checkout');
+        searchParams.delete('type');
+        setSearchParams(searchParams, { replace: true });
+
+        // Refetch subscription data to get the updated plan
+        setTimeout(() => {
+          refetchSubscription();
+        }, 2000);
+      } else if (checkoutStatus === 'canceled') {
+        clearCheckoutSession();
+
+        toast({
+          title: "Paiement annulé",
+          description: "Vous avez annulé le processus de paiement.",
+          variant: "default",
+        });
+
+        // Remove the query parameters from URL
+        searchParams.delete('checkout');
+        searchParams.delete('type');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, setSearchParams, toast, refetchSubscription]);
+
+  // Charger les données existantes au montage du composant (subscription is loaded by useSubscription hook)
   useEffect(() => {
     const loadExistingData = async () => {
       if (!user) return;
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('country, city, postal_code, link_code, education_level, classes, subjects, subscription, ai_level, ent')
+        .select('country, city, postal_code, link_code, education_level, classes, subjects, ai_level, ent')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -142,7 +240,6 @@ export const StudentProfileForm = ({
         setEducationLevel(data.education_level || '');
         setClasses(data.classes || '');
         setSubjects(data.subjects || '');
-        setSubscription(data.subscription || 'basic');
         setAiLevel(data.ai_level || '');
         setEnt(data.ent || '');
       }
@@ -239,7 +336,7 @@ export const StudentProfileForm = ({
         throw profileError;
       }
 
-      // Si rejoint via code : ajouter le membre à l'organisation avec statut 'pending'
+      // Si rejoint via code : vérifier les prérequis puis ajouter le membre à l'organisation avec statut 'pending'
       if (joinedViaCode && organizationId) {
         const { data: existingMembership } = await supabase
           .from('organization_members')
@@ -248,7 +345,40 @@ export const StudentProfileForm = ({
           .maybeSingle();
 
         if (!existingMembership) {
-          // Récupérer l'abonnement B2C existant pour le sauvegarder
+          // CRITICAL: Check if organization can accept new members BEFORE creating request
+          // 1. Check if org has purchased seats
+          const { data: org, error: orgError } = await supabase
+            .from('organizations')
+            .select('seat_limit, active_members_count')
+            .eq('id', organizationId)
+            .single();
+
+          if (orgError || !org) {
+            console.error('Error fetching organization:', orgError);
+            throw new Error('Impossible de vérifier les informations de l\'organisation');
+          }
+
+          // Check if organization has purchased any seats
+          if (!org.seat_limit || org.seat_limit === 0) {
+            throw new Error(
+              `L'organisation ${organizationName || 'sélectionnée'} n'a pas encore acheté de sièges. ` +
+              'Contactez l\'administrateur de l\'organisation pour qu\'il achète des sièges avant de pouvoir rejoindre.'
+            );
+          }
+
+          // 2. Check if org has capacity (seats available)
+          const currentMembers = org.active_members_count || 0;
+          const seatLimit = org.seat_limit || 0;
+
+          if (currentMembers >= seatLimit) {
+            throw new Error(
+              `L'organisation ${organizationName || 'sélectionnée'} a atteint sa capacité maximale ` +
+              `(${currentMembers}/${seatLimit} membres). ` +
+              'L\'organisation doit acheter plus de sièges pour accepter de nouveaux membres.'
+            );
+          }
+
+          // All checks passed - Retrieve existing B2C subscription to save it
           const { data: currentSubscription } = await supabase
             .from('user_subscriptions')
             .select('plan, stripe_subscription_id')
@@ -263,13 +393,14 @@ export const StudentProfileForm = ({
             requested_at: new Date().toISOString(),
           };
 
-          // Sauvegarder le plan actuel si ce n'est pas le plan basique par défaut
+          // Save current plan if it's not the default basic plan
           if (currentSubscription && currentSubscription.plan !== 'basic') {
             memberData.previous_subscription_plan = currentSubscription.plan;
             memberData.previous_stripe_subscription_id = currentSubscription.stripe_subscription_id;
             console.log(`Saving previous subscription: ${currentSubscription.plan}`);
           }
 
+          // Create pending membership request
           const { error: memberError } = await supabase
             .from('organization_members')
             .insert(memberData);
@@ -565,29 +696,46 @@ export const StudentProfileForm = ({
               </div>
             </div>
             <div className="px-6 py-6">
-              <div className="space-y-4">
+              {subscriptionLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-3 text-muted-foreground">Chargement de votre abonnement...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
                   <div className="mb-4">
                     <Label>
                       Type d'abonnement <span className="text-red-500">*</span>
                     </Label>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {subscriptions.map((sub) => (
+                    {subscriptions.map((sub) => {
+                      const isCurrentPlan = subscription === sub.id;
+
+                      return (
                       <Card
                       key={sub.id}
                       className={cn(
                         "rounded-lg hover:shadow-lg transition-all duration-300 border-2 relative cursor-pointer",
-                        subscription === sub.id
-                          ? 'border-primary bg-primary/5 shadow-lg'
+                        isCurrentPlan
+                          ? 'border-green-500 bg-green-50/50 shadow-lg'
                           : 'border-slate-200 hover:border-primary/50',
-                        sub.popular && "ring-2 ring-primary/20"
+                        sub.popular && !isCurrentPlan && "ring-2 ring-primary/20"
                       )}
                       onClick={() => handlePlanClick(sub)}
                     >
-                      {sub.popular && (
+                      {sub.popular && !isCurrentPlan && (
                         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                           <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
                             Populaire
+                          </span>
+                        </div>
+                      )}
+
+                      {isCurrentPlan && (
+                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                          <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                            Plan actuel
                           </span>
                         </div>
                       )}
@@ -627,25 +775,25 @@ export const StudentProfileForm = ({
 
                         <Button
                           type="button"
-                          variant={subscription === sub.id ? "default" : "outline"}
-                          className="w-full"
+                          variant={sub.id === 'basic' && subscription !== 'basic' ? "destructive" : "default"}
+                          className={`w-full ${sub.id !== 'basic' && !isCurrentPlan ? getButtonColor(sub.id) : ''}`}
+                          disabled={isCurrentPlan}
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePlanClick(sub);
                           }}
                         >
-                          {sub.price === "Gratuit"
-                            ? (subscription === sub.id ? "Sélectionné" : "Choisir")
-                            : "Souscrire"
-                          }
+                          {getButtonText(sub.id)}
                         </Button>
                       </CardContent>
                     </Card>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
+          </div>
         )}
 
         {/* Message d'information si rejoint via code */}
@@ -699,6 +847,13 @@ export const StudentProfileForm = ({
         open={showUpgradeDialog}
         onClose={() => setShowUpgradeDialog(false)}
         plan={selectedPlanForUpgrade}
+      />
+
+      {/* Unsubscribe Confirmation Dialog */}
+      <UnsubscribeConfirmDialog
+        open={showUnsubscribeDialog}
+        onClose={() => setShowUnsubscribeDialog(false)}
+        currentPlan={subscription as 'basic' | 'premium' | 'pro'}
       />
     </div>
   );

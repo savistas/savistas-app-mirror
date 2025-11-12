@@ -35,6 +35,7 @@ import ResetPassword from "./pages/ResetPassword";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProfileCompletionGuard } from "./components/ProfileCompletionGuard";
 import Layout from "./components/Layout";
+import { MaintenanceModal } from "./components/MaintenanceModal";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <MaintenanceModal />
       <BrowserRouter>
         <ProfileCompletionGuard>
           <Routes>

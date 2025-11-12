@@ -11,14 +11,12 @@ import { Check, Crown, Bot, Loader2, X } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckoutLoadingModal } from "./CheckoutLoadingModal";
-import { saveCheckoutSession } from "@/lib/checkoutSession";
-
 
 interface UpgradeDialogProps {
   open: boolean;
   onClose: () => void;
   currentPlan: 'basic' | 'premium' | 'pro';
+  showOnlyAIMinutes?: boolean;
 }
 
 const PRICE_IDS = {
@@ -29,15 +27,18 @@ const PRICE_IDS = {
   ai_60min: 'price_1SNu5g37eeTawvFRdsQ1vIYp',
 };
 
-export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps) => {
+export const UpgradeDialog = ({ open, onClose, currentPlan, showOnlyAIMinutes = false }: UpgradeDialogProps) => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [showLoadingModal, setShowLoadingModal] = useState(false);
-  const [checkoutSessionId, setCheckoutSessionId] = useState<string | undefined>();
-  const [stripeWindowRef, setStripeWindowRef] = useState<Window | null>(null);
+  const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
+
+  // Reset loading state when dialog closes
+  const handleClose = () => {
+    setLoadingPriceId(null);
+    onClose();
+  };
 
   const handleUpgrade = async (priceId: string, mode: 'subscription' | 'payment') => {
-    setLoading(true);
+    setLoadingPriceId(priceId);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -47,11 +48,12 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
       }
 
       // Call Edge Function to create checkout session
+      const purchaseType = mode === 'payment' ? 'ai_minutes' : 'subscription';
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId,
           mode,
-          successUrl: `${window.location.origin}/profile?checkout=success`,
+          successUrl: `${window.location.origin}/profile?checkout=success&type=${purchaseType}`,
           cancelUrl: `${window.location.origin}/profile?checkout=canceled`,
         },
       });
@@ -61,40 +63,10 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
         throw error;
       }
 
-      // Open Stripe Checkout
-      if (data.checkoutUrl && data.sessionId) {
-        // Save checkout session to localStorage
-        saveCheckoutSession({
-          sessionId: data.sessionId,
-          priceId,
-          plan: mode === 'subscription' ? (priceId === PRICE_IDS.premium ? 'premium' : 'pro') : 'ai_minutes',
-        });
+      // Redirect to Stripe Checkout in same tab
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
 
-        // Store session ID for the loading modal
-        setCheckoutSessionId(data.sessionId);
-
-        // Open Stripe Checkout in new tab
-        const stripeWindow = window.open(data.checkoutUrl, '_blank');
-
-        if (!stripeWindow) {
-          toast({
-            title: 'Pop-ups bloqués',
-            description: 'Veuillez autoriser les pop-ups pour continuer vers le paiement',
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-
-        // Store the window reference
-        setStripeWindowRef(stripeWindow);
-
-        // Close the upgrade dialog
-        onClose();
-
-        // Show the loading modal immediately
-        setShowLoadingModal(true);
-        setLoading(false);
       }
     } catch (error: any) {
       console.error('Error:', error);
@@ -103,24 +75,16 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
         description: error.message || 'Une erreur est survenue lors de la création de la session de paiement',
         variant: 'destructive',
       });
-
-    } finally {
-      setLoading(false);
+      setLoadingPriceId(null);
     }
-  };
-
-  const handleCloseLoadingModal = () => {
-    setShowLoadingModal(false);
-    setCheckoutSessionId(undefined);
-    setStripeWindowRef(null);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="w-[90%] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10"
           >
             <X className="h-5 w-5" />
@@ -128,16 +92,29 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
           </button>
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
-              <Crown className="w-6 h-6 text-yellow-500" />
-              Améliorer mon abonnement
+              {showOnlyAIMinutes ? (
+                <>
+                  <Bot className="w-6 h-6 text-orange-500" />
+                  Acheter des minutes Avatar IA
+                </>
+              ) : (
+                <>
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                  Améliorer mon abonnement
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Choisissez le plan qui correspond à vos besoins ou achetez des minutes supplémentaires pour l'avatar IA
+              {showOnlyAIMinutes
+                ? "Achetez des minutes supplémentaires pour utiliser l'avatar IA. Les minutes n'expirent jamais."
+                : "Choisissez le plan qui correspond à vos besoins ou achetez des minutes supplémentaires pour l'avatar IA"
+              }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
             {/* Subscription Plans */}
+            {!showOnlyAIMinutes && (
             <div>
               <h3 className="font-semibold text-lg mb-4">Plans d'abonnement</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -178,13 +155,13 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
 
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.premium, 'subscription')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         className="w-full"
                       >
-                        {loading ? (
+                        {loadingPriceId === PRICE_IDS.premium ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Chargement...
+                            Redirection vers Stripe...
                           </>
                         ) : (
                           'Passer à Premium'
@@ -228,13 +205,13 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
 
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.pro, 'subscription')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         className="w-full bg-purple-600 hover:bg-purple-700"
                       >
-                        {loading ? (
+                        {loadingPriceId === PRICE_IDS.pro ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Chargement...
+                            Redirection vers Stripe...
                           </>
                         ) : (
                           'Passer à Pro'
@@ -245,17 +222,21 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
                 )}
               </div>
             </div>
+            )}
 
-            {/* AI Minutes Packs */}
-            {(currentPlan === 'premium' || currentPlan === 'pro') && (
-              <div>
-                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-orange-500" />
-                  Minutes Avatar IA supplémentaires
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Les minutes achetées s'accumulent et n'expirent jamais
-                </p>
+            {/* AI Minutes Packs - Available for all plans */}
+            <div>
+                {!showOnlyAIMinutes && (
+                  <>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                      <Bot className="w-5 h-5 text-orange-500" />
+                      Minutes Avatar IA supplémentaires
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Les minutes achetées s'accumulent et n'expirent jamais
+                    </p>
+                  </>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* 10 minutes */}
@@ -268,12 +249,15 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
                       <p className="text-3xl font-bold text-orange-600">5€</p>
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.ai_10min, 'payment')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         variant="outline"
                         className="w-full"
                       >
-                        {loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {loadingPriceId === PRICE_IDS.ai_10min ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Redirection...
+                          </>
                         ) : (
                           'Acheter'
                         )}
@@ -291,11 +275,14 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
                       <p className="text-3xl font-bold text-orange-600">15€</p>
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.ai_30min, 'payment')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         className="w-full bg-orange-600 hover:bg-orange-700"
                       >
-                        {loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {loadingPriceId === PRICE_IDS.ai_30min ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Redirection...
+                          </>
                         ) : (
                           'Acheter'
                         )}
@@ -313,12 +300,15 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
                       <p className="text-3xl font-bold text-orange-600">20€</p>
                       <Button
                         onClick={() => handleUpgrade(PRICE_IDS.ai_60min, 'payment')}
-                        disabled={loading}
+                        disabled={loadingPriceId !== null}
                         variant="outline"
                         className="w-full"
                       >
-                        {loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {loadingPriceId === PRICE_IDS.ai_60min ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Redirection...
+                          </>
                         ) : (
                           'Acheter'
                         )}
@@ -326,11 +316,10 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
                     </div>
                   </Card>
                 </div>
-              </div>
-            )}
+            </div>
 
             {/* Current plan message */}
-            {currentPlan === 'pro' && (
+            {!showOnlyAIMinutes && currentPlan === 'pro' && (
               <div className="text-center text-muted-foreground">
                 <p className="text-sm">Vous êtes déjà sur le plan Pro, le plus complet!</p>
               </div>
@@ -338,14 +327,6 @@ export const UpgradeDialog = ({ open, onClose, currentPlan }: UpgradeDialogProps
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Checkout Loading Modal - Moved outside Dialog to prevent unmounting */}
-      <CheckoutLoadingModal
-        open={showLoadingModal}
-        onClose={handleCloseLoadingModal}
-        sessionId={checkoutSessionId}
-        stripeWindow={stripeWindowRef}
-      />
     </>
   );
 };

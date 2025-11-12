@@ -64,10 +64,24 @@ const PLAN_LIMITS: Record<'basic' | 'premium' | 'pro' | 'organization', Subscrip
   },
 };
 
+// B2B Organization limits (per-student benefits)
+// All B2B plans (PRO, MAX, ULTRA) provide the same per-student limits
+const B2B_MEMBER_LIMITS: SubscriptionLimits = {
+  courses: 999999, // Unlimited courses
+  exercises: 30,
+  fiches: 30,
+  aiMinutes: 60,
+  maxDaysPerCourse: 10,
+};
+
 /**
  * Hook to get user subscription information and limits
  *
- * @returns Subscription data, limits, and loading state
+ * PRIORITY: Checks organization membership first
+ * - If user is an active organization member, returns B2B limits
+ * - Otherwise, returns individual subscription limits
+ *
+ * @returns Subscription data, limits, loading state, and organization membership info
  */
 export function useSubscription() {
   const { user } = useAuth();
@@ -79,36 +93,19 @@ export function useSubscription() {
         throw new Error('User not authenticated');
       }
 
-      // Check if user is an active member of an organization (not removed, rejected, or pending)
-      const { data: organizationMembership, error: orgError } = await supabase
+      // STEP 1: Check if user is an active organization member
+      const { data: orgMembership, error: orgError } = await supabase
         .from('organization_members')
-        .select('id, status, organization_id, previous_subscription_plan')
+        .select('organization_id, status')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .maybeSingle();
 
-      if (!orgError && organizationMembership) {
-        // User is an active organization member - return unlimited plan
-        console.log('User is organization member, applying unlimited limits');
-        return {
-          id: `org-${organizationMembership.id}`,
-          user_id: user.id,
-          stripe_customer_id: null,
-          stripe_subscription_id: null,
-          plan: 'organization' as const,
-          status: 'active' as const,
-          current_period_start: new Date().toISOString(),
-          current_period_end: null,
-          cancel_at_period_end: false,
-          canceled_at: null,
-          ai_minutes_purchased: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_organization_member: true,
-        } as UserSubscription;
+      if (orgError) {
+        console.error('Error checking organization membership:', orgError);
       }
 
-      // Get user subscription (maybeSingle returns null if no rows, instead of error)
+      // STEP 2: Get user subscription (maybeSingle returns null if no rows, instead of error)
       const { data: subscription, error: subError } = await supabase
         .from('user_subscriptions')
         .select('*')
@@ -120,7 +117,7 @@ export function useSubscription() {
         throw subError;
       }
 
-      // If no subscription exists, create a basic one
+      // STEP 3: If no subscription exists, create a basic one
       if (!subscription) {
         console.log('No subscription found, creating Basic plan for user:', user.id);
         const { data: newSub, error: createError } = await supabase
@@ -140,31 +137,45 @@ export function useSubscription() {
           throw createError;
         }
 
-        return newSub as UserSubscription;
+        return {
+          subscription: newSub as UserSubscription,
+          isOrganizationMember: !!orgMembership,
+          organizationId: orgMembership?.organization_id || null,
+        };
       }
 
-      return subscription as UserSubscription;
+      return {
+        subscription: subscription as UserSubscription,
+        isOrganizationMember: !!orgMembership,
+        organizationId: orgMembership?.organization_id || null,
+      };
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Calculate limits based on plan and purchased minutes
+  // Calculate limits based on organization membership OR individual plan
   const limits: SubscriptionLimits | null = data
-    ? {
-        ...PLAN_LIMITS[data.plan],
-        aiMinutes:
-          data.plan === 'basic'
-            ? PLAN_LIMITS.basic.aiMinutes + data.ai_minutes_purchased
-            : data.ai_minutes_purchased,
-      }
+    ? data.isOrganizationMember
+      ? // User is in an organization: use B2B limits
+        { ...B2B_MEMBER_LIMITS }
+      : // User has individual subscription: use plan limits
+        {
+          ...PLAN_LIMITS[data.subscription.plan],
+          aiMinutes:
+            data.subscription.plan === 'basic'
+              ? PLAN_LIMITS.basic.aiMinutes + data.subscription.ai_minutes_purchased
+              : data.subscription.ai_minutes_purchased,
+        }
     : null;
 
   return {
-    subscription: data || null,
+    subscription: data?.subscription || null,
     limits,
     isLoading,
     error,
     refetch,
+    isOrganizationMember: data?.isOrganizationMember || false,
+    organizationId: data?.organizationId || null,
   };
 }

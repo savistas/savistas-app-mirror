@@ -25,7 +25,7 @@ const UploadCourse = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { subscription } = useSubscription();
-  const { canCreate, getLimitInfo } = useUsageLimits();
+  const { canCreate, getLimitInfo, remaining } = useUsageLimits();
   const [step, setStep] = useState(1);
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -85,7 +85,24 @@ const UploadCourse = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (selectedFiles) {
-      setFiles((prevFiles) => [...prevFiles, ...Array.from(selectedFiles)]);
+      const newFiles = Array.from(selectedFiles);
+      const totalFiles = files.length + newFiles.length;
+
+      if (totalFiles > 5) {
+        const remainingSlots = 5 - files.length;
+        toast({
+          title: "Limite atteinte",
+          description: `Vous ne pouvez ajouter que 5 fichiers maximum par cours. ${remainingSlots > 0 ? `Il vous reste ${remainingSlots} emplacement${remainingSlots > 1 ? 's' : ''}.` : ''}`,
+          variant: "destructive"
+        });
+
+        // Add only the files that fit within the limit
+        if (remainingSlots > 0) {
+          setFiles((prevFiles) => [...prevFiles, ...newFiles.slice(0, remainingSlots)]);
+        }
+      } else {
+        setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+      }
       setStep(2);
     }
   };
@@ -223,48 +240,68 @@ const UploadCourse = () => {
       if (finalCourseId && user.id) {
         setShowLoader(true); // Show loader
         try {
-          // Choose webhook based on whether course content already exists
-          const webhookUrl = hasExistingContent
-            ? "https://n8n.srv932562.hstgr.cloud/webhook/upload-course-with-content-ok"
-            : "https://n8n.srv932562.hstgr.cloud/webhook/gneration-cours-savistas";
-
-          const webhookPayload: any = {
-            course_id: String(finalCourseId), // Ensure course_id is a string
-            user_id: String(user.id),   // Ensure user_id is a string
-            qcm_per_day: formData.qcmPerDay, // Include QCM per day
+          // Prepare payload for Edge Function (proxy to n8n webhook)
+          const payload: any = {
+            course_id: String(finalCourseId),
+            user_id: String(user.id),
+            qcm_per_day: formData.qcmPerDay,
+            hasExistingContent: hasExistingContent,
           };
 
           // Add document_id if it exists (for standalone documents)
           if (prefilledDocumentId) {
-            webhookPayload.document_id = String(prefilledDocumentId);
+            payload.document_id = String(prefilledDocumentId);
           }
 
-          const response = await fetch(webhookUrl, {
-            method: "POST",
+          console.log('Calling Edge Function with payload:', payload);
+
+          // Get session token for the request
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            throw new Error("Non connecté");
+          }
+
+          // Call Edge Function directly with fetch to get better error messages
+          const functionUrl = `${supabase.supabaseUrl}/functions/v1/trigger-course-generation`;
+          const response = await fetch(functionUrl, {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
             },
-            body: JSON.stringify(webhookPayload),
+            body: JSON.stringify(payload),
           });
 
+          const responseData = await response.json();
+          console.log('Edge Function full response:', { status: response.status, data: responseData });
+
           if (!response.ok) {
-            throw new Error(`Webhook error: ${response.statusText}`);
+            const errorMsg = responseData?.error || `Erreur ${response.status}`;
+            console.error('Edge Function error:', errorMsg);
+            throw new Error(errorMsg);
           }
 
-          const webhookResponse = await response.json();
-          const courseIdFromWebhook = webhookResponse.id_course;
+          if (!responseData?.success) {
+            const errorMsg = responseData?.error || "Erreur inconnue lors de la génération";
+            console.error('Edge Function returned error:', errorMsg);
+            throw new Error(errorMsg);
+          }
+
+          const functionData = responseData;
+
+          const courseIdFromWebhook = functionData.course_id;
 
           if (courseIdFromWebhook) {
-            toast({ title: "Webhook envoyé", description: "Les exercices sont en cours de génération." });
+            toast({ title: "Génération lancée", description: "Les exercices sont en cours de génération." });
             navigate(`/courses/${courseIdFromWebhook}`);
           } else {
-            toast({ title: "Webhook envoyé", description: "Les exercices sont en cours de génération, mais l'ID du cours n'a pas été reçu du webhook." });
-            navigate("/planning"); // Fallback if id_course is not in webhook response
+            toast({ title: "Génération lancée", description: "Les exercices sont en cours de génération." });
+            navigate("/planning");
           }
         } catch (webhookError: any) {
-          console.error("Webhook error:", webhookError);
-          toast({ title: "Erreur Webhook", description: webhookError?.message ?? "Échec de l'envoi au webhook.", variant: "destructive" });
-          navigate("/planning"); // Navigate to planning on webhook error
+          console.error("Course generation error:", webhookError);
+          toast({ title: "Erreur de génération", description: webhookError?.message ?? "Échec du démarrage de la génération.", variant: "destructive" });
+          // Don't navigate away on error so user can see the error and retry
         } finally {
           setShowLoader(false); // Hide loader
         }
@@ -379,7 +416,12 @@ const UploadCourse = () => {
 
                 {!prefilledFileUrl && files.length > 0 && (
                   <div className="space-y-2">
-                    <Label>Fichiers ajoutés</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Fichiers ajoutés</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {files.length}/5 fichiers
+                      </span>
+                    </div>
                     <ul className="space-y-1">
                       {files.map((file, index) => (
                         <li key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
@@ -399,8 +441,10 @@ const UploadCourse = () => {
                       variant="outline"
                       className="w-full mt-2"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={files.length >= 5}
                     >
-                      <Plus className="w-4 h-4 mr-2" /> Ajouter un autre cours
+                      <Plus className="w-4 h-4 mr-2" />
+                      {files.length >= 5 ? "Limite atteinte (5 fichiers max)" : "Ajouter un autre fichier"}
                     </Button>
                   </div>
                 )}
@@ -434,21 +478,36 @@ const UploadCourse = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="qcm-days">Nombre de jours d'exercices (1 à 10)</Label>
-                  <div className="flex items-center gap-4">
-                    <Slider
-                      value={[formData.days]}
-                      onValueChange={(v) => setFormData({ ...formData, days: v[0] })}
-                      min={1}
-                      max={10}
-                      step={1}
-                      aria-label="Nombre de jours d'exercices"
-                      className="w-full"
-                    />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formData.days} {formData.days > 1 ? "jours" : "jour"}
-                    </span>
-                  </div>
+                  <Label htmlFor="qcm-days">Nombre de jours d'exercices</Label>
+                  {remaining && remaining.exercises > 0 ? (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <Slider
+                          value={[Math.min(formData.days, Math.min(10, remaining.exercises))]}
+                          onValueChange={(v) => setFormData({ ...formData, days: v[0] })}
+                          min={1}
+                          max={Math.min(10, remaining.exercises)}
+                          step={1}
+                          aria-label="Nombre de jours d'exercices"
+                          className="w-full"
+                        />
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {Math.min(formData.days, Math.min(10, remaining.exercises))} {Math.min(formData.days, Math.min(10, remaining.exercises)) > 1 ? "jours" : "jour"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Il vous reste <strong>{remaining.exercises} exercice{remaining.exercises > 1 ? 's' : ''}</strong> ce mois-ci (max. {Math.min(10, remaining.exercises)} jours pour ce cours)
+                      </p>
+                    </>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <p className="text-sm text-orange-800">
+                        ⚠️ Vous avez atteint votre limite d'exercices pour ce mois-ci.
+                        {subscription?.plan === 'basic' && ' Passez à Premium pour créer jusqu\'à 10 exercices par mois.'}
+                        {subscription?.plan === 'premium' && ' Passez à Pro pour créer jusqu\'à 30 exercices par mois.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -469,12 +528,12 @@ const UploadCourse = () => {
                   </div>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleCreate}
-                  disabled={creating}
+                  disabled={creating || (remaining?.exercises === 0)}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-6"
                 >
-                  {creating ? "Création..." : "Créer"}
+                  {creating ? "Création..." : remaining?.exercises === 0 ? "Limite atteinte" : "Créer"}
                 </Button>
               </CardContent>
             </Card>

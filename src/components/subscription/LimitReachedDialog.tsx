@@ -49,7 +49,7 @@ export const LimitReachedDialog = ({
   const resourceIcon = RESOURCE_ICONS[resourceType];
 
   const getUpgradeMessage = () => {
-    if (resourceType === 'ai_minutes' && currentPlan !== 'basic') {
+    if (resourceType === 'ai_minutes') {
       return {
         title: 'Minutes avatar IA épuisées',
         description: `Vous avez utilisé toutes vos ${limit} minutes disponibles ce mois-ci. Vous pouvez acheter des packs de minutes supplémentaires qui ne s'expireront jamais.`,

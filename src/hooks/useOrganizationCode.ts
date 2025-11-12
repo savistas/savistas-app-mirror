@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface UseOrganizationCodeReturn {
   validateCode: (code: string) => Promise<{ organizationId: string; organizationName: string } | null>;
-  joinOrganization: (userId: string, organizationId: string) => Promise<boolean>;
   isValidating: boolean;
   error: string | null;
   clearError: () => void;

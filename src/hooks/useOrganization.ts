@@ -14,6 +14,9 @@ interface Organization {
   website: string | null;
   validated_at: string | null;
   validated_by: string | null;
+  // B2B seat-based billing fields
+  active_members_count: number;
+  seat_limit: number | null;
 }
 
 export const useOrganization = () => {

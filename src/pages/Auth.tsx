@@ -151,7 +151,7 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast({
         title: "Erreur",
@@ -173,6 +173,29 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Vérifier si l'email existe déjà dans la base de données
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', formData.email.toLowerCase())
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Erreur lors de la vérification de l'email:", checkError);
+      }
+
+      if (existingProfile) {
+        toast({
+          title: "Compte existant",
+          description: "Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse email.",
+          variant: "destructive",
+        });
+        setActiveTab("signin");
+        handleInputChange('email', formData.email);
+        setLoading(false);
+        return;
+      }
+
       // Préparer les données utilisateur pour l'inscription
       const userData = {
         full_name: formData.fullName,
