@@ -4,8 +4,8 @@
  */
 
 import { useCallback, useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Mic, Phone, MessageSquare, History, Clock, AlertCircle, Bot } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Mic, Phone, MessageSquare, History, Clock, Bot, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +14,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { analyzeLearningStyles } from '@/services/learningStylesAnalyzer';
@@ -45,6 +52,7 @@ export default function ProfesseurParticulierVirtuel() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Fetch des données
   const { data: courses = [], isLoading: isLoadingCourses, error: coursesError } = useUserCourses(user?.id);
@@ -68,6 +76,7 @@ export default function ProfesseurParticulierVirtuel() {
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
   const [isPrefilledFromUrl, setIsPrefilledFromUrl] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(true);
 
   // Traiter les paramètres URL au chargement
   useEffect(() => {
@@ -775,6 +784,29 @@ export default function ProfesseurParticulierVirtuel() {
         currentPlan={subscription || 'basic'}
         showOnlyAIMinutes={true}
       />
+
+      {/* Dialog de maintenance */}
+      <Dialog open={showMaintenanceDialog}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-orange-100 rounded-full">
+                <AlertCircle className="h-6 w-6 text-orange-600" />
+              </div>
+              <DialogTitle className="text-xl">En maintenance</DialogTitle>
+            </div>
+            <DialogDescription className="text-base pt-2">
+              Cette fonctionnalité est actuellement en cours de maintenance.
+              Nous travaillons activement pour la rétablir dans les plus brefs délais.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => navigate('/dashboard')}>
+              J'ai compris
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </>
   );

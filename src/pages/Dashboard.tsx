@@ -389,6 +389,7 @@ const Dashboard = () => {
         .from('courses')
         .select('id,title,subject,cover_url,file_url,created_at') // Supprimé 'level'
         .eq('user_id', user.id)
+        .or('type.is.null,type.neq.fiche_revision') // Exclure les "cours" de type fiche_revision
         .order('created_at', { ascending: false });
       if (!error && data) setCourses(data as Course[]);
       setLoadingCourses(false);

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RevisionSheetGenerationOptions } from '@/types/revisionSheet';
 import { updateCourseRevisionStatus } from '@/services/revisionSheetService';
+import { incrementUsage } from '@/services/usageService';
 import { toast } from 'sonner';
 
 interface CreateRevisionSheetParams {
@@ -33,9 +34,23 @@ export function useCreateRevisionSheet() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Increment usage counter for fiches
+      if (user?.id) {
+        try {
+          await incrementUsage(user.id, 'fiche', 1);
+          console.log('✅ Fiche de révision comptabilisée dans l\'usage mensuel');
+        } catch (error) {
+          console.error('❌ Erreur lors de l\'incrémentation du compteur de fiches:', error);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['revisionSheets'] });
       queryClient.invalidateQueries({ queryKey: ['coursesWithoutSheet'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-usage'] });
       toast.success('Fiche de révision créée avec succès !');
     },
     onError: (error: any) => {

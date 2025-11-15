@@ -84,7 +84,7 @@ export function StandaloneDocumentCard({
 
           <div className="flex items-start gap-2 mb-2">
             <FileText className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
-            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1 min-w-0">
               {document.name}
             </h3>
           </div>

@@ -222,8 +222,60 @@ export default function StudentDocuments() {
     }
   };
 
-  const handleCourseFiche = (document: UserDocument) => {
-    toast.info('La fonctionnalité Fiche de révision sera bientôt disponible');
+  const handleCourseFiche = async (document: UserDocument) => {
+    try {
+      // Fetch course data to check if a revision sheet exists
+      const { data: courseData, error } = await supabase
+        .from('courses')
+        .select('fiche_revision_url, fiche_revision_status, title')
+        .eq('id', document.course_id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching course:', error);
+        toast.error('Erreur lors de la récupération du cours');
+        return;
+      }
+
+      // Check if a revision sheet exists and is completed
+      if (courseData.fiche_revision_status === 'completed' && courseData.fiche_revision_url) {
+        // Download the revision sheet
+        const fileName = `fiche_${courseData.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+
+        // Check if URL is a full URL or a storage path
+        if (courseData.fiche_revision_url.startsWith('http')) {
+          // Direct download for full URLs
+          try {
+            const response = await fetch(courseData.fiche_revision_url);
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = window.document.createElement('a');
+            link.href = downloadUrl;
+            link.download = fileName;
+            window.document.body.appendChild(link);
+            link.click();
+            window.URL.revokeObjectURL(downloadUrl);
+            window.document.body.removeChild(link);
+            toast.success('Fiche de révision téléchargée avec succès');
+          } catch (error) {
+            console.error('Download error:', error);
+            toast.error('Erreur lors du téléchargement de la fiche');
+          }
+        } else {
+          // Download from storage bucket
+          downloadFile(courseData.fiche_revision_url, fileName, 'pdf_revision');
+        }
+      } else if (courseData.fiche_revision_status === 'generating') {
+        toast.info('La fiche de révision est en cours de génération. Veuillez patienter...');
+      } else if (courseData.fiche_revision_status === 'failed') {
+        toast.error('La génération de la fiche de révision a échoué. Veuillez réessayer.');
+      } else {
+        toast.info('Aucune fiche de révision trouvée pour ce document.');
+      }
+    } catch (error) {
+      console.error('Error in handleCourseFiche:', error);
+      toast.error('Une erreur est survenue');
+    }
   };
 
   const handleCourseProfIA = (document: UserDocument) => {

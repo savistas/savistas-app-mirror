@@ -85,10 +85,10 @@ export function CourseDocumentCard({
         <div className="flex items-start gap-2 mb-2">
           <FileText className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 line-clamp-1">
+            <h3 className="font-semibold text-gray-900 truncate">
               {document.course_title}
             </h3>
-            <p className="text-xs text-gray-600 line-clamp-1">
+            <p className="text-xs text-gray-600 truncate">
               {document.file_name}
             </p>
           </div>

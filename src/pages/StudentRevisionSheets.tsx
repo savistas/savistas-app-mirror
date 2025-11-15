@@ -55,7 +55,7 @@ export default function StudentRevisionSheets() {
       setPreviewFile({ url, name: fileName });
     } else {
       // If it's a storage path, get signed URL
-      const signedUrl = await getSignedUrl(url, 'revision-sheets');
+      const signedUrl = await getSignedUrl(url, 'pdf_revision');
       if (signedUrl) {
         setPreviewFile({ url: signedUrl, name: fileName });
       } else {
@@ -85,7 +85,7 @@ export default function StudentRevisionSheets() {
         toast.error('Erreur lors du téléchargement');
       }
     } else {
-      downloadFile(url, fileName, 'revision-sheets');
+      downloadFile(url, fileName, 'pdf_revision');
     }
   };
 

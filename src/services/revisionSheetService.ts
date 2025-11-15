@@ -150,10 +150,16 @@ export async function deleteRevisionSheet(courseId: string): Promise<void> {
 /**
  * Get download URL for a revision sheet
  */
-export async function getRevisionSheetDownloadUrl(filePath: string): Promise<string> {
+export async function getRevisionSheetDownloadUrl(filePathOrUrl: string): Promise<string> {
+  // If it's already a full URL, return it directly
+  if (filePathOrUrl.startsWith('http')) {
+    return filePathOrUrl;
+  }
+
+  // Otherwise, create a signed URL from the path
   const { data, error } = await supabase.storage
-    .from('revision-sheets')
-    .createSignedUrl(filePath, 3600); // 1 hour expiry
+    .from('pdf_revision')
+    .createSignedUrl(filePathOrUrl, 3600); // 1 hour expiry
 
   if (error) {
     console.error('Error creating signed URL:', error);
@@ -210,15 +216,15 @@ export async function createCourseWithRevisionSheet({
   }
 
   try {
-    // 1. Upload file to storage (bucket: documents)
+    // 1. Upload file to storage (bucket: documents_for_revision)
     const fileExt = file.name.split('.').pop();
     const fileName = `${crypto.randomUUID()}_${file.name}`;
     const filePath = `${user.id}/fiche-revision/${fileName}`;
 
-    console.log('📤 [createCourseWithRevisionSheet] Uploading file to storage (bucket: documents):', filePath);
+    console.log('📤 [createCourseWithRevisionSheet] Uploading file to storage (bucket: documents_for_revision):', filePath);
 
     const { error: uploadError } = await supabase.storage
-      .from('documents')
+      .from('documents_for_revision')
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
@@ -229,9 +235,20 @@ export async function createCourseWithRevisionSheet({
       throw uploadError;
     }
 
-    console.log('✅ [createCourseWithRevisionSheet] File uploaded successfully to bucket "documents"');
+    console.log('✅ [createCourseWithRevisionSheet] File uploaded successfully to bucket "documents_for_revision"');
 
-    // 2. Call webhook for revision sheet generation
+    // 2. Get public URL for the uploaded file
+    const { data: urlData } = supabase.storage
+      .from('documents_for_revision')
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      throw new Error('Failed to get public URL for uploaded file');
+    }
+
+    console.log('🔗 [createCourseWithRevisionSheet] File public URL:', urlData.publicUrl);
+
+    // 3. Call webhook for revision sheet generation
     console.log('🤖 [createCourseWithRevisionSheet] Calling fiche-revision-upload webhook...');
 
     const webhookUrl = 'https://n8n.srv932562.hstgr.cloud/webhook/fiche-revision-upload';
@@ -243,7 +260,7 @@ export async function createCourseWithRevisionSheet({
       },
       body: JSON.stringify({
         user_id: user.id,
-        user_file_upload: filePath, // Le path du fichier uploadé par l'utilisateur
+        user_file_upload: urlData.publicUrl, // L'URL publique du fichier uploadé
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
